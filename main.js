@@ -103,19 +103,21 @@ const initModels = async () => {
 				treeGrassMaterial = m.clone();
 			}
 		};
-		
+
 		tree1.scene.traverse((c) => {
 			if (c.isMesh) {
 				if (Array.isArray(c.material)) c.material.forEach(checkMat);
 				else checkMat(c.material);
 			}
 		});
-		
+
 		// Fallback: tomar el primer material que aparezca en el árbol si todo falla
 		if (!treeGrassMaterial) {
 			tree1.scene.traverse((c) => {
 				if (c.isMesh && !treeGrassMaterial) {
-					treeGrassMaterial = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
+					treeGrassMaterial = Array.isArray(c.material)
+						? c.material[0].clone()
+						: c.material.clone();
 				}
 			});
 		}
@@ -191,8 +193,10 @@ const initModels = async () => {
 					// Asignar literalmente TODO el material del árbol (textura/color/shading)
 					originalMat = treeGrassMaterial.clone();
 				} else {
-					originalMat = child.material.clone() || new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-					
+					originalMat =
+						child.material.clone() ||
+						new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+
 					// Forzar el color base limpio y mate a la arquitectura
 					if (originalMat.color) {
 						originalMat.color.setHex(0xeeeeee);
@@ -200,7 +204,7 @@ const initModels = async () => {
 					originalMat.roughness = 1.0; // Totalmente mate
 					originalMat.metalness = 0.0; // Cero brillo metálico
 				}
-				
+
 				originalMat.transparent = true;
 
 				child.userData.originalMaterial = originalMat;
@@ -229,12 +233,36 @@ const initModels = async () => {
 		// Generar bosque usando InstancedMesh sobre Terrenos
 		model.updateMatrixWorld(true);
 
+		// Zonas prohibidas para los árboles
+		const forbiddenBoxes = [];
+		model.traverse((child) => {
+			const name = child.name ? child.name.toLowerCase() : "";
+			if (!child.userData.boxAdded && (
+				name.includes("gimnasio") || name.includes("gym") ||
+				name.includes("alberca") || name.includes("pool") ||
+				name.includes("estructura") || name.includes("administracion") ||
+				name.includes("cancha") || name.includes("techo")
+			)) {
+				const box = new THREE.Box3().setFromObject(child);
+				// Extender la caja hacia arriba/abajo al infinito para medir escudo en 2D (footprint XZ)
+				box.min.y = -Infinity;
+				box.max.y = Infinity;
+				// Dar un margen de seguridad de 3.5 unidades para que las ramas no invadan
+				box.min.x -= 3.5; box.max.x += 3.5;
+				box.min.z -= 3.5; box.max.z += 3.5;
+				forbiddenBoxes.push(box);
+				
+				// Evitar duplicar las cajas para sub-hijos
+				child.traverse(c => c.userData.boxAdded = true);
+			}
+		});
+
 		const terrainMeshes = [];
 		model.traverse((child) => {
 			if (child.isMesh) {
 				let p = child;
 				let isTerreno = false;
-				
+
 				while (p) {
 					const name = p.name ? p.name.toLowerCase() : "";
 					// Evitar atrapar cosas que digan "pasto" de las canchas, enfocarse SOLO en Terreno
@@ -244,10 +272,10 @@ const initModels = async () => {
 					}
 					p = p.parent;
 				}
-				
+
 				if (isTerreno) {
-                    terrainMeshes.push(child);
-                }
+					terrainMeshes.push(child);
+				}
 			}
 		});
 
@@ -287,17 +315,41 @@ const initModels = async () => {
 
 				for (let i = 0; i < numTreesPerType; i++) {
 					const sIdx = Math.floor(Math.random() * samplers.length);
-					samplers[sIdx].sample(_pos, _normal);
-
-					terrainMeshes[sIdx].localToWorld(_pos);
+					
+					let validPos = false;
+					// Intentar hasta 30 veces encontrar un punto natural vivo que NO invada las cajas prohibidas
+					for (let attempt = 0; attempt < 30; attempt++) {
+						samplers[sIdx].sample(_pos, _normal);
+						// Computar punto a nivel de mundo real
+						terrainMeshes[sIdx].localToWorld(_pos);
+						
+						let inForbidden = false;
+						for (let b of forbiddenBoxes) {
+							if (b.containsPoint(_pos)) {
+								inForbidden = true;
+								break;
+							}
+						}
+						
+						if (!inForbidden) {
+							validPos = true;
+							break; // Encontramos piso vacío y seguro
+						}
+					}
+					
 					model.worldToLocal(_pos);
-
 					dummy.position.copy(_pos);
 					dummy.rotation.y = Math.random() * Math.PI * 2;
 
-					// Escalar a un tamaño razonable! (antes estaba en 8.0, lo que cubría toda la pantalla)
-					const s = (Math.random() * 0.5 + 0.8) * 1.5;
-					dummy.scale.set(s, s, s);
+					if (!validPos) {
+						// Si estaba demasiado atascado y no cabía ni tras 30 intentos, abortamos la semilla (lo hacemos invisible)
+						dummy.scale.set(0, 0, 0);
+					} else {
+						// Escalar a un tamaño razonable
+						const s = (Math.random() * 0.5 + 0.8) * 1.5;
+						dummy.scale.set(s, s, s);
+					}
+					
 					dummy.updateMatrix();
 
 					instancedMeshes.forEach((im) => {
