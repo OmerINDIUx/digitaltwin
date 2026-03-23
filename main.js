@@ -6,6 +6,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
 let model;
@@ -26,8 +27,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf1f5f9); // bg-light
-scene.fog = new THREE.FogExp2(0xf1f5f9, 0.0008);
+scene.background = new THREE.Color(0x1a1a1a); // bg-light-gray
+// scene.fog = new THREE.FogExp2(0xf1f5f9, 0.0008); // Eliminamos la neblina
 
 const camera = new THREE.PerspectiveCamera(
 	45,
@@ -42,14 +43,14 @@ controls.dampingFactor = 0.05;
 controls.maxDistance = 2000;
 
 // Iluminación
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
 dirLight.position.set(100, 200, 50);
 scene.add(dirLight);
 
-const fillLight = new THREE.DirectionalLight(0xcceeff, 1.0);
+const fillLight = new THREE.DirectionalLight(0xaabbff, 0.3);
 fillLight.position.set(-100, 50, -50);
 scene.add(fillLight);
 
@@ -79,10 +80,47 @@ dracoLoader.setDecoderPath(
 );
 loader.setDRACOLoader(dracoLoader);
 
-loader.load(
-	"/japonutopia_capasrenovadas.glb",
-	(gltf) => {
-		model = gltf.scene;
+const loadGLTF = (url) =>
+	new Promise((resolve, reject) =>
+		loader.load(url, resolve, undefined, reject),
+	);
+
+const initModels = async () => {
+	try {
+		const [mainGltf, tree1, tree2, tree3] = await Promise.all([
+			loadGLTF("/japonutopia_capasrenovadas.glb"),
+			loadGLTF("/tree_detailed_dark.glb"),
+			loadGLTF("/tree_fat_darkh.glb"),
+			loadGLTF("/tree_pineGroundA.glb"),
+		]);
+
+		// Extraer mágicamente el material (hojas verdes) de los árboles
+		let treeGrassMaterial = null;
+		const checkMat = (m) => {
+			if (treeGrassMaterial) return;
+			// Si tiene más verde que rojo (con margen), asumimos que es el pasto/hojas
+			if (m.color && m.color.g > m.color.r * 1.1) {
+				treeGrassMaterial = m.clone();
+			}
+		};
+		
+		tree1.scene.traverse((c) => {
+			if (c.isMesh) {
+				if (Array.isArray(c.material)) c.material.forEach(checkMat);
+				else checkMat(c.material);
+			}
+		});
+		
+		// Fallback: tomar el primer material que aparezca en el árbol si todo falla
+		if (!treeGrassMaterial) {
+			tree1.scene.traverse((c) => {
+				if (c.isMesh && !treeGrassMaterial) {
+					treeGrassMaterial = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
+				}
+			});
+		}
+
+		model = mainGltf.scene;
 
 		// Centrar modelo
 		const box = new THREE.Box3().setFromObject(model);
@@ -108,10 +146,16 @@ loader.load(
 			const name = child.name.toLowerCase();
 
 			// Categorías primarias (fuerzan su rol)
-			if (name.includes("gym") || name.includes("gimnasio")) child.userData.role = "gym";
+			if (name.includes("gym") || name.includes("gimnasio"))
+				child.userData.role = "gym";
 			else if (name.includes("alberca") || name.includes("pool"))
 				child.userData.role = "pool";
-			else if (name.includes("techo") || name.includes("roof") || name.includes("techumbre") || name.includes("lamina"))
+			else if (
+				name.includes("techo") ||
+				name.includes("roof") ||
+				name.includes("techumbre") ||
+				name.includes("lamina")
+			)
 				child.userData.role = "roof";
 			else if (name.includes("cancha")) child.userData.role = "canchas";
 			// Categorías secundarias (sólo se aplican si no han heredado ya un rol principal)
@@ -131,12 +175,34 @@ loader.load(
 			}
 
 			if (child.isMesh) {
-				// Respaldar original tal como viene en el modelo
-				const originalMat =
-					child.material.clone() ||
-					new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+				// Localizar si esta pieza es parte del "Terreno"
+				let pt = child;
+				let isGrass = false;
+				while (pt) {
+					if (pt.name && pt.name.toLowerCase().includes("terreno")) {
+						isGrass = true;
+						break;
+					}
+					pt = pt.parent;
+				}
+
+				let originalMat;
+				if (isGrass && treeGrassMaterial) {
+					// Asignar literalmente TODO el material del árbol (textura/color/shading)
+					originalMat = treeGrassMaterial.clone();
+				} else {
+					originalMat = child.material.clone() || new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+					
+					// Forzar el color base limpio y mate a la arquitectura
+					if (originalMat.color) {
+						originalMat.color.setHex(0xeeeeee);
+					}
+					originalMat.roughness = 1.0; // Totalmente mate
+					originalMat.metalness = 0.0; // Cero brillo metálico
+				}
 				
 				originalMat.transparent = true;
+
 				child.userData.originalMaterial = originalMat;
 
 				// Crear el material de "trabajo"
@@ -160,6 +226,91 @@ loader.load(
 
 		scene.add(model);
 
+		// Generar bosque usando InstancedMesh sobre Terrenos
+		model.updateMatrixWorld(true);
+
+		const terrainMeshes = [];
+		model.traverse((child) => {
+			if (child.isMesh) {
+				let p = child;
+				let isTerreno = false;
+				
+				while (p) {
+					const name = p.name ? p.name.toLowerCase() : "";
+					// Evitar atrapar cosas que digan "pasto" de las canchas, enfocarse SOLO en Terreno
+					if (name.includes("terreno")) {
+						isTerreno = true;
+						break;
+					}
+					p = p.parent;
+				}
+				
+				if (isTerreno) {
+                    terrainMeshes.push(child);
+                }
+			}
+		});
+
+		if (terrainMeshes.length > 0) {
+			const samplers = terrainMeshes.map((tm) =>
+				new MeshSurfaceSampler(tm).build(),
+			);
+			const trees = [tree1, tree2, tree3];
+			const numTreesPerType = 150; // Total 450 árboles
+
+			trees.forEach((treeGltf) => {
+				const treeMeshes = [];
+				treeGltf.scene.traverse((c) => {
+					if (c.isMesh) treeMeshes.push(c);
+				});
+
+				const instancedMeshes = treeMeshes.map((tm) => {
+					const mat = tm.material.clone();
+					mat.transparent = true;
+					const im = new THREE.InstancedMesh(tm.geometry, mat, numTreesPerType);
+
+					im.userData.role = "structure";
+					im.userData.originalMaterial = mat;
+					im.userData.highlightColor = new THREE.Color(0x10b981);
+
+					im.material = mat.clone();
+					im.castShadow = true;
+					im.receiveShadow = true;
+
+					model.add(im);
+					return im;
+				});
+
+				const dummy = new THREE.Object3D();
+				const _pos = new THREE.Vector3();
+				const _normal = new THREE.Vector3();
+
+				for (let i = 0; i < numTreesPerType; i++) {
+					const sIdx = Math.floor(Math.random() * samplers.length);
+					samplers[sIdx].sample(_pos, _normal);
+
+					terrainMeshes[sIdx].localToWorld(_pos);
+					model.worldToLocal(_pos);
+
+					dummy.position.copy(_pos);
+					dummy.rotation.y = Math.random() * Math.PI * 2;
+
+					// Escalar a un tamaño razonable! (antes estaba en 8.0, lo que cubría toda la pantalla)
+					const s = (Math.random() * 0.5 + 0.8) * 1.5;
+					dummy.scale.set(s, s, s);
+					dummy.updateMatrix();
+
+					instancedMeshes.forEach((im) => {
+						im.setMatrixAt(i, dummy.matrix);
+					});
+				}
+				instancedMeshes.forEach((im) => {
+					im.instanceMatrix.needsUpdate = true;
+					im.computeBoundingSphere();
+				});
+			});
+		}
+
 		// Configurar cámara
 		camera.position.set(targetSize * 0.8, targetSize * 0.6, targetSize * 0.8);
 		camera.lookAt(0, 0, 0);
@@ -167,14 +318,14 @@ loader.load(
 		// Arrancar controles y ocultar loader
 		initLayerControls();
 		document.getElementById("loader-overlay").classList.add("hidden");
-	},
-	undefined,
-	(error) => {
+	} catch (error) {
 		console.error("❌ Loader Error:", error);
-		document.querySelector(".loader-text").innerText =
-			"Error cargando el modelo";
-	},
-);
+		const loaderText = document.querySelector(".loader-text");
+		if (loaderText) loaderText.innerText = "Error cargando los modelos";
+	}
+};
+
+initModels();
 
 // Lógica de Capas (Filtrado)
 function initLayerControls() {
@@ -207,7 +358,7 @@ function initLayerControls() {
 				// Capa activa -> Brillo y color
 				mat.color.copy(child.userData.highlightColor);
 				mat.emissive.copy(child.userData.highlightColor);
-				mat.emissiveIntensity = 1.0; 
+				mat.emissiveIntensity = 1.0;
 				mat.opacity = 1.0;
 				mat.wireframe = false;
 				mat.transparent = true;
