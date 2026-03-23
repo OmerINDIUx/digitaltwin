@@ -286,7 +286,7 @@ const initModels = async () => {
 			const trees = [tree1, tree2, tree3];
 			const numTreesPerType = 300; // Total 900 árboles
 
-			trees.forEach((treeGltf) => {
+			trees.forEach((treeGltf, treeIdx) => {
 				const treeMeshes = [];
 				treeGltf.scene.traverse((c) => {
 					if (c.isMesh) treeMeshes.push(c);
@@ -345,8 +345,14 @@ const initModels = async () => {
 						// Si estaba demasiado atascado y no cabía ni tras 30 intentos, abortamos la semilla (lo hacemos invisible)
 						dummy.scale.set(0, 0, 0);
 					} else {
-						// Escalar a un tamaño 60% más grande (de 3.75 a 6.0)
-						const s = (Math.random() * 0.5 + 0.8) * 6.0;
+						// Escalar a un tamaño base de 6.0
+						let s = (Math.random() * 0.5 + 0.8) * 6.0;
+						
+						// Aumentar los pinos (tree_pineGroundA = índice 2) un 70% más
+						if (treeIdx === 2) {
+							s *= 1.70;
+						}
+						
 						dummy.scale.set(s, s, s);
 					}
 					
