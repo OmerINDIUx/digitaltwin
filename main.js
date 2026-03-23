@@ -26,8 +26,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x020617); // bg-dark
-scene.fog = new THREE.FogExp2(0x020617, 0.0008);
+scene.background = new THREE.Color(0xf1f5f9); // bg-light
+scene.fog = new THREE.FogExp2(0xf1f5f9, 0.0008);
 
 const camera = new THREE.PerspectiveCamera(
 	45,
@@ -42,21 +42,18 @@ controls.dampingFactor = 0.05;
 controls.maxDistance = 2000;
 
 // Iluminación
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+const dirLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
 dirLight.position.set(100, 200, 50);
 scene.add(dirLight);
 
-const fillLight = new THREE.DirectionalLight(0xaabbff, 0.5);
+const fillLight = new THREE.DirectionalLight(0xcceeff, 1.0);
 fillLight.position.set(-100, 50, -50);
 scene.add(fillLight);
 
-// Cuadrícula y helpers (Opcional, para estilo tech)
-const gridHelper = new THREE.GridHelper(2000, 100, 0x0ea5e9, 0x1e293b);
-gridHelper.position.y = -5;
-scene.add(gridHelper);
+// Helpers eliminados para un look más limpio (daylight)
 
 // Postprocesamiento (Bloom / Resplandor Neón)
 const renderScene = new RenderPass(scene, camera);
@@ -66,8 +63,8 @@ const bloomPass = new UnrealBloomPass(
 	0.4,
 	0.85,
 );
-bloomPass.threshold = 0.2;
-bloomPass.strength = 0.2;
+bloomPass.threshold = 0.5;
+bloomPass.strength = 0.1; // Menos intensidad para encajar con el estilo claro
 bloomPass.radius = 0.5;
 
 const composer = new EffectComposer(renderer);
@@ -134,15 +131,10 @@ loader.load(
 			}
 
 			if (child.isMesh) {
-				// Respaldar original
+				// Respaldar original tal como viene en el modelo
 				const originalMat =
 					child.material.clone() ||
-					new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
-				
-				// Aplicar el color claro al material principal
-				if (originalMat.color) {
-					originalMat.color.setHex(0xe2e8f0); // Color claro (tipo Slate 200)
-				}
+					new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
 				
 				originalMat.transparent = true;
 				child.userData.originalMaterial = originalMat;
@@ -212,19 +204,19 @@ function initLayerControls() {
 
 			// Modo Específico (Filtro)
 			if (role === mode) {
-				// Capa activa -> Brillo y color neón
+				// Capa activa -> Brillo y color
 				mat.color.copy(child.userData.highlightColor);
 				mat.emissive.copy(child.userData.highlightColor);
-				mat.emissiveIntensity = 2.0; // Bloom lo hará brillar
+				mat.emissiveIntensity = 1.0; 
 				mat.opacity = 1.0;
 				mat.wireframe = false;
 				mat.transparent = true;
 			} else {
-				// Capas inactivas -> Oscuras y transparentes tipo holograma plano
-				mat.color.setHex(0x1e293b); // Slate oscuro
+				// Capas inactivas -> Transparentes pero manteniendo su color original
+				mat.color.copy(originalVal.color);
 				mat.emissive.setHex(0x000000);
-				mat.opacity = 0.15;
-				mat.wireframe = true;
+				mat.opacity = 0.2;
+				mat.wireframe = false;
 				mat.transparent = true;
 			}
 		});
