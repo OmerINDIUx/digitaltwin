@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GAMI - Digital Twin</title>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div id="ui-root">
+        <!-- 1. Left Nav -->
+        <nav class="left-nav">
+            <div class="nav-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <div class="nav-icon active" title="Monitor 3D">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            </div>
+            <div class="nav-icon" title="Analytics">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            </div>
+            <div class="nav-icon" title="Settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </div>
+        </nav>
+
+        <!-- 2. Main Content Area Overlay -->
+        <main class="main-overlay">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1 class="page-title">Instalaciones Deportivas</h1>
+                    <span class="subtitle">Modelo BIM Interactivo</span>
+                </div>
+                <div class="header-right">
+                    <div class="system-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Sistema En Línea</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="panels-container">
+                <!-- Data Panel -->
+                <aside class="panel glass-panel">
+                    <h2 class="panel-title">Monitoreo</h2>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Capacidad Restante</span>
+                            <span class="metric-value" style="color: var(--success-color);">85%</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Temperatura Avg</span>
+                            <span class="metric-value">24°C</span>
+                        </div>
+                    </div>
+
+                    <h2 class="panel-title" style="margin-top: 2rem;">Capas del Proyecto</h2>
+                    <p class="panel-desc">Haz clic en las capas para aislar áreas específicas de la estructura.</p>
+
+                    <div class="layer-controls">
+                        <button class="layer-btn active" data-layer="all">
+                            <div class="layer-info">
+                                <span class="layer-name">Modelo Completo</span>
+                                <span class="layer-desc">Vista general</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+
+                        <button class="layer-btn" data-layer="gym">
+                            <div class="layer-info">
+                                <span class="layer-name">Gimnasio</span>
+                                <span class="layer-desc">Zonas de ejercicio</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+
+                        <button class="layer-btn" data-layer="pool">
+                            <div class="layer-info">
+                                <span class="layer-name">Alberca</span>
+                                <span class="layer-desc">Instalaciones acuáticas</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+
+                        <button class="layer-btn" data-layer="roof">
+                            <div class="layer-info">
+                                <span class="layer-name">Techumbres</span>
+                                <span class="layer-desc">Cubiertas superiores</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+                        
+                        <button class="layer-btn" data-layer="canchas">
+                            <div class="layer-info">
+                                <span class="layer-name">Canchas</span>
+                                <span class="layer-desc">Zonas deportivas al aire libre</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+
+                        <button class="layer-btn" data-layer="structure">
+                            <div class="layer-info">
+                                <span class="layer-name">Estructura Base</span>
+                                <span class="layer-desc">Muros y losas principales</span>
+                            </div>
+                            <div class="layer-status"></div>
+                        </button>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <!-- UI Loading Overlay -->
+    <div id="loader-overlay" class="loader-overlay">
+        <div class="spinner"></div>
+        <div class="loader-text">Inicializando Motor 3D...</div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+</body>
+</html>
