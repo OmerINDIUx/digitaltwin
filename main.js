@@ -27,6 +27,30 @@ const overviewCameraPos = new THREE.Vector3(525, -67.5, 525);
 const overviewCameraTarget = new THREE.Vector3(0, -30, 0); 
 let isCameraMoving = false;
 
+// --- SISTEMA DE POBLACIÓN (Simulación de Personas) ---
+const peopleInstances = {
+  gym: null,
+  pool: null,
+  canchas: null
+};
+const peopleGeometry = new THREE.CapsuleGeometry(2.5, 6.0, 4, 8); // Gigante Digital para visibilidad
+const peopleMaterial = new THREE.MeshStandardMaterial({
+  color: 0x22d3ee, 
+  emissive: 0x22d3ee,
+  emissiveIntensity: 4.0, // Brillo neón intenso
+  transparent: true,
+  opacity: 1.0, 
+  metalness: 0,
+  roughness: 0.5
+});
+
+// Estados para movimiento de personas
+const peopleStates = {
+    gym: [],
+    pool: [],
+    canchas: []
+};
+
 // Detección de Arrastre para evitar Auto-Reset al Navegar
 let clickStartTime = 0;
 let clickStartX = 0;
@@ -121,11 +145,13 @@ const camera = new THREE.PerspectiveCamera(
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.maxDistance = 3500;
-controls.minDistance = 100;
+controls.dampingFactor = 0.1; // Más ágil (anterior 0.05)
+controls.rotateSpeed = 1.2;    // Rotación más rápida
+controls.zoomSpeed = 1.5;      // Zoom más potente
+controls.maxDistance = 5000;   // Más espacio para alejarse
+controls.minDistance = 30;     // Poder entrar hasta el detalle
 // Restringimos la cámara para que nunca baje del horizonte y se vea el abismo
-controls.maxPolarAngle = Math.PI / 2.1;
+controls.maxPolarAngle = Math.PI / 2.05;
 
 // Iluminación
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -492,7 +518,14 @@ const initModels = async () => {
       else if (fullName.includes("gym") || fullName.includes("gimnasio")) {
         child.userData.role = "gym";
         child.userData.highlightColor = new THREE.Color(0x3b82f6);
-      } else if (fullName.includes("alberca") || fullName.includes("pool") || fullName.includes("acuatico")) {
+      } else if (
+          fullName.includes("alberca") || 
+          fullName.includes("pool") || 
+          fullName.includes("acuatico") ||
+          fullName.includes("agua") || 
+          fullName.includes("water") || 
+          fullName.includes("piscina")
+      ) {
         child.userData.role = "pool";
         child.userData.highlightColor = new THREE.Color(0x3b82f6);
       } else if (
@@ -501,10 +534,14 @@ const initModels = async () => {
         fullName.includes("padel") || 
         fullName.includes("basket") || 
         fullName.includes("basquet") || 
-        fullName.includes("pista")
+        fullName.includes("pista") ||
+        fullName.includes("futbol") ||
+        fullName.includes("soccer") ||
+        fullName.includes("voleibol") ||
+        fullName.includes("voley")
       ) {
         child.userData.role = "canchas";
-        child.userData.highlightColor = new THREE.Color(0xfbbf24);
+        child.userData.highlightColor = new THREE.Color(0xfbbf24); // Oro Pro
       } 
       // Prioridad 3: Estructura general
       else if (
@@ -709,9 +746,10 @@ const initModels = async () => {
     controls.target.set(0, targetSize * -0.02, 0);
     controls.update();
 
-    // Arrancar controles y ocultar loader
+    // Arrancar controles, ocultar loader y poblar gemelo
     initLayoutControls();
     initWeatherControls();
+    initPopulation();
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
     console.error("❌ Loader Error:", error);
@@ -803,24 +841,38 @@ function focusCameraOnRole(role) {
 
     const maxDim = Math.max(size.x, size.y, size.z);
     
-    // Posición ideal de la cámara: ángulo de 45 grados desde arriba
-    cameraTargetPos.copy(center).add(new THREE.Vector3(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5));
+    // Configuración de Cámara: Retroceder más en canchas para captar todo el complejo
+    const cameraOffset = role === "canchas" ? 1.8 : 1.5;
+    cameraTargetPos.copy(center).add(new THREE.Vector3(maxDim * cameraOffset, maxDim * (cameraOffset * 0.8), maxDim * cameraOffset));
     controlsTargetPos.copy(center);
     
-    // Ajustar Anillo de Selección: Usar plano X-Z para un tamaño más armónico
+    // --- MEJORA VISUAL DE SELECCIÓN (EL ANILLO SE ADAPTA AL ESPACIO) ---
     if (selectionRing) {
       selectionRing.position.copy(center);
-      selectionRing.position.y = 1.0; 
+      selectionRing.position.y = 0.5; // Ras del suelo
+
+      if (role === "canchas") {
+        // Cambiar a MARCO RECTANGULAR que ocupa todo el espacio de las canchas
+        if (selectionRing.geometry.type !== "PlaneGeometry") {
+            selectionRing.geometry.dispose();
+            selectionRing.geometry = new THREE.PlaneGeometry(1, 1);
+        }
+        // Escalar el plano para que coincida con el tamaño real de las canchas (con un pequeño margen del 10%)
+        selectionRing.scale.set(size.x * 1.1, size.z * 1.1, 1);
+        selectionRing.material.color.setHex(0xfbbf24); // Oro Intenso para deportes
+      } else {
+        // Círculo Clásico para edificios individuales (Gym/Pool)
+        if (selectionRing.geometry.type !== "RingGeometry") {
+            selectionRing.geometry.dispose();
+            selectionRing.geometry = new THREE.RingGeometry(25, 28, 64);
+        }
+        const diskScale = (maxDim / 25) * 0.7;
+        selectionRing.scale.set(diskScale, diskScale, 1);
+        selectionRing.material.color.setHex(0x3b82f6); // Azul Corporativo
+      }
       
-      // Para las canchas, el escalado debe ser más generoso pero contenido al área total
-      const planarSize = Math.max(size.x, size.z);
-      selectionRing.userData.baseScale = role === 'canchas' ? planarSize * 0.05 : maxDim * 0.08;
-      
-      selectionRing.scale.set(selectionRing.userData.baseScale, selectionRing.userData.baseScale, 1);
       selectionRing.material.opacity = 0.8;
-      selectionRing.material.color.copy(digitalTwinData[role] ? 
-        (role === 'canchas' ? new THREE.Color(0xfbbf24) : new THREE.Color(0x3b82f6)) 
-        : new THREE.Color(0x3b82f6));
+      selectionRing.material.transparent = true;
     }
 
     // Actualizar Etiqueta Flotante
@@ -1008,6 +1060,44 @@ function initWeatherControls() {
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
+  
+  // Efecto 'Pulso de Vida' y MOVIMIENTO ACENTUADO
+  const pulseEmissive = 2.0 + Math.sin(Date.now() * 0.005) * 1.5;
+  const bobbing = Math.sin(Date.now() * 0.003) * 0.8; // Bobbing balanceo más visible
+  
+  Object.keys(peopleInstances).forEach(role => {
+      const inst = peopleInstances[role];
+      const states = peopleStates[role];
+      if (inst && states.length > 0) {
+          inst.material.emissiveIntensity = pulseEmissive;
+          const dummy = new THREE.Object3D();
+          
+          for (let i = 0; i < states.length; i++) {
+              const p = states[i];
+              // Movimiento más rápido (Caminata Digital)
+              p.pos.x += p.dir.x * p.speed * 2.5;
+              p.pos.z += p.dir.z * p.speed * 2.5;
+              
+              // Rebote en límites (con un pequeño offset interno)
+              if (p.pos.x < p.bounds.min.x || p.pos.x > p.bounds.max.x) p.dir.x *= -1;
+              if (p.pos.z < p.bounds.min.z || p.pos.z > p.bounds.max.z) p.dir.z *= -1;
+              
+              dummy.position.set(p.pos.x, p.pos.y + bobbing, p.pos.z);
+              
+              if (role === 'pool') {
+                  // Orientación de nado: Se inclina para mirar hacia adelante mientras nada
+                  dummy.rotation.set(Math.PI / 2, Math.atan2(p.dir.x, p.dir.z), 0);
+              } else {
+                  dummy.rotation.y = Math.atan2(p.dir.x, p.dir.z);
+              }
+              dummy.scale.set(p.scale, p.scale, p.scale);
+              dummy.updateMatrix();
+              inst.setMatrixAt(i, dummy.matrix);
+          }
+          inst.instanceMatrix.needsUpdate = true;
+      }
+  });
+
   const time = performance.now() * 0.001;
   
   // Suavizado de Cámara Pro
@@ -1292,9 +1382,131 @@ window.addEventListener("click", onMouseClick);
 window.addEventListener("mousemove", onMouseMove);
 
 if (controls) {
-  controls.addEventListener('start', () => {
-    isCameraMoving = false; // Interrumpir auto-zoom si el usuario toma el mando
+  // Solo la interacción HUMANA real interrumpe el movimiento automático
+  // Usamos wheel y mousedown/pointerdown directos porque controls 'change' se disparaba solo
+  window.addEventListener('wheel', () => isCameraMoving = false, { passive: true });
+  window.addEventListener('pointerdown', (e) => {
+      // Si el usuario toca el canvas con intención, liberamos cámara
+      if (e.target.tagName === "CANVAS") isCameraMoving = false;
   });
+}
+function initPopulation() {
+    // Generar población inicial basada en digitalTwinData
+    Object.keys(digitalTwinData).forEach(role => {
+        const countStr = digitalTwinData[role].current;
+        const count = parseInt(countStr) || 0;
+        spawnPeopleInRole(role, count);
+    });
+}
+
+function spawnPeopleInRole(role, count) {
+    if (!model || count <= 0) return;
+
+    // Recolectar superficies de tránsito (Menos techumbres y estructuras elevadas)
+    let roleMeshes = [];
+    model.traverse(c => {
+        if (c.isMesh && c.userData.role === role) {
+            const name = (c.name || "").toLowerCase();
+            const isStructural = name.includes("techo") || name.includes("roof") || name.includes("viga") || 
+                                name.includes("truss") || name.includes("lamina") || name.includes("columna");
+
+            // Si no parece un techo elevado, lo tomamos como posible suelo
+            if (!isStructural) {
+                roleMeshes.push(c);
+            }
+        }
+    });
+
+    // SISTEMA DE EMERGENCIA: Si no encontramos 'suelos' obvios, tomamos cualquier malla del rol
+    if (roleMeshes.length === 0) {
+        model.traverse(c => {
+            if (c.isMesh && c.userData.role === role) roleMeshes.push(c);
+        });
+    }
+
+    // --- CORRECCIÓN ESPECÍFICA PARA ALBERCA: SOLO AGUA ---
+    if (role === 'pool') {
+        const waterNames = ["agua", "water", "piscina", "bowl", "piscine", "fluid", "ocean", "surface"];
+        const waterOnly = roleMeshes.filter(m => {
+            const n = (m.name || "").toLowerCase();
+            return waterNames.some(w => n.includes(w));
+        });
+        // Si encontramos la malla del agua, ignoramos todo lo demás (muros, pasillos)
+        if (waterOnly.length > 0) {
+            roleMeshes = waterOnly;
+        } else {
+            // Si no hay mallas de agua nominativas, intentar por la de mayor superficie plana
+            roleMeshes.sort((a, b) => {
+                const aBox = new THREE.Box3().setFromObject(a);
+                const bBox = new THREE.Box3().setFromObject(b);
+                const aArea = (aBox.max.x - aBox.min.x) * (aBox.max.z - aBox.min.z);
+                const bArea = (bBox.max.x - bBox.min.x) * (bBox.max.z - bBox.min.z);
+                return bArea - aArea;
+            });
+            roleMeshes = [roleMeshes[0]]; // Tomamos la plataforma más grande del área
+        }
+    }
+
+    if (roleMeshes.length === 0) return;
+
+    // Crear/Limpiar InstancedMesh
+    if (peopleInstances[role]) {
+        scene.remove(peopleInstances[role]);
+    }
+
+    const instMesh = new THREE.InstancedMesh(peopleGeometry, peopleMaterial.clone(), count);
+    instMesh.userData.role = role;
+    
+    const color = role === 'canchas' ? new THREE.Color(0xfbbf24) : new THREE.Color(0x22d3ee);
+    instMesh.material.color.copy(color);
+    instMesh.material.emissive.copy(color);
+
+    const dummy = new THREE.Object3D();
+    peopleStates[role] = [];
+
+    for (let i = 0; i < count; i++) {
+        // Seleccionar una pieza de suelo al azar de ese rol (Ejs: Cancha 1, Cancha 2, Piso Gym)
+        const targetMesh = roleMeshes[Math.floor(Math.random() * roleMeshes.length)];
+        const meshBox = new THREE.Box3().setFromObject(targetMesh);
+        const size = meshBox.getSize(new THREE.Vector3());
+        const center = meshBox.getCenter(new THREE.Vector3());
+
+        // Generar posición con margen de seguridad del 20% para NO tocar paredes
+        const rx = (Math.random() - 0.5) * (size.x * 0.8);
+        const rz = (Math.random() - 0.5) * (size.z * 0.8);
+        
+        // Altura corregida: Sumergidos para pool (nado) vs sobre el piso para otros
+        const yOffset = role === "pool" ? 0.3 : 4.0;
+        const pos = new THREE.Vector3(center.x + rx, meshBox.min.y + yOffset, center.z + rz);
+        const dir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        const speed = 0.05 + Math.random() * 0.08;
+        const scale = 1.0 + Math.random() * 0.5;
+
+        peopleStates[role].push({ 
+            pos, 
+            dir, 
+            speed, 
+            scale, 
+            bounds: { 
+                min: { x: center.x - (size.x * 0.38), z: center.z - (size.z * 0.38) },
+                max: { x: center.x + (size.x * 0.38), z: center.z + (size.z * 0.38) }
+            } 
+        });
+        
+        dummy.position.copy(pos);
+        if (role === 'pool') {
+            dummy.rotation.set(Math.PI / 2, Math.atan2(dir.x, dir.z), 0);
+        } else {
+            dummy.rotation.y = Math.atan2(dir.x, dir.z);
+        }
+        dummy.scale.set(scale, scale, scale);
+        dummy.updateMatrix();
+        instMesh.setMatrixAt(i, dummy.matrix);
+    }
+
+    instMesh.instanceMatrix.needsUpdate = true;
+    scene.add(instMesh);
+    peopleInstances[role] = instMesh;
 }
 
 // Gestión del Cierre de Tarjeta (Botón X)
