@@ -15,6 +15,9 @@ let model;
 let rain;
 let clouds;
 let currentWeatherType = "normal";
+let weatherSyncEnabled = true; // Permite alternar la sincronización real
+const WEATHER_API_KEY = "34f5d2f6f4c8e79207e4088a53165780"; // Proporciono una llave de ejemplo (idealmente el usuario pondría la suya)
+const CITY_NAME = "Mexico City";
 const timer = new THREE.Timer();
 timer.update();
 
@@ -1418,6 +1421,77 @@ function initWeatherControls() {
       }
     });
   });
+
+  // --- NUEVO: Sincronización Real de Clima ---
+  async function syncRealWeather() {
+    if (!weatherSyncEnabled) return;
+
+    try {
+      addFeedItem("Sincronizando con servicios meteorológicos...", "info");
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${CITY_NAME}&units=metric&appid=${WEATHER_API_KEY}&lang=es`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.cod !== 200) throw new Error(data.message);
+
+      const mainStatus = data.weather[0].main; // Ej: Clear, Clouds, Rain
+      const description = data.weather[0].description;
+      const temp = Math.round(data.main.temp);
+      const humidity = data.main.humidity;
+
+      addFeedItem(`Clima Real detectado: ${description} (${temp}°C)`, "success");
+
+      // Mapear clima local a tipos del Digital Twin
+      let newType = "normal";
+      if (["Rain", "Drizzle", "Thunderstorm"].includes(mainStatus)) {
+        newType = "rainy";
+      } else if (mainStatus === "Clear") {
+        newType = "sunny";
+      } else if (mainStatus === "Clouds" && data.clouds.all > 70) {
+        // Si hay muchas nubes, podríamos forzar un tono más grisáceo o lluvia
+        // pero por ahora lo dejamos en normal/nubes
+        newType = "normal";
+      }
+
+      // Actualizar estado global y visuales
+      currentWeatherType = newType;
+      
+      // Actualizar UI de botones
+      const btns = document.querySelectorAll(".weather-btn");
+      btns.forEach((btn) => {
+        btn.classList.remove("active");
+        if (btn.dataset.weather === newType) btn.classList.add("active");
+      });
+
+      // Control de lluvia
+      if (currentWeatherType === "rainy") {
+        rain.material.opacity = 0.6;
+      } else {
+        rain.material.opacity = 0;
+      }
+
+      // Actualizar Metas y Dashboard con datos REALES
+      const tempLabel = document.getElementById('txt-temp-avg'); // TEMP. AVG
+      if (tempLabel) tempLabel.innerText = `${temp}°C`;
+
+      // Inyectar en digitalTwinData para que sea dinámico
+      Object.keys(digitalTwinData).forEach(role => {
+        if (!digitalTwinData[role].isSensor) {
+            digitalTwinData[role].temp = `${temp + (Math.random() * 2 - 1).toFixed(1)}°C`;
+            digitalTwinData[role].hum = `${humidity + (Math.random() * 5 - 2).toFixed(0)}%`;
+        }
+      });
+
+    } catch (error) {
+      console.error("Weather Sync Error:", error);
+      addFeedItem("Error al sincronizar clima real. Usando simulación local.", "warning");
+    }
+  }
+
+  // Ejecutar primera sincronización
+  syncRealWeather();
+  // Auto-sincronizar cada 10 minutos
+  setInterval(syncRealWeather, 10 * 60 * 1000);
 }
 
 // Bucle de Animación
