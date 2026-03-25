@@ -35,7 +35,6 @@ const feedLimit = 5;
 const spatialLabels = [];
 const labelsContainer = document.getElementById("labels-container");
 
-
 // --- SISTEMA DE POBLACIÓN (Simulación de Personas) ---
 const peopleInstances = {
   gym: null,
@@ -179,8 +178,6 @@ const digitalTwinData = {
     diag_bar: 92,
   },
 };
-
-
 
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
@@ -1010,26 +1007,26 @@ function initLayoutControls() {
     btn.addEventListener("click", () => {
       const preset = btn.dataset.preset;
       camBtns.forEach((b) => b.classList.remove("active"));
-      
+
       if (preset !== "pano") isPanoActive = false;
 
       if (preset === "drone") {
         btn.classList.add("active");
-        cameraTargetPos.set(0, 1500, 0); 
+        cameraTargetPos.set(0, 1500, 0);
         controlsTargetPos.set(0, 0, 0);
         isCameraMoving = true;
       } else if (preset === "walk") {
         btn.classList.add("active");
-        cameraTargetPos.set(400, 10, 400); 
+        cameraTargetPos.set(400, 10, 400);
         controlsTargetPos.set(0, 10, 0);
         isCameraMoving = true;
       } else if (preset === "pano") {
         isPanoActive = !isPanoActive;
         if (isPanoActive) {
-            btn.classList.add("active");
-            addFeedItem("Iniciando rotación panorámica de inspección", "success");
+          btn.classList.add("active");
+          addFeedItem("Iniciando rotación panorámica de inspección", "success");
         } else {
-            btn.classList.remove("active");
+          btn.classList.remove("active");
         }
       }
     });
@@ -1039,7 +1036,7 @@ function initLayoutControls() {
   const btnDash = document.getElementById("btn-dashboard");
   const dashOverlay = document.getElementById("extended-dashboard");
   const closeDash = document.getElementById("close-dashboard");
-  
+
   const btnNewRes = document.getElementById("btn-new-reservation");
   const resModal = document.getElementById("res-modal-overlay");
   const closeResModal = document.getElementById("close-res-modal");
@@ -1047,217 +1044,238 @@ function initLayoutControls() {
 
   if (btnDash && dashOverlay) {
     btnDash.addEventListener("click", () => {
-        dashOverlay.classList.remove("hidden");
-        updateDashboardData();
-        loadReservationsFromDB(); // <--- SINCRONIZACIÓN CON MYSQL
-        addFeedItem("Abriendo Dashboard de Control Maestro", "info");
+      dashOverlay.classList.remove("hidden");
+      updateDashboardData();
+      loadReservationsFromDB(); // <--- SINCRONIZACIÓN CON MYSQL
+      addFeedItem("Abriendo Dashboard de Control Maestro", "info");
     });
-    
+
     // Cerrar al hacer clic fuera o en X
     dashOverlay.addEventListener("click", (e) => {
-        if (e.target === dashOverlay || e.target.closest("#close-dashboard")) {
-            dashOverlay.classList.add("hidden");
-        }
+      if (e.target === dashOverlay || e.target.closest("#close-dashboard")) {
+        dashOverlay.classList.add("hidden");
+      }
     });
   }
 
   // Lógica del Modal de Reservas
   if (btnNewRes && resModal) {
     btnNewRes.addEventListener("click", () => {
-        resModal.classList.remove("hidden");
-        addFeedItem("Iniciando proceso de reserva segura", "info");
+      resModal.classList.remove("hidden");
+      addFeedItem("Iniciando proceso de reserva segura", "info");
     });
 
     resModal.addEventListener("click", (e) => {
-        if (e.target === resModal || e.target.closest("#close-res-modal")) {
-            resModal.classList.add("hidden");
-        }
+      if (e.target === resModal || e.target.closest("#close-res-modal")) {
+        resModal.classList.add("hidden");
+      }
     });
   }
 
   if (resForm) {
     resForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const data = {
-            zone: document.getElementById("res-zone").value,
-            datetime: document.getElementById("res-datetime").value,
-            guests: document.getElementById("res-guests").value
-        };
+      e.preventDefault();
+      const data = {
+        zone: document.getElementById("res-zone").value,
+        datetime: document.getElementById("res-datetime").value,
+        guests: document.getElementById("res-guests").value,
+      };
 
-        const subBtn = resForm.querySelector(".prime-btn");
-        const originalText = subBtn.innerText;
-        subBtn.innerText = "SINCRONIZANDO CON MYSQL...";
-        subBtn.disabled = true;
+      const subBtn = resForm.querySelector(".prime-btn");
+      const originalText = subBtn.innerText;
+      subBtn.innerText = "SINCRONIZANDO CON MYSQL...";
+      subBtn.disabled = true;
 
-        // --- CONEXIÓN REAL CON LARAGON / PHP ---
-        fetch("api_reservas.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        })
-        .then(res => res.json())
-        .then(response => {
-            if (response.status === "success") {
-                addFeedItem(`¡Registro guardado en MySQL! Zona: ${data.zone.toUpperCase()}`, "success");
-                
-                // Actualizar historial visualmente
-                const historyList = document.getElementById("res-history-list");
-                if (historyList) {
-                    const item = document.createElement("div");
-                    item.className = "mini-item";
-                    item.innerHTML = `<strong>${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleString()}`;
-                    historyList.prepend(item);
-                }
+      // --- CONEXIÓN REAL CON LARAGON / PHP ---
+      fetch("api_reservas.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+        .then((res) => res.json())
+        .then((response) => {
+          if (response.status === "success") {
+            addFeedItem(
+              `¡Registro guardado en MySQL! Zona: ${data.zone.toUpperCase()}`,
+              "success",
+            );
 
-                subBtn.innerText = "¡RESERVA EXITOSA!";
-                setTimeout(() => {
-                    resModal.classList.add("hidden");
-                    subBtn.innerText = originalText;
-                    subBtn.disabled = false;
-                    resForm.reset();
-                }, 1000);
-            } else {
-                throw new Error(response.message || "Error al guardar");
-            }
-        })
-        .catch(error => {
-            console.error("Error DB:", error);
-            addFeedItem("Fallo de conexión con Laragon: Registrando Localmente", "warning");
-            
-            // Fallback local si el PHP no está listo
+            // Actualizar historial visualmente
             const historyList = document.getElementById("res-history-list");
             if (historyList) {
-                const item = document.createElement("div");
-                item.className = "mini-item";
-                item.innerHTML = `<strong>(LOCAL) ${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleTimeString()}`;
-                historyList.prepend(item);
+              const item = document.createElement("div");
+              item.className = "mini-item";
+              item.innerHTML = `<strong>${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleString()}`;
+              historyList.prepend(item);
             }
-            
-            subBtn.innerText = originalText;
-            subBtn.disabled = false;
+
+            subBtn.innerText = "¡RESERVA EXITOSA!";
+            setTimeout(() => {
+              resModal.classList.add("hidden");
+              subBtn.innerText = originalText;
+              subBtn.disabled = false;
+              resForm.reset();
+            }, 1000);
+          } else {
+            throw new Error(response.message || "Error al guardar");
+          }
+        })
+        .catch((error) => {
+          console.error("Error DB:", error);
+          addFeedItem(
+            "Fallo de conexión con Laragon: Registrando Localmente",
+            "warning",
+          );
+
+          // Fallback local si el PHP no está listo
+          const historyList = document.getElementById("res-history-list");
+          if (historyList) {
+            const item = document.createElement("div");
+            item.className = "mini-item";
+            item.innerHTML = `<strong>(LOCAL) ${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleTimeString()}`;
+            historyList.prepend(item);
+          }
+
+          subBtn.innerText = originalText;
+          subBtn.disabled = false;
         });
     });
   }
 }
 
 function loadReservationsFromDB() {
-    const historyList = document.getElementById("res-history-list");
-    if (!historyList) return;
+  const historyList = document.getElementById("res-history-list");
+  if (!historyList) return;
 
-    historyList.innerHTML = '<div class="mini-item">Consultando Base de Datos Laragon...</div>';
+  historyList.innerHTML =
+    '<div class="mini-item">Consultando Base de Datos Laragon...</div>';
 
-    fetch("api_reservas.php")
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-                historyList.innerHTML = "";
-                data.forEach(res => {
-                    const item = document.createElement("div");
-                    item.className = "mini-item";
-                    const dateStr = new Date(res.reservation_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-                    item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> - ${dateStr} <small>(DB)</small>`;
-                    historyList.appendChild(item);
-                });
-            } else {
-                historyList.innerHTML = '<div class="mini-item">Sin historial en base de datos.</div>';
-            }
-        })
-        .catch(err => {
-            console.error("DB Error:", err);
-            historyList.innerHTML = '<div class="mini-item" style="color:#ef4444">Error al conectar con la DB de Laragon.</div>';
+  fetch("api_reservas.php")
+    .then((res) => res.json())
+    .then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        historyList.innerHTML = "";
+        data.forEach((res) => {
+          const item = document.createElement("div");
+          item.className = "mini-item";
+          const dateStr = new Date(res.reservation_date).toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> - ${dateStr} <small>(DB)</small>`;
+          historyList.appendChild(item);
         });
+      } else {
+        historyList.innerHTML =
+          '<div class="mini-item">Sin historial en base de datos.</div>';
+      }
+    })
+    .catch((err) => {
+      console.error("DB Error:", err);
+      historyList.innerHTML =
+        '<div class="mini-item" style="color:#ef4444">Error al conectar con la DB de Laragon.</div>';
+    });
 }
 
 // --- NUEVA LÓGICA DE DASHBOARD "INCREÍBLE" ---
 function updateDashboardData() {
-    let total = 0;
-    let totalTemp = 0;
-    let count = 0;
+  let total = 0;
+  let totalTemp = 0;
+  let count = 0;
 
-    Object.keys(digitalTwinData).forEach(key => {
-        const val = parseInt(digitalTwinData[key].current) || 0;
-        total += val;
-        const temp = parseFloat(digitalTwinData[key].temp) || 0;
-        totalTemp += temp;
-        count++;
+  Object.keys(digitalTwinData).forEach((key) => {
+    const val = parseInt(digitalTwinData[key].current) || 0;
+    total += val;
+    const temp = parseFloat(digitalTwinData[key].temp) || 0;
+    totalTemp += temp;
+    count++;
 
-        const bar = document.getElementById(`bar-${key}`);
-        const valTxt = document.getElementById(`val-${key}`);
-        if(bar) bar.style.width = `${Math.min(val * 1.5, 100)}%`; 
-        if(valTxt) valTxt.innerText = `${val} Pax`;
-    });
+    const bar = document.getElementById(`bar-${key}`);
+    const valTxt = document.getElementById(`val-${key}`);
+    if (bar) bar.style.width = `${Math.min(val * 1.5, 100)}%`;
+    if (valTxt) valTxt.innerText = `${val} Pax`;
+  });
 
-    const avgTemp = (totalTemp / count).toFixed(1);
+  const avgTemp = (totalTemp / count).toFixed(1);
 
-    // Animación de conteo simple
-    animateValue("dash-total-people", 0, total, 1000);
-    const tempEl = document.getElementById("dash-avg-temp");
-    if(tempEl) tempEl.innerText = `${avgTemp}°C`;
+  // Animación de conteo simple
+  animateValue("dash-total-people", 0, total, 1000);
+  const tempEl = document.getElementById("dash-avg-temp");
+  if (tempEl) tempEl.innerText = `${avgTemp}°C`;
 
-    updateClock();
+  updateClock();
 }
 
 function updateClock() {
-    const timeEl = document.getElementById("dash-time-val");
-    const dateEl = document.getElementById("dash-date-val");
-    if(!timeEl || !dateEl) return;
+  const timeEl = document.getElementById("dash-time-val");
+  const dateEl = document.getElementById("dash-date-val");
+  if (!timeEl || !dateEl) return;
 
-    const now = new Date();
-    timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
-    dateEl.innerText = now.toLocaleDateString([], { day:'2-digit', month:'2-digit', year:'numeric' });
+  const now = new Date();
+  timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
+  dateEl.innerText = now.toLocaleDateString([], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function animateValue(id, start, end, duration) {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        obj.innerText = Math.floor(progress * (end - start) + start);
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
-        }
-    };
-    window.requestAnimationFrame(step);
+  const obj = document.getElementById(id);
+  if (!obj) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    obj.innerText = Math.floor(progress * (end - start) + start);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
 }
 
 // Simulador de Terminal IA
 function initDashboardEffects() {
-    const terminal = document.getElementById("ai-terminal");
-    if (!terminal) return;
+  const terminal = document.getElementById("ai-terminal");
+  if (!terminal) return;
 
-    const logs = [
-        "Sincronizando malla del Digital Twin...",
-        "Analizando patrones térmicos en Alberca...",
-        "Optimización de flujo energético completada.",
-        "Detección de ocupación anómala: Ninguna.",
-        "Sincronizando con MSSQL Server... OK",
-        "IA: Sugiriendo ajuste en iluminación Campo 1.",
-        "Estado del sistema: ESTABLE (99.8%)",
-        "Analizando logs de reserva recientes...",
-        "Digital Twin v2.4 operativo y listo."
-    ];
+  const logs = [
+    "Sincronizando malla del Digital Twin...",
+    "Analizando patrones térmicos en Alberca...",
+    "Optimización de flujo energético completada.",
+    "Detección de ocupación anómala: Ninguna.",
+    "Sincronizando con MSSQL Server... OK",
+    "IA: Sugiriendo ajuste en iluminación Campo 1.",
+    "Estado del sistema: ESTABLE (99.8%)",
+    "Analizando logs de reserva recientes...",
+    "Digital Twin v2.4 operativo y listo.",
+  ];
 
-    setInterval(() => {
-        if (document.getElementById("extended-dashboard").classList.contains("hidden")) return;
-        
-        const p = document.createElement("p");
-        p.className = "log-line";
-        p.innerText = `> ${logs[Math.floor(Math.random() * logs.length)]}`;
-        terminal.appendChild(p);
-        
-        if (terminal.children.length > 20) terminal.removeChild(terminal.firstChild);
-        terminal.scrollTop = terminal.scrollHeight;
-    }, 3000);
+  setInterval(() => {
+    if (
+      document.getElementById("extended-dashboard").classList.contains("hidden")
+    )
+      return;
 
-    // Reloj en tiempo real
-    setInterval(updateClock, 1000);
+    const p = document.createElement("p");
+    p.className = "log-line";
+    p.innerText = `> ${logs[Math.floor(Math.random() * logs.length)]}`;
+    terminal.appendChild(p);
+
+    if (terminal.children.length > 20)
+      terminal.removeChild(terminal.firstChild);
+    terminal.scrollTop = terminal.scrollHeight;
+  }, 3000);
+
+  // Reloj en tiempo real
+  setInterval(updateClock, 1000);
 }
 
 // Llamar a los efectos al inicio
 initDashboardEffects();
-
 
 let isModelExploded = false;
 const btnExplode = document.getElementById("btn-explode");
@@ -1560,30 +1578,29 @@ function animate() {
   composer.render(); // Usar composer en lugar de renderer normal para el efecto Bloom
 
   // --- ACTUALIZAR ETIQUETAS ESPACIALES (3D a 2D) ---
-  spatialLabels.forEach(lbl => {
-      const vector = lbl.pos.clone();
-      vector.project(camera);
+  spatialLabels.forEach((lbl) => {
+    const vector = lbl.pos.clone();
+    vector.project(camera);
 
-      // Conversión de pantalla refinada
-      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-      const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+    // Conversión de pantalla refinada
+    const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
 
-      // Unificar ocultamiento: detrás de cámara o fuera de rango
-      const isBehind = vector.z > 1;
-      lbl.el.style.display = isBehind ? "none" : "flex";
+    // Unificar ocultamiento: detrás de cámara o fuera de rango
+    const isBehind = vector.z > 1;
+    lbl.el.style.display = isBehind ? "none" : "flex";
 
-      if (!isBehind) {
-          lbl.el.style.left = `${x}px`;
-          lbl.el.style.top = `${y}px`;
-          
-          const dist = camera.position.distanceTo(lbl.pos);
-          const scale = Math.max(0.5, Math.min(1.0, 750 / dist));
-          lbl.el.style.transform = `translate(-50%, -50%) scale(${scale})`;
-          lbl.el.style.opacity = Math.max(0.1, Math.min(1.0, 950 / dist));
-      }
+    if (!isBehind) {
+      lbl.el.style.left = `${x}px`;
+      lbl.el.style.top = `${y}px`;
+
+      const dist = camera.position.distanceTo(lbl.pos);
+      const scale = Math.max(0.5, Math.min(1.0, 750 / dist));
+      lbl.el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      lbl.el.style.opacity = Math.max(0.1, Math.min(1.0, 950 / dist));
+    }
   });
 }
-
 
 animate();
 
@@ -1609,17 +1626,26 @@ function onMouseMove(event) {
 
   let currentHoverRole = null;
   // Añadimos sensores a los roles de interés
-  const interestRoles = ["gym", "pool", "canchas", "sensor1", "sensor2", "sensor3"];
-
+  const interestRoles = [
+    "gym",
+    "pool",
+    "canchas",
+    "sensor1",
+    "sensor2",
+    "sensor3",
+  ];
 
   if (intersects.length > 0) {
     // BÚSQUEDA ROBUSTA: Recorremos todas las intersecciones y sus ancestros
     for (const intersect of intersects) {
       let testObj = intersect.object;
       let role = null;
-      
+
       while (testObj && testObj !== model) {
-        if (testObj.userData.role && interestRoles.includes(testObj.userData.role)) {
+        if (
+          testObj.userData.role &&
+          interestRoles.includes(testObj.userData.role)
+        ) {
           role = testObj.userData.role;
           break;
         }
@@ -1645,11 +1671,18 @@ function onMouseMove(event) {
     // Aplicar brillo de hover a todos los objetos del rol
     model.traverse((child) => {
       if (child.isMesh && child.userData.role) {
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
         materials.forEach((mat) => {
-          if (child.userData.role === hoveredRole && !child.userData.isSelectedInFocus) {
-            mat.emissive.copy(child.userData.highlightColor || new THREE.Color(0x3b82f6));
-            mat.emissiveIntensity = 1.0; 
+          if (
+            child.userData.role === hoveredRole &&
+            !child.userData.isSelectedInFocus
+          ) {
+            mat.emissive.copy(
+              child.userData.highlightColor || new THREE.Color(0x3b82f6),
+            );
+            mat.emissiveIntensity = 1.0;
           } else if (!child.userData.isSelectedInFocus) {
             mat.emissive.setHex(0x000000);
           }
@@ -1658,7 +1691,6 @@ function onMouseMove(event) {
     });
   }
 }
-
 
 function onMouseClick(event) {
   // Solo procesar si fue una interacción rápida y sin movimiento (Punto a Punto) para no bloquear la navegación
@@ -1697,7 +1729,14 @@ function onMouseClick(event) {
         }
 
         // Si el rol es zona de interés o SENSORES
-        const allRoles = ["gym", "pool", "canchas", "sensor1", "sensor2", "sensor3"];
+        const allRoles = [
+          "gym",
+          "pool",
+          "canchas",
+          "sensor1",
+          "sensor2",
+          "sensor3",
+        ];
         if (testRole && allRoles.includes(testRole)) {
           role = testRole;
 
@@ -1796,66 +1835,66 @@ function showInfoCard(role) {
   const diagBar = document.getElementById("diag-bar-fill");
 
   if (data.isSensor) {
-      if (standardMetrics) standardMetrics.classList.add("hidden");
-      if (sensorTelemetry) sensorTelemetry.classList.remove("hidden");
-      
-      // Mostrar Diagnóstico Avanzado y ocultar Telemetría Semanal
-      if (standardTrend) standardTrend.classList.add("hidden");
-      if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
+    if (standardMetrics) standardMetrics.classList.add("hidden");
+    if (sensorTelemetry) sensorTelemetry.classList.remove("hidden");
 
-      // Poblar Diagnósticos
-      if (diagL1) diagL1.innerText = data.diag1_label;
-      if (diagV1) diagV1.innerText = data.diag1_val;
-      if (diagL2) diagL2.innerText = data.diag2_label;
-      if (diagV2) diagV2.innerText = data.diag2_val;
-      if (diagL3) diagL3.innerText = data.diag3_label;
-      if (diagBar) diagBar.style.width = (data.diag_bar || 0) + "%";
+    // Mostrar Diagnóstico Avanzado y ocultar Telemetría Semanal
+    if (standardTrend) standardTrend.classList.add("hidden");
+    if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
 
-      // Activar LiDAR
-      if (lidarCont) lidarCont.classList.remove("hidden");
-      if (camNoise) camNoise.classList.add("hidden");
-      if (camScan) camScan.classList.add("hidden");
-      if (liveTag) liveTag.innerText = "LiDAR SCAN v2";
-      
-      if (sensorBat) sensorBat.innerText = data.bat;
-      if (sensorSpecLabel) sensorSpecLabel.innerText = data.specialLabel;
-      if (sensorSpecVal) sensorSpecVal.innerText = data.specialVal;
+    // Poblar Diagnósticos
+    if (diagL1) diagL1.innerText = data.diag1_label;
+    if (diagV1) diagV1.innerText = data.diag1_val;
+    if (diagL2) diagL2.innerText = data.diag2_label;
+    if (diagV2) diagV2.innerText = data.diag2_val;
+    if (diagL3) diagL3.innerText = data.diag3_label;
+    if (diagBar) diagBar.style.width = (data.diag_bar || 0) + "%";
 
-      // Mantener visibles campos técnicos si existen
-      if (tempEl) tempEl.innerText = data.temp || "--";
-      if (humEl) humEl.innerText = data.hum || "--";
-      if (maintEl) maintEl.innerText = "SISTEMA OK";
-      if (hoursEl) hoursEl.innerText = "24 / 7";
+    // Activar LiDAR
+    if (lidarCont) lidarCont.classList.remove("hidden");
+    if (camNoise) camNoise.classList.add("hidden");
+    if (camScan) camScan.classList.add("hidden");
+    if (liveTag) liveTag.innerText = "LiDAR SCAN v2";
+
+    if (sensorBat) sensorBat.innerText = data.bat;
+    if (sensorSpecLabel) sensorSpecLabel.innerText = data.specialLabel;
+    if (sensorSpecVal) sensorSpecVal.innerText = data.specialVal;
+
+    // Mantener visibles campos técnicos si existen
+    if (tempEl) tempEl.innerText = data.temp || "--";
+    if (humEl) humEl.innerText = data.hum || "--";
+    if (maintEl) maintEl.innerText = "SISTEMA OK";
+    if (hoursEl) hoursEl.innerText = "24 / 7";
   } else {
-      if (standardMetrics) standardMetrics.classList.remove("hidden");
-      if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
-      
-      // Mostrar Telemetría Semanal y ocultar Diagnóstico
-      if (standardTrend) standardTrend.classList.remove("hidden");
-      if (sensorAdvanced) sensorAdvanced.classList.add("hidden");
+    if (standardMetrics) standardMetrics.classList.remove("hidden");
+    if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
 
-      // Restaurar Cámara normal
-      if (lidarCont) lidarCont.classList.add("hidden");
-      if (camNoise) camNoise.classList.remove("hidden");
-      if (camScan) camScan.classList.remove("hidden");
-      if (liveTag) liveTag.innerText = "LIVE FEED";
+    // Mostrar Telemetría Semanal y ocultar Diagnóstico
+    if (standardTrend) standardTrend.classList.remove("hidden");
+    if (sensorAdvanced) sensorAdvanced.classList.add("hidden");
 
-      if (peopleEl) peopleEl.innerText = data.current ? data.current.split(" ")[0] : "0"; 
-      if (expectedEl) expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
-      if (tempEl) tempEl.innerText = data.temp;
-      if (humEl) humEl.innerText = data.hum;
-      if (maintEl) maintEl.innerText = data.maint;
-      if (hoursEl) hoursEl.innerText = data.hours;
+    // Restaurar Cámara normal
+    if (lidarCont) lidarCont.classList.add("hidden");
+    if (camNoise) camNoise.classList.remove("hidden");
+    if (camScan) camScan.classList.remove("hidden");
+    if (liveTag) liveTag.innerText = "LIVE FEED";
+
+    if (peopleEl)
+      peopleEl.innerText = data.current ? data.current.split(" ")[0] : "0";
+    if (expectedEl)
+      expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
+    if (tempEl) tempEl.innerText = data.temp;
+    if (humEl) humEl.innerText = data.hum;
+    if (maintEl) maintEl.innerText = data.maint;
+    if (hoursEl) hoursEl.innerText = data.hours;
   }
 
-
-
-  
   if (statusEl) statusEl.innerText = data.status;
 
   // Actualizar clase de estado en el box premium
   if (statusBox) {
-    statusBox.className = "status-box-premium " + (data.statusClass || "status-good");
+    statusBox.className =
+      "status-box-premium " + (data.statusClass || "status-good");
   }
 
   // Manejo de Alerta
@@ -1882,90 +1921,93 @@ function showInfoCard(role) {
 
   if (infoCard) {
     infoCard.classList.remove("hidden");
-    
+
     // Dibujar Gráfica de Línea
     updateLineChart(data.trend || [20, 50, 30, 80, 40, 90]);
-    
+
     // Trigger para relanzar la animación del Live Feed (opcional)
     const scanLine = infoCard.querySelector(".scan-line");
     if (scanLine) {
-        scanLine.style.animation = "none";
-        scanLine.offsetHeight; // trigger reflow
-        scanLine.style.animation = null;
+      scanLine.style.animation = "none";
+      scanLine.offsetHeight; // trigger reflow
+      scanLine.style.animation = null;
     }
   }
 }
 
 function updateLineChart(data) {
-    const path = document.getElementById("chart-path");
-    if (!path) return;
+  const path = document.getElementById("chart-path");
+  if (!path) return;
 
-    const width = 300;
-    const height = 80;
-    const stepX = width / (data.length - 1);
-    
-    let d = `M 0 ${height - (data[0] / 100) * height}`;
-    
-    for (let i = 1; i < data.length; i++) {
-        const x = i * stepX;
-        const y = height - (data[i] / 100) * height;
-        d += ` L ${x} ${y}`;
-    }
-    
-    // Cerrar el path para el gradiente
-    const closedD = d + ` L ${width} ${height} L 0 ${height} Z`;
-    path.setAttribute("d", closedD);
+  const width = 300;
+  const height = 80;
+  const stepX = width / (data.length - 1);
+
+  let d = `M 0 ${height - (data[0] / 100) * height}`;
+
+  for (let i = 1; i < data.length; i++) {
+    const x = i * stepX;
+    const y = height - (data[i] / 100) * height;
+    d += ` L ${x} ${y}`;
+  }
+
+  // Cerrar el path para el gradiente
+  const closedD = d + ` L ${width} ${height} L 0 ${height} Z`;
+  path.setAttribute("d", closedD);
 }
 
 function addFeedItem(text, type = "") {
-    const container = document.getElementById("notification-container");
-    const notifList = document.getElementById("notif-list");
-    const badge = document.getElementById("notif-badge");
-    const panel = document.getElementById("notif-panel");
+  const container = document.getElementById("notification-container");
+  const notifList = document.getElementById("notif-list");
+  const badge = document.getElementById("notif-badge");
+  const panel = document.getElementById("notif-panel");
 
-    if (!container) return;
+  if (!container) return;
 
-    // 1. Crear el Toast (Notificación momentánea)
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    toast.innerHTML = `
+  // 1. Crear el Toast (Notificación momentánea)
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  toast.innerHTML = `
         <div class="toast-header">
             <span class="toast-title">Notificación de Sistema</span>
             <span class="toast-time">${timeStr}</span>
         </div>
         <div class="toast-body">${text}</div>
     `;
-    
-    container.appendChild(toast);
-    
-    // Auto-eliminar toast
-    setTimeout(() => {
-        toast.classList.add("hidden");
-        setTimeout(() => toast.remove(), 400);
-    }, 5000);
 
-    // 2. Agregar al Historial (Panel Desplegable)
-    if (notifList) {
-        const item = document.createElement("div");
-        item.className = `notif-item ${type}`;
-        item.innerHTML = `
+  container.appendChild(toast);
+
+  // Auto-eliminar toast
+  setTimeout(() => {
+    toast.classList.add("hidden");
+    setTimeout(() => toast.remove(), 400);
+  }, 5000);
+
+  // 2. Agregar al Historial (Panel Desplegable)
+  if (notifList) {
+    const item = document.createElement("div");
+    item.className = `notif-item ${type}`;
+    item.innerHTML = `
             <div class="notif-item-header">
                 <span>GESTIÓN DE OPERACIÓN</span>
                 <span>${timeStr}</span>
             </div>
             <div class="notif-item-body">${text}</div>
         `;
-        notifList.prepend(item);
+    notifList.prepend(item);
 
-        // 3. Mostrar punto rojo si el panel está cerrado
-        if (badge && panel && panel.classList.contains("hidden")) {
-            badge.classList.remove("hidden");
-        }
+    // 3. Mostrar punto rojo si el panel está cerrado
+    if (badge && panel && panel.classList.contains("hidden")) {
+      badge.classList.remove("hidden");
     }
+  }
 }
 
 // Control del Panel de Notificaciones
@@ -1974,30 +2016,30 @@ const notifPanel = document.getElementById("notif-panel");
 const notifBadge = document.getElementById("notif-badge");
 
 if (bell && notifPanel) {
-    bell.addEventListener("click", (e) => {
-        e.stopPropagation();
-        notifPanel.classList.toggle("hidden");
-        
-        // Al abrir, quitar el punto rojo
-        if (!notifPanel.classList.contains("hidden")) {
-            if (notifBadge) notifBadge.classList.add("hidden");
-        }
-    });
+  bell.addEventListener("click", (e) => {
+    e.stopPropagation();
+    notifPanel.classList.toggle("hidden");
 
-    // Cerrar al hacer clic fuera
-    document.addEventListener("click", (e) => {
-        if (!notifPanel.contains(e.target) && e.target !== bell) {
-            notifPanel.classList.add("hidden");
-        }
-    });
+    // Al abrir, quitar el punto rojo
+    if (!notifPanel.classList.contains("hidden")) {
+      if (notifBadge) notifBadge.classList.add("hidden");
+    }
+  });
+
+  // Cerrar al hacer clic fuera
+  document.addEventListener("click", (e) => {
+    if (!notifPanel.contains(e.target) && e.target !== bell) {
+      notifPanel.classList.add("hidden");
+    }
+  });
 }
 
 // Inicializar feed con algunos eventos de bienvenida
 setTimeout(() => {
-    addFeedItem("⚠️ Alerta: Temperatura crítica detectada en motores", "danger");
-    setTimeout(() => {
-        addFeedItem("✅ Mantenimiento preventivo completado", "success");
-    }, 2500);
+  addFeedItem("⚠️ Alerta: Temperatura crítica detectada en motores", "danger");
+  setTimeout(() => {
+    addFeedItem("✅ Mantenimiento preventivo completado", "success");
+  }, 2500);
 }, 1000);
 
 window.addEventListener("mousedown", onMouseDown);
@@ -2171,134 +2213,152 @@ document.addEventListener("click", (e) => {
 
 // --- INICIALIZACIÓN DE SENSORES ARDUINO ---
 function initSensors() {
-    if (!model) return;
-    
-    // Función auxiliar para hallar el centro de un rol específico (IGNORANDO TECHOS)
-    const getFloorCenter = (roleName) => {
-        const box = new THREE.Box3();
-        let found = false;
-        model.traverse(child => {
-            if (child.isMesh && child.userData.role === roleName) {
-                const name = (child.name || "").toLowerCase();
-                // Ignorar techos y estructuras elevadas para hallar el nivel del suelo real
-                if (!name.includes("techo") && !name.includes("roof") && !name.includes("viga")) {
-                    box.expandByObject(child);
-                    found = true;
-                }
-            }
-        });
-        if (!found) return null;
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        return center;
-    };
+  if (!model) return;
 
-    const sensorGeo = new THREE.BoxGeometry(4, 4, 4);
-    const createSensor = (worldPos, role, color) => {
-        const localPos = worldPos.clone();
-        model.worldToLocal(localPos); // TRANSFORMACIÓN CRÍTICA: Mundo -> Modelo Local
+  // Función auxiliar para hallar el centro de un rol específico (IGNORANDO TECHOS)
+  const getFloorCenter = (roleName) => {
+    const box = new THREE.Box3();
+    let found = false;
+    model.traverse((child) => {
+      if (child.isMesh && child.userData.role === roleName) {
+        const name = (child.name || "").toLowerCase();
+        // Ignorar techos y estructuras elevadas para hallar el nivel del suelo real
+        if (
+          !name.includes("techo") &&
+          !name.includes("roof") &&
+          !name.includes("viga")
+        ) {
+          box.expandByObject(child);
+          found = true;
+        }
+      }
+    });
+    if (!found) return null;
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    return center;
+  };
 
-        const sensorGroup = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({
-            color: color, 
-            emissive: color,
-            emissiveIntensity: 6.0,
-            metalness: 0.8,
-            roughness: 0.2
-        });
-        const mesh = new THREE.Mesh(sensorGeo, mat);
-        mesh.userData.role = role;
-        mesh.userData.highlightColor = new THREE.Color(0xffffff);
-        
-        const base = new THREE.Mesh(
-            new THREE.BoxGeometry(10, 2, 10),
-            new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 })
-        );
-        base.position.y = -3;
-        
-        sensorGroup.add(mesh);
-        sensorGroup.add(base);
-        sensorGroup.position.copy(localPos);
-        model.add(sensorGroup);
-    };
+  const sensorGeo = new THREE.BoxGeometry(4, 4, 4);
+  const createSensor = (worldPos, role, color) => {
+    const localPos = worldPos.clone();
+    model.worldToLocal(localPos); // TRANSFORMACIÓN CRÍTICA: Mundo -> Modelo Local
 
-    // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
-    // El terreno suele estar en Y=0 o cerca.
-    createSensor(new THREE.Vector3(-300, 2, -150), "sensor1", 0x10b981);
-    
-    // 2. Sensor Canchas: Pegado a la base de las canchas
-    const courtsCenter = getFloorCenter("canchas");
-    if (courtsCenter) {
-        courtsCenter.x += 80; // Offset lateral
-        courtsCenter.y = 2;   // Justo sobre el plano
-        createSensor(courtsCenter, "sensor2", 0xfbbf24);
-    }
-    
-    // 3. Sensor Alberca: Pegado a la base de la alberca
-    const poolCenter = getFloorCenter("pool");
-    if (poolCenter) {
-        poolCenter.z += 100; // Offset lateral
-        poolCenter.y = 2;    // Justo sobre el plano
-        createSensor(poolCenter, "sensor3", 0x22d3ee);
-    }
+    const sensorGroup = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      emissive: color,
+      emissiveIntensity: 6.0,
+      metalness: 0.8,
+      roughness: 0.2,
+    });
+    const mesh = new THREE.Mesh(sensorGeo, mat);
+    mesh.userData.role = role;
+    mesh.userData.highlightColor = new THREE.Color(0xffffff);
+
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(10, 2, 10),
+      new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 }),
+    );
+    base.position.y = -3;
+
+    sensorGroup.add(mesh);
+    sensorGroup.add(base);
+    sensorGroup.position.copy(localPos);
+    model.add(sensorGroup);
+  };
+
+  // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
+  // El terreno suele estar en Y=0 o cerca.
+  createSensor(new THREE.Vector3(-300, 2, -150), "sensor1", 0x10b981);
+
+  // 2. Sensor Canchas: Pegado a la base de las canchas
+  const courtsCenter = getFloorCenter("canchas");
+  if (courtsCenter) {
+    courtsCenter.x += 320; // Offset lateral
+    courtsCenter.y = 2; // Justo sobre el plano
+    createSensor(courtsCenter, "sensor2", 0xfbbf24);
+  }
+
+  // 3. Sensor Alberca: Pegado a la base de la alberca
+  const poolCenter = getFloorCenter("pool");
+  if (poolCenter) {
+    poolCenter.z += 100; // Offset lateral
+    poolCenter.y = 2; // Justo sobre el plano
+    createSensor(poolCenter, "sensor3", 0x22d3ee);
+  }
 }
-
-
-
 
 // --- SISTEMA DE ETIQUETAS ESPACIALES REFORZADO ---
 function initSpatialLabels() {
-    if (!labelsContainer || !model) return;
-    labelsContainer.innerHTML = "";
-    spatialLabels.length = 0; // Limpiar lista
-    
-    const targets = [
-        { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 45 },
-        { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 45 },
-        { role: "canchas", label: "⚽ Zona Deportiva", color: "canchas", yOffset: 70 },
-        { role: "sensor1", label: "📡 Nodo 01 - Bosque", color: "sensor", yOffset: 25 },
-        { role: "sensor2", label: "📡 Nodo 02 - Canchas", color: "sensor", yOffset: 25 },
-        { role: "sensor3", label: "📡 Nodo 03 - Alberca", color: "sensor", yOffset: 25 }
-    ];
+  if (!labelsContainer || !model) return;
+  labelsContainer.innerHTML = "";
+  spatialLabels.length = 0; // Limpiar lista
 
-    targets.forEach(t => {
-        const box = new THREE.Box3();
-        let found = false;
-        
-        // Buscamos mallas que tengan el rol asociado
-        model.traverse(child => {
-            if (child.isMesh && child.userData.role === t.role) {
-                box.expandByObject(child);
-                found = true;
-            }
-        });
+  const targets = [
+    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 45 },
+    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 45 },
+    {
+      role: "canchas",
+      label: "⚽ Zona Deportiva",
+      color: "canchas",
+      yOffset: 70,
+    },
+    {
+      role: "sensor1",
+      label: "📡 Nodo 01 - Bosque",
+      color: "sensor",
+      yOffset: 25,
+    },
+    {
+      role: "sensor2",
+      label: "📡 Nodo 02 - Canchas",
+      color: "sensor",
+      yOffset: 25,
+    },
+    {
+      role: "sensor3",
+      label: "📡 Nodo 03 - Alberca",
+      color: "sensor",
+      yOffset: 25,
+    },
+  ];
 
-        if (found) {
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            
-            // Estabilización para áreas masivas
-            if (t.role === "canchas") center.y = 8;
+  targets.forEach((t) => {
+    const box = new THREE.Box3();
+    let found = false;
 
-            center.y += t.yOffset; 
-            
-            const el = document.createElement("div");
-            el.className = `holo-label ${t.color}`;
-            el.innerHTML = `<span>${t.label}</span>`;
-            el.onclick = () => {
-                showInfoCard(t.role);
-                updateFocus(t.role);
-            };
-            
-            labelsContainer.appendChild(el);
-            spatialLabels.push({ el, pos: center });
-        }
+    // Buscamos mallas que tengan el rol asociado
+    model.traverse((child) => {
+      if (child.isMesh && child.userData.role === t.role) {
+        box.expandByObject(child);
+        found = true;
+      }
     });
+
+    if (found) {
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+
+      // Estabilización para áreas masivas
+      if (t.role === "canchas") center.y = 8;
+
+      center.y += t.yOffset;
+
+      const el = document.createElement("div");
+      el.className = `holo-label ${t.color}`;
+      el.innerHTML = `<span>${t.label}</span>`;
+      el.onclick = () => {
+        showInfoCard(t.role);
+        updateFocus(t.role);
+      };
+
+      labelsContainer.appendChild(el);
+      spatialLabels.push({ el, pos: center });
+    }
+  });
 }
 
 // Inicializar sensores y etiquetas con delays escalonados
 setTimeout(initSensors, 2500);
 setTimeout(initSpatialLabels, 4500);
-
-
-
