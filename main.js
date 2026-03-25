@@ -12,8 +12,12 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
 let model;
+let rain;
+let clouds;
+let currentWeatherType = "normal";
 const clock = new THREE.Clock();
 const container = document.getElementById("container");
+const txtHour = document.getElementById("txt-hour");
 
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
@@ -65,17 +69,13 @@ const sky = new Sky();
 sky.scale.setScalar(90000);
 sky.position.y = 0; // Centramos todo
 
-
-// HACK MÁGICO 360:
-// Alteramos la física de los rayos de luz para que el cielo azul "baje" mucho más.
-// Así, al mirar desde arriba (cámara elevada), no vemos la neblina gris del horizonte, sino cielo limpio.
 sky.material.onBeforeCompile = (shader) => {
   shader.fragmentShader = shader.fragmentShader.replace(
-    'vec3 direction = normalize( vWorldPosition - cameraPosition );',
-    'vec3 direction = normalize( vWorldPosition - cameraPosition );\n' +
-    '// Forzamos a que el renderizado siempre crea que estamos mirando un poco hacia arriba (el cielo azul)\n' +
-    'direction.y = 0.7 + abs(direction.y) * 0.3;\n' +
-    'direction = normalize(direction);'
+    "vec3 direction = normalize( vWorldPosition - cameraPosition );",
+    "vec3 direction = normalize( vWorldPosition - cameraPosition );\n" +
+      "// Forzar el azul profundo descendiendo hacia el horizonte (evita neblina gris)\n" +
+      "direction.y = 0.1 + abs(direction.y) * 0.9;\n" +
+      "direction = normalize(direction);",
   );
 };
 scene.add(sky);
@@ -88,7 +88,8 @@ const cloudMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },
     uSunPos: { value: new THREE.Vector3() },
-    uCloudColor: { value: new THREE.Color(0xFFFFFF) }
+    uCloudColor: { value: new THREE.Color(0xffffff) },
+    uOpacity: { value: 0.6 },
   },
   vertexShader: `
     varying vec3 vWorldPosition;
@@ -102,6 +103,7 @@ const cloudMaterial = new THREE.ShaderMaterial({
     uniform float uTime;
     uniform vec3 uSunPos;
     uniform vec3 uCloudColor;
+    uniform float uOpacity;
     varying vec3 vWorldPosition;
 
     float hash(vec2 p) {
@@ -143,17 +145,17 @@ const cloudMaterial = new THREE.ShaderMaterial({
       float sunLight = max(0.0, dot(direction, normalize(uSunPos)));
       vec3 finalColor = mix(uCloudColor * 0.9, uCloudColor * 1.15, pow(sunLight, 3.0));
       
-      gl_FragColor = vec4(finalColor, cloudMask * horizonFade * 0.55);
+      gl_FragColor = vec4(finalColor, cloudMask * horizonFade * uOpacity);
     }
-  `
+  `,
 });
-const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
 scene.add(clouds);
 
 const sun = new THREE.Vector3();
 const skyUniforms = sky.material.uniforms;
-skyUniforms["turbidity"].value = 2.5;     // Aire más claro
-skyUniforms["rayleigh"].value = 1.2;       // Cielo azul brillante y natural
+skyUniforms["turbidity"].value = 2.5; // Aire más claro
+skyUniforms["rayleigh"].value = 1.2; // Cielo azul brillante y natural
 skyUniforms["mieCoefficient"].value = 0.005;
 skyUniforms["mieDirectionalG"].value = 0.8;
 
@@ -172,7 +174,7 @@ function updateSun() {
 
   // Mantenemos la luz direccional en una posición alta y lejana para iluminar la maqueta colosal
   dirLight.position.set(1000, 2000, 500);
-  
+
   if (scene.environment) {
     scene.environment.dispose();
   }
@@ -191,7 +193,7 @@ const bloomPass = new UnrealBloomPass(
 );
 // Subimos el umbral muchísimo (20.0) porque el Cielo Procedural genera colores muy brillantes (> 5.0) en formato HDR.
 // Al subir el umbral, el Bloom ignorará el cielo (excepto el sol) y ya no sobreexpondrá la pantalla.
-bloomPass.threshold = 20.0; 
+bloomPass.threshold = 20.0;
 bloomPass.strength = 0.25;
 bloomPass.radius = 0.5;
 
@@ -202,7 +204,6 @@ const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
 // scene.background = new THREE.Color('red');
-
 
 // Carga del GLTF
 const loader = new GLTFLoader();
@@ -265,7 +266,7 @@ const initModels = async () => {
     model.position.sub(center);
 
     // Escalar modelo para que sea muchísimo más masivo visualmente
-    const targetSize = 1500; 
+    const targetSize = 1500;
     const scaleFactor = targetSize / (maxDim || 1);
     model.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
@@ -289,25 +290,14 @@ const initModels = async () => {
       const name = child.name ? child.name.toLowerCase() : "";
       if (!child.userData.explodeConfigured) {
         // El techo sube el doble de alto que el resto de componentes (160 unidades locales)
-        if (
-          name.includes("techo") ||
-          name.includes("roof") ||
-          name.includes("techumbre") ||
-          name.includes("lamina")
-        ) {
-          child.userData.explodeOffset = 180;
+        if (name.includes("Estructura") || name.includes("lamina")) {
+          child.userData.explodeOffset = 40;
           child.userData.originalY = child.position.y;
           child.traverse((c) => (c.userData.explodeConfigured = true));
         }
         // Gimnasio y alberca suben normal (mitad de altura)
-        else if (
-          name.includes("gym") ||
-          name.includes("gimnasio") ||
-          name.includes("alberca") ||
-          name.includes("pool") ||
-          name.includes("administracion")
-        ) {
-          child.userData.explodeOffset = 90;
+        else if (name.includes("gym") || name.includes("gimnasio")) {
+          child.userData.explodeOffset = 20;
           child.userData.originalY = child.position.y;
           child.traverse((c) => (c.userData.explodeConfigured = true));
         }
@@ -382,7 +372,8 @@ const initModels = async () => {
           originalMat.metalness = 0.0; // Cero brillo metálico
         }
 
-        originalMat.transparent = true;
+        // Por defecto no es transparente para evitar que parezca "fantasma" o se pierda profundidad
+        originalMat.transparent = false;
 
         child.userData.originalMaterial = originalMat;
 
@@ -478,7 +469,7 @@ const initModels = async () => {
 
         const instancedMeshes = treeMeshes.map((tm) => {
           const mat = tm.material.clone();
-          mat.transparent = true;
+          mat.transparent = false; // Árboles opacos por defecto
           const im = new THREE.InstancedMesh(tm.geometry, mat, numTreesPerType);
 
           im.userData.role = "structure";
@@ -554,12 +545,17 @@ const initModels = async () => {
     }
 
     // Configurar cámara (Vista peatonal extrema al ras del suelo para que el cielo sea el protagonista)
-    camera.position.set(targetSize * 0.35, targetSize * -0.045, targetSize * 0.35);
+    camera.position.set(
+      targetSize * 0.35,
+      targetSize * -0.045,
+      targetSize * 0.35,
+    );
     controls.target.set(0, targetSize * -0.02, 0);
     controls.update();
 
     // Arrancar controles y ocultar loader
     initLayerControls();
+    initWeatherControls();
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
     console.error("❌ Loader Error:", error);
@@ -592,7 +588,7 @@ function initLayerControls() {
         mat.emissive.setHex(0x000000);
         mat.opacity = 1.0;
         mat.wireframe = false;
-        mat.transparent = true;
+        mat.transparent = false; // Opaco en modo "All"
         return;
       }
 
@@ -602,10 +598,10 @@ function initLayerControls() {
         mat.color.copy(child.userData.highlightColor);
         mat.emissive.copy(child.userData.highlightColor);
         // Como el umbral de Bloom ahora es 20.0, el brillo interno debe ser mayor a 20 para resplandecer
-        mat.emissiveIntensity = 25.0; 
+        mat.emissiveIntensity = 25.0;
         mat.opacity = 1.0;
         mat.wireframe = false;
-        mat.transparent = true;
+        mat.transparent = false; // Opaco cuando está resaltado
       } else {
         // Capas inactivas -> Transparentes pero manteniendo su color original
         mat.color.copy(originalVal.color);
@@ -639,6 +635,10 @@ if (btnExplode) {
       btnExplode.classList.add("active");
       btnExplode.querySelector(".layer-desc").innerText =
         "Restaurar arquitectura a posición original";
+
+      // Al explotar, forzamos que nada sea transparente para apreciar bien los interiores
+      const allBtn = document.querySelector('.layer-btn[data-layer="all"]');
+      if (allBtn) allBtn.click();
     } else {
       btnExplode.classList.remove("active");
       btnExplode.querySelector(".layer-desc").innerText =
@@ -647,10 +647,134 @@ if (btnExplode) {
   });
 }
 
+function updateAtmosphere() {
+  const now = new Date();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const decimalHour = hour + minute / 60;
+
+  if (txtHour) {
+    txtHour.innerText = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} (CDMX)`;
+  }
+
+  // Mapear hora al Sol (Simulación realista)
+  // 6:00 (Amanecer, Elev 0), 12:00 (Cenit, Elev 90), 18:00 (Ocaso, Elev 0)
+  let elevation = Math.sin(((decimalHour - 6) * Math.PI) / 12) * 90;
+
+  // Si es modo SOLEADO (Caluroso), forzamos que el sol esté siempre alto (mínimo 15 grados)
+  // para que el cielo siempre se vea azul profundo y no naranja de atardecer.
+  if (currentWeatherType === "sunny") {
+    elevation = Math.max(15, elevation);
+  }
+
+  const azimuth = 180; // Orientación constante
+
+  const phi = THREE.MathUtils.degToRad(90 - elevation);
+  const theta = THREE.MathUtils.degToRad(azimuth);
+  sun.setFromSphericalCoords(1, phi, theta);
+
+  sky.material.uniforms["sunPosition"].value.copy(sun);
+  clouds.material.uniforms.uSunPos.value.copy(sun);
+
+  // Lógica de iluminación Día/Noche
+  const isNight = elevation < -5;
+  const lightIntensity = Math.max(0, Math.min(1, (elevation + 10) / 20));
+
+  // Parámetros de Clima que respetan la hora del día
+  if (currentWeatherType === "sunny") {
+    sky.material.uniforms["turbidity"].value = 0.1;
+    sky.material.uniforms["rayleigh"].value = 4.0; // Azul cobalto intenso estable
+    sky.material.uniforms["mieCoefficient"].value = 0.005;
+    clouds.visible = false;
+    clouds.material.uniforms.uOpacity.value = 0;
+
+    // Caluroso: Tinte amarillento en luces si es de día
+    if (!isNight) {
+      dirLight.color.setHex(0xfff4d6);
+      ambientLight.color.setHex(0xfffce8);
+    }
+  } else if (currentWeatherType === "rainy") {
+    clouds.visible = true;
+    sky.material.uniforms["mieCoefficient"].value = 0.05;
+    sky.material.uniforms["turbidity"].value = 8.0;
+    // Lluvia brillante: Subimos rayleigh para que el cielo sea un gris luminoso
+    sky.material.uniforms["rayleigh"].value = isNight ? 0.01 : 2.5;
+    clouds.material.uniforms.uCloudColor.value.setHex(0xaaaaaa);
+    clouds.material.uniforms.uOpacity.value = Math.max(
+      0.4,
+      lightIntensity * 0.85,
+    );
+
+    // Lluvia gris: Tinte metálico/neutro
+    dirLight.color.setHex(0xe9ecef);
+    ambientLight.color.setHex(0xf8f9fa);
+  } else {
+    clouds.visible = true;
+    sky.material.uniforms["mieCoefficient"].value = 0.005;
+    sky.material.uniforms["turbidity"].value = 2.5;
+    sky.material.uniforms["rayleigh"].value = isNight ? 0.02 : 1.2;
+    clouds.material.uniforms.uCloudColor.value.setHex(0xffffff);
+    clouds.material.uniforms.uOpacity.value = lightIntensity * 0.55;
+
+    // Normal: Blanco puro
+    dirLight.color.setHex(0xffffff);
+    ambientLight.color.setHex(0xffffff);
+  }
+
+  // Ajustar luces de la escena
+  dirLight.intensity = lightIntensity * 0.7;
+  ambientLight.intensity = Math.max(0.15, lightIntensity * 0.4);
+  dirLight.position.set(
+    sun.x * 2000,
+    Math.max(200, sun.y * 2000),
+    sun.z * 2000,
+  );
+}
+
+function initWeatherControls() {
+  const btns = document.querySelectorAll(".weather-btn");
+
+  const rainGeo = new THREE.BufferGeometry();
+  const rainCount = 15000;
+  const positions = new Float32Array(rainCount * 3);
+  for (let i = 0; i < rainCount * 3; i += 3) {
+    positions[i] = (Math.random() - 0.5) * 4000;
+    positions[i + 1] = Math.random() * 2000;
+    positions[i + 2] = (Math.random() - 0.5) * 4000;
+  }
+  rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const rainMat = new THREE.PointsMaterial({
+    color: 0xaaaaaa,
+    size: 1.5,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  rain = new THREE.Points(rainGeo, rainMat);
+  scene.add(rain);
+
+  btns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentWeatherType = btn.dataset.weather;
+
+      // Control de lluvia
+      if (currentWeatherType === "rainy") {
+        rain.material.opacity = 0.6;
+      } else {
+        rain.material.opacity = 0;
+      }
+    });
+  });
+}
+
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+
+  updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
 
   // Pulsación suave para las capas activas (emissive > 1) y Vista Explosionada
   if (model) {
@@ -677,6 +801,16 @@ function animate() {
 
     // Actualizar nubes procedurales
     if (clouds) clouds.material.uniforms.uTime.value = time;
+
+    // Actualizar lluvia si está activa
+    if (rain && rain.material.opacity > 0) {
+      const pos = rain.geometry.attributes.position.array;
+      for (let i = 1; i < pos.length; i += 3) {
+        pos[i] -= 25.0; // Caída rápida
+        if (pos[i] < -100) pos[i] = 1500;
+      }
+      rain.geometry.attributes.position.needsUpdate = true;
+    }
   }
 
   composer.render(); // Usar composer en lugar de renderer normal para el efecto Bloom
