@@ -15,7 +15,8 @@ let model;
 let rain;
 let clouds;
 let currentWeatherType = "normal";
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
+timer.update();
 const container = document.getElementById("container");
 const txtHour = document.getElementById("txt-hour");
 
@@ -287,20 +288,74 @@ const initModels = async () => {
 
     // Preparar nodos arquitectónicos para la Vista Explosionada interactiva
     model.traverse((child) => {
-      const name = child.name ? child.name.toLowerCase() : "";
-      if (!child.userData.explodeConfigured) {
-        // El techo sube el doble de alto que el resto de componentes (160 unidades locales)
-        if (name.includes("Estructura") || name.includes("lamina")) {
+      const name = (child.name || "").toLowerCase().trim();
+
+      // Buscamos el nombre del padre, del abuelo, etc., hasta encontrar una categoría principal y capturar nombres intermedios
+      let category = "";
+      let fullPathName = ""; // Acumulamos nombres para detectar materiales
+      let current = child;
+
+      while (current) {
+        const cName = (current.name || "").toLowerCase();
+        fullPathName += " " + cName;
+
+        if (cName.includes("gimnasio") || cName.includes("gym")) {
+          category = "gym";
+          break;
+        }
+        if (cName.includes("alberca") || cName.includes("pool")) {
+          category = "pool";
+          break;
+        }
+        if (cName.includes("estructura") || cName.includes("structure")) {
+          category = "estructura";
+          break;
+        }
+        if (cName.includes("administracion")) {
+          category = "admin";
+          break;
+        }
+        if (cName.includes("canchas")) {
+          category = "canchas";
+          break;
+        }
+        if (cName.includes("terreno")) {
+          category = "terreno";
+          break;
+        }
+        current = current.parent;
+      }
+
+      // Si ya tiene una configuración, no hacemos nada
+      if (child.userData.explodeConfigured) return;
+
+      // --- APLICACIÓN POR CATEGORÍA ESTRICTA ---
+
+      // 1. ESTRUCTURA (Techo y Esqueleto) -> Sube 40
+      if (category === "estructura") {
+        if (fullPathName.includes("lamina") || fullPathName.includes("acero")) {
           child.userData.explodeOffset = 40;
-          child.userData.originalY = child.position.y;
-          child.traverse((c) => (c.userData.explodeConfigured = true));
         }
-        // Gimnasio y alberca suben normal (mitad de altura)
-        else if (name.includes("gym") || name.includes("gimnasio")) {
-          child.userData.explodeOffset = 20;
-          child.userData.originalY = child.position.y;
-          child.traverse((c) => (c.userData.explodeConfigured = true));
-        }
+      }
+      // 2. GIMNASIO -> Sube 20 todo el bloque junto
+      else if (category === "gym") {
+        child.userData.explodeOffset = 20;
+      }
+      // 3. ALBERCA, CANCHAS, ADMINISTRACIÓN Y TERRENO -> Se quedan en 0
+      else if (
+        category === "pool" ||
+        category === "canchas" ||
+        category === "admin" ||
+        category === "terreno"
+      ) {
+        child.userData.explodeOffset = 0;
+      }
+
+      // Si asignamos un offset (incluyendo 0), marcamos a este nodo
+      // y a todos sus hijos para que no dupliquen el movimiento
+      if (child.userData.explodeOffset !== undefined) {
+        child.userData.originalY = child.position.y;
+        child.traverse((c) => (c.userData.explodeConfigured = true));
       }
     });
 
@@ -312,10 +367,16 @@ const initModels = async () => {
       }
 
       // Asignar rol según el nombre del nodo actual
-      const name = child.name.toLowerCase();
+      const name = (child.name || "").toLowerCase();
 
       // Categorías primarias (fuerzan su rol)
-      if (name.includes("gym") || name.includes("gimnasio"))
+      if (
+        name.includes("gym") ||
+        name.includes("gimnasio") ||
+        name.includes("madera") ||
+        name.includes("porcelana") ||
+        name.includes("pintura azul")
+      )
         child.userData.role = "gym";
       else if (name.includes("alberca") || name.includes("pool"))
         child.userData.role = "pool";
@@ -338,6 +399,9 @@ const initModels = async () => {
           name.includes("case") ||
           name.includes("administracion") ||
           name.includes("estructura") ||
+          name.includes("acero") ||
+          name.includes("pintura blanca") ||
+          name.includes("concreto pulido") ||
           name.includes("terreno"))
       ) {
         child.userData.role = "structure";
@@ -778,7 +842,8 @@ function animate() {
 
   // Pulsación suave para las capas activas (emissive > 1) y Vista Explosionada
   if (model) {
-    const time = clock.getElapsedTime();
+    timer.update();
+    const time = timer.getElapsed();
     model.traverse((child) => {
       // 1. Resplandor pulsante
       // Solo pulsamos aquellos elementos que tengan más de 20 de intensidad (las capas activas)
