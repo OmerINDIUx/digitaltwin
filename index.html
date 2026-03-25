@@ -23,6 +23,10 @@
             <div class="nav-icon" title="Settings">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             </div>
+            <div id="notif-bell" class="nav-icon" title="Notificaciones">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <div id="notif-badge" class="notif-badge hidden"></div>
+            </div>
 
             <div class="nav-separator"></div>
 
@@ -34,6 +38,19 @@
             </div>
             <div class="nav-icon weather-btn" data-weather="rainy" title="Clima Lluvioso">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16.2A4.5 4.5 0 0 0 17.5 8h-1.8A7 7 0 1 0 4 14.9"></path><path d="M16 14v6"></path><path d="M8 14v6"></path><path d="M12 16v6"></path></svg>
+            </div>
+
+            <div class="nav-separator"></div>
+
+            <!-- Cam Presets -->
+            <div class="nav-icon cam-preset" data-preset="drone" title="Vista Drone">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+            </div>
+            <div class="nav-icon cam-preset" data-preset="walk" title="Vista Peatonal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path><path d="M10 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path><path d="M4 21l1-5h14l1 5"></path><path d="M6 16v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"></path></svg>
+            </div>
+            <div class="nav-icon cam-preset" data-preset="pano" title="Giro Panorámico">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 12l-4-4-4 4"></path><path d="M12 16V8"></path></svg>
             </div>
 
             <div class="nav-bottom-status">
@@ -62,15 +79,15 @@
                     
                     <div class="metrics-grid">
                         <div class="metric-card">
-                            <span class="metric-label">Capacidad Restante</span>
+                            <span class="metric-label">CAPACIDAD</span>
                             <span class="metric-value" style="color: var(--success-color);">85%</span>
                         </div>
                         <div class="metric-card">
-                            <span class="metric-label">Temperatura Avg</span>
+                            <span class="metric-label">TEMP. AVG</span>
                             <span class="metric-value">24°C</span>
                         </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Hora Ciudad de México</span>
+                        <div class="metric-card full-width">
+                            <span class="metric-label">HORA CDMX</span>
                             <span id="txt-hour" class="metric-value">00:00</span>
                         </div>
                     </div>
@@ -211,14 +228,17 @@
             </div>
 
             <div class="trend-section">
-                <span class="trend-header">MAPA DE CALOR (24H)</span>
-                <div id="trend-chart" class="mini-chart">
-                    <div class="trend-bar" style="height: 20%;"></div>
-                    <div class="trend-bar" style="height: 40%;"></div>
-                    <div class="trend-bar high" style="height: 85%;"></div>
-                    <div class="trend-bar" style="height: 60%;"></div>
-                    <div class="trend-bar" style="height: 45%;"></div>
-                    <div class="trend-bar" style="height: 30%;"></div>
+                <span class="trend-header">TELEMETRÍA SEMANAL</span>
+                <div id="chart-container" class="chart-container">
+                    <svg id="line-chart-svg" width="100%" height="80" viewBox="0 0 300 80" preserveAspectRatio="none">
+                        <path id="chart-path" d="" fill="url(#chart-gradient)" stroke="#6366f1" stroke-width="2" />
+                        <defs>
+                            <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:rgba(99, 102, 241, 0.4);stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:rgba(99, 102, 241, 0);stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
                 </div>
             </div>
             
@@ -234,6 +254,17 @@
             </div>
         </div>
     </div>
+
+    </div>
+
+    <!-- Panel de Notificaciones (Historial) -->
+    <div id="notif-panel" class="notif-panel hidden">
+        <div class="notif-panel-header">HISTORIAL DE OPERACIÓN</div>
+        <div id="notif-list" class="notif-list"></div>
+    </div>
+
+    <!-- Sistema de Notificaciones (Toasts) -->
+    <div id="notification-container" class="notification-container"></div>
 
     <script type="module" src="/main.js"></script>
 </body>

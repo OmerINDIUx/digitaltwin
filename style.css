@@ -137,15 +137,15 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 30px 40px;
-  gap: 20px;
+  padding: 15px 40px; /* Reducido de 30px a 15px */
+  gap: 10px;        /* Reducido de 20px a 10px */
 }
 
 .top-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 40px;
+  align-items: center;
+  margin-bottom: 10px; /* Reducido drásticamente para subir monitoreo */
 }
 
 .header-left .page-title {
@@ -205,10 +205,14 @@ body {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
   border-radius: 30px;
-  padding: 30px;
+  padding: 24px;
   width: 380px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-title {
@@ -226,31 +230,42 @@ body {
 
 /* Metrics Grid */
 .metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 25px;
 }
 
 .metric-card {
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.metric-card.full-width {
+    grid-column: span 2;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.1), rgba(255, 255, 255, 0.05));
 }
 
 .metric-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
 }
 
 .metric-value {
-  font-size: 1.5rem;
-  font-weight: 700;
+    font-size: 1.3rem; /* Reducido de 1.5rem */
+    font-weight: 700;
+    color: white;
 }
 
 /* Layer Controls */
@@ -885,6 +900,72 @@ body {
 .bg-priority-mid { background: linear-gradient(135deg, #f59e0b, #b45309); border: 1px solid #fbbf24; }
 .bg-priority-low { background: linear-gradient(135deg, #10b981, #047857); border: 1px solid #34d399; }
 
+/* SISTEMA DE NOTIFICACIONES (TOASTS) */
+.notification-container {
+    position: fixed;
+    top: 100px; /* Debajo de la cabecera */
+    right: 40px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.toast {
+    width: 300px;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 14px;
+    color: white;
+    pointer-events: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: slideInToast 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    transition: all 0.3s ease;
+    border-left: 4px solid #6366f1;
+}
+
+.toast.danger { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+.toast.success { border-left-color: #10b981; background: rgba(16, 185, 129, 0.15); }
+
+.toast-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.toast-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.toast-time {
+    font-size: 9px;
+    opacity: 0.5;
+}
+
+.toast-body {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+@keyframes slideInToast {
+    from { transform: translateX(100%) scale(0.9); opacity: 0; }
+    to { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.toast.hidden {
+    transform: scale(0.9) translateY(-10px);
+    opacity: 0;
+}
+
 /* Menú Contextual Moderno */
 #context-menu {
     position: fixed;
@@ -922,6 +1003,94 @@ body {
     color: #fff;
     padding-left: 25px;
 }
+
+.notif-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 2px solid var(--bg-nav);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.notif-badge.hidden { display: none; }
+
+/* NOTIF PANEL FLYOUT */
+.notif-panel {
+    position: fixed;
+    top: 15px;
+    left: 80px;
+    width: 320px;
+    height: calc(100vh - 30px);
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 24px;
+    z-index: 1500;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 30px 0 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.notif-panel.hidden {
+    transform: translateX(-40px);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.notif-panel-header {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2.5px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notif-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.notif-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 14px;
+    padding: 15px;
+    border-left: 3px solid #6366f1;
+}
+
+.notif-item.danger { border-left-color: #ef4444; }
+.notif-item.success { border-left-color: #10b981; }
+
+.notif-item-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.5;
+    margin-bottom: 4px;
+}
+
+.notif-item-body {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* Scrollbar para la lista */
+.notif-list::-webkit-scrollbar { width: 4px; }
+.notif-list::-webkit-scrollbar-track { background: transparent; }
+.notif-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
 .menu-item.has-submenu::after {
     content: '→';

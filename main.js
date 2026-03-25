@@ -27,6 +27,9 @@ const overviewCameraPos = new THREE.Vector3(525, -67.5, 525);
 const overviewCameraTarget = new THREE.Vector3(0, -30, 0);
 let isCameraMoving = false;
 let explodeFactor = 0; // Control global de la vista explosionada
+let isPanoActive = false; // Control del giro panorámico
+let panoAngle = 0;
+const feedLimit = 5;
 
 // --- SISTEMA DE POBLACIÓN (Simulación de Personas) ---
 const peopleInstances = {
@@ -929,7 +932,6 @@ function focusCameraOnRole(role) {
     isCameraMoving = true;
   }
 }
-
 function initLayoutControls() {
   const btns = document.querySelectorAll(".layer-btn");
 
@@ -945,8 +947,40 @@ function initLayoutControls() {
       if (mode === "gym" || mode === "pool" || mode === "canchas") {
         showInfoCard(mode);
       } else {
-        infoCard.classList.add("hidden");
+        if (infoCard) infoCard.classList.add("hidden");
         if (floatingLabel) floatingLabel.classList.add("hidden");
+      }
+    });
+  });
+
+  // --- CONTROLES DE CÁMARA (PRESETS) ---
+  const camBtns = document.querySelectorAll(".cam-preset");
+  camBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const preset = btn.dataset.preset;
+      camBtns.forEach((b) => b.classList.remove("active"));
+      
+      // Detener pano si se cambia de vista
+      if (preset !== "pano") isPanoActive = false;
+
+      if (preset === "drone") {
+        btn.classList.add("active");
+        cameraTargetPos.set(0, 1500, 0); 
+        controlsTargetPos.set(0, 0, 0);
+        isCameraMoving = true;
+      } else if (preset === "walk") {
+        btn.classList.add("active");
+        cameraTargetPos.set(400, 10, 400); 
+        controlsTargetPos.set(0, 10, 0);
+        isCameraMoving = true;
+      } else if (preset === "pano") {
+        isPanoActive = !isPanoActive;
+        if (isPanoActive) {
+            btn.classList.add("active");
+            addFeedItem("Iniciando rotación panorámica de inspección", "success");
+        } else {
+            btn.classList.remove("active");
+        }
       }
     });
   });
@@ -1098,6 +1132,16 @@ function initWeatherControls() {
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
+
+  // Lógica de Giro Panorámico
+  if (isPanoActive) {
+    panoAngle += 0.002;
+    const radius = 1000;
+    camera.position.x = Math.cos(panoAngle) * radius;
+    camera.position.z = Math.sin(panoAngle) * radius;
+    camera.position.y = 400;
+    controls.target.set(0, 0, 0);
+  }
 
   // Efecto 'Pulso de Vida' y MOVIMIENTO ACENTUADO
   const pulseEmissive = 2.0 + Math.sin(Date.now() * 0.005) * 1.5;
@@ -1465,6 +1509,10 @@ function showInfoCard(role) {
 
   if (infoCard) {
     infoCard.classList.remove("hidden");
+    
+    // Dibujar Gráfica de Línea
+    updateLineChart(data.trend || [20, 50, 30, 80, 40, 90]);
+    
     // Trigger para relanzar la animación del Live Feed (opcional)
     const scanLine = infoCard.querySelector(".scan-line");
     if (scanLine) {
@@ -1474,6 +1522,110 @@ function showInfoCard(role) {
     }
   }
 }
+
+function updateLineChart(data) {
+    const path = document.getElementById("chart-path");
+    if (!path) return;
+
+    const width = 300;
+    const height = 80;
+    const stepX = width / (data.length - 1);
+    
+    let d = `M 0 ${height - (data[0] / 100) * height}`;
+    
+    for (let i = 1; i < data.length; i++) {
+        const x = i * stepX;
+        const y = height - (data[i] / 100) * height;
+        d += ` L ${x} ${y}`;
+    }
+    
+    // Cerrar el path para el gradiente
+    const closedD = d + ` L ${width} ${height} L 0 ${height} Z`;
+    path.setAttribute("d", closedD);
+}
+
+function addFeedItem(text, type = "") {
+    const container = document.getElementById("notification-container");
+    const notifList = document.getElementById("notif-list");
+    const badge = document.getElementById("notif-badge");
+    const panel = document.getElementById("notif-panel");
+
+    if (!container) return;
+
+    // 1. Crear el Toast (Notificación momentánea)
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    toast.innerHTML = `
+        <div class="toast-header">
+            <span class="toast-title">Notificación de Sistema</span>
+            <span class="toast-time">${timeStr}</span>
+        </div>
+        <div class="toast-body">${text}</div>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Auto-eliminar toast
+    setTimeout(() => {
+        toast.classList.add("hidden");
+        setTimeout(() => toast.remove(), 400);
+    }, 5000);
+
+    // 2. Agregar al Historial (Panel Desplegable)
+    if (notifList) {
+        const item = document.createElement("div");
+        item.className = `notif-item ${type}`;
+        item.innerHTML = `
+            <div class="notif-item-header">
+                <span>GESTIÓN DE OPERACIÓN</span>
+                <span>${timeStr}</span>
+            </div>
+            <div class="notif-item-body">${text}</div>
+        `;
+        notifList.prepend(item);
+
+        // 3. Mostrar punto rojo si el panel está cerrado
+        if (badge && panel && panel.classList.contains("hidden")) {
+            badge.classList.remove("hidden");
+        }
+    }
+}
+
+// Control del Panel de Notificaciones
+const bell = document.getElementById("notif-bell");
+const notifPanel = document.getElementById("notif-panel");
+const notifBadge = document.getElementById("notif-badge");
+
+if (bell && notifPanel) {
+    bell.addEventListener("click", (e) => {
+        e.stopPropagation();
+        notifPanel.classList.toggle("hidden");
+        
+        // Al abrir, quitar el punto rojo
+        if (!notifPanel.classList.contains("hidden")) {
+            if (notifBadge) notifBadge.classList.add("hidden");
+        }
+    });
+
+    // Cerrar al hacer clic fuera
+    document.addEventListener("click", (e) => {
+        if (!notifPanel.contains(e.target) && e.target !== bell) {
+            notifPanel.classList.add("hidden");
+        }
+    });
+}
+
+// Inicializar feed con algunos eventos de bienvenida
+setTimeout(() => {
+    addFeedItem("⚠️ Alerta: Temperatura crítica detectada en motores", "danger");
+    setTimeout(() => {
+        addFeedItem("✅ Mantenimiento preventivo completado", "success");
+    }, 2500);
+}, 1000);
 
 window.addEventListener("mousedown", onMouseDown);
 window.addEventListener("click", onMouseClick);
