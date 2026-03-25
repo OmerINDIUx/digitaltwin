@@ -252,118 +252,142 @@
     <!-- Dashboard Maestro Extendido (Master Control Center) -->
     <div id="extended-dashboard" class="dashboard-overlay hidden">
         <div class="dashboard-content admin-dashboard">
+            <div class="dash-scan-line"></div>
             <header class="dash-top">
                 <div class="dash-title-area">
-                    <span class="system-status-pill">● LIVE SYSTEM ACTIVE</span>
-                    <h1>Centro de Control Maestro</h1>
-                    <p>Utopia Japón - Digital Twin Management Platform</p>
+                    <span class="system-status-pill">
+                        <span class="blink-dot"></span> LIVE SYSTEM ACTIVE
+                    </span>
+                    <h1>CENTRO DE CONTROL MAESTRO</h1>
+                    <p class="dash-id-tag">REF: UTOPIA-JP-01X-SECURE</p>
                 </div>
                 <div class="dash-actions">
-                    <button id="btn-new-reservation" class="prime-btn-small">Nueva Reserva</button>
-                    <button id="close-dashboard" class="close-btn" onclick="document.getElementById('extended-dashboard').classList.add('hidden')">✖</button>
+                    <div class="system-time">
+                        <span id="dash-date-val">25/03/2026</span>
+                        <span id="dash-time-val">16:45:12</span>
+                    </div>
+                    <button id="btn-new-reservation" class="cyber-btn">NUEVA RESERVA</button>
+                    <button id="close-dashboard" class="close-btn-circle" onclick="document.getElementById('extended-dashboard').classList.add('hidden')">✖</button>
                 </div>
             </header>
 
             <div class="dash-main-grid">
-                <!-- PANEL IZQUIERDO: MÉTRICAS GENERALES -->
-                <section class="dash-section metrics-overview">
-                    <div class="section-header">
-                        <h3>Métricas de Red</h3>
-                        <span class="time-stamp">Live Telemetry</span>
-                    </div>
-                    
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <span class="kpi-label">POBLACIÓN TOTAL</span>
-                            <span id="dash-total-people" class="kpi-value">--</span>
-                        </div>
-                        <div class="kpi-card">
-                            <span class="kpi-label">TEMP. MEDIA</span>
-                            <span id="dash-avg-temp" class="kpi-value">--</span>
-                        </div>
-                        <div class="kpi-card">
-                            <span class="kpi-label">ENERGÍA (kw/h)</span>
-                            <span id="dash-energy" class="kpi-value">4.2</span>
+                <!-- PANEL IZQUIERDO: KPI & ANALYTICS -->
+                <section class="dash-column left-col">
+                    <div class="dash-card metrics-compact">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <h3 class="card-label">POBLACIÓN TOTAL</h3>
+                        <div class="kpi-main">
+                            <span id="dash-total-people" class="kpi-value glow-text">--</span>
+                            <div class="mini-sparkline">
+                                <svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0 25 Q 15 10, 30 20 T 60 5 T 100 15" fill="none" stroke="var(--primary)" stroke-width="2" /></svg>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="chart-box">
-                        <header>
-                            <h4>Ocupación por Zonas</h4>
-                        </header>
+                    <div class="dash-card metrics-compact">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <h3 class="card-label">TEMPERATURA MEDIA</h3>
+                        <div class="kpi-main">
+                            <span id="dash-avg-temp" class="kpi-value glow-text">--</span>
+                            <div class="mini-sparkline">
+                                <svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0 15 Q 25 25, 50 15 T 100 10" fill="none" stroke="#f43f5e" stroke-width="2" /></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dash-card zone-monitoring">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <h3 class="card-label">DISTRIBUCIÓN DE CARGA</h3>
                         <div class="comparison-bars">
                             <div class="zone-bar-row">
-                                <span class="z-name">Gimnasio</span>
+                                <div class="bar-info"><span>GIMNASIO</span> <span id="val-gym">--</span></div>
                                 <div class="z-track"><div id="bar-gym" class="z-fill" style="width: 0%"></div></div>
-                                <span id="val-gym" class="z-val">--</span>
                             </div>
                             <div class="zone-bar-row">
-                                <span class="z-name">Alberca</span>
+                                <div class="bar-info"><span>ALBERCA</span> <span id="val-pool">--</span></div>
                                 <div class="z-track"><div id="bar-pool" class="z-fill" style="width: 0%"></div></div>
-                                <span id="val-pool" class="z-val">--</span>
                             </div>
                             <div class="zone-bar-row">
-                                <span class="z-name">Canchas</span>
+                                <div class="bar-info"><span>CANCHAS</span> <span id="val-canchas">--</span></div>
                                 <div class="z-track"><div id="bar-canchas" class="z-fill" style="width: 0%"></div></div>
-                                <span id="val-canchas" class="z-val">--</span>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- PANEL CENTRAL: INFRAESTRUCTURA -->
-                <section class="dash-section telemetry-center">
-                    <div class="section-header">
-                        <h3>Estado de Instalaciones</h3>
+                <!-- PANEL CENTRAL: CORE STATUS & SPATIAL FEED -->
+                <section class="dash-column center-col">
+                    <div class="core-status-container">
+                        <div class="radial-ring outer"></div>
+                        <div class="radial-ring mid"></div>
+                        <div class="radial-ring inner">
+                            <div class="core-data">
+                                <span class="core-label">SYSTEM HEALTH</span>
+                                <span class="core-percent">99.8%</span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="maint-list">
-                        <div class="maint-item">
-                            <div class="m-icon">⚠️</div>
-                            <div class="m-info">
-                                <strong>Filtro de Aire - Alberca</strong>
-                                <span>Mtto. en 48h</span>
-                            </div>
-                            <span class="m-status priority">Alta</span>
+                    <div class="dash-card telemetry-log">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <div class="log-header">
+                            <span class="dot"></span>
+                            <h3>ANALÍTICA DE IA - LOGS</h3>
                         </div>
-                        <div class="maint-item">
-                            <div class="m-icon">✅</div>
-                            <div class="m-info">
-                                <strong>Iluminación Cancha 1</strong>
-                                <span>Operativa</span>
-                            </div>
-                            <span class="m-status ok">OK</span>
-                        </div>
-                    </div>
-
-                    <div class="system-health">
-                        <h4>Salud del Sistema</h4>
-                        <div class="health-grid">
-                            <div class="health-point">
-                                <label>Conectividad IoT</label>
-                                <div class="health-bar"><div class="fill" style="width: 98%"></div></div>
-                            </div>
-                            <div class="health-point">
-                                <label>Microsoft SQL DB</label>
-                                <div class="health-bar"><div class="fill" style="width: 100%; background: #0078d4;"></div></div>
-                            </div>
+                        <div id="ai-terminal" class="terminal-content">
+                            <p class="log-line">> Sincronizando sensores IoT...</p>
+                            <p class="log-line">> Analizando patrones de ocupación v2.4</p>
+                            <p class="log-line success">> Estabilidad del Digital Twin confirmada.</p>
                         </div>
                     </div>
                 </section>
 
-                <!-- PANEL DERECHO: HISTORIAL -->
-                <aside class="dash-section status-panel">
-                    <div class="section-header">
-                        <h3>Actividad Reciente</h3>
+                <!-- PANEL DERECHO: INFRAESTRUCTURA & LIVE FEED -->
+                <section class="dash-column right-col">
+                    <div class="dash-card infrastructure-card">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <h3 class="card-label">INFRAESTRUCTURA CRÍTICA</h3>
+                        <div class="maint-list-pro">
+                            <div class="m-item priority-high">
+                                <div class="m-bar"></div>
+                                <div class="m-content">
+                                    <span class="m-title">FILTRO ALBERCA</span>
+                                    <span class="m-status">REQ. ATENCIÓN (48H)</span>
+                                </div>
+                            </div>
+                            <div class="m-item priority-ok">
+                                <div class="m-bar"></div>
+                                <div class="m-content">
+                                    <span class="m-title">ILUMINACIÓN S-1</span>
+                                    <span class="m-status">OPERATIVA</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="recent-reservations">
-                        <h4>Últimas Reservas (DB)</h4>
-                        <div id="res-history-list" class="mini-list pro-list">
+
+                    <div class="dash-card activity-card">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <h3 class="card-label">RESERVAS EN COLA (DB)</h3>
+                        <div id="res-history-list" class="pro-list-compact">
                             <!-- Inyectado via JS -->
                         </div>
                     </div>
-                </aside>
+
+                    <div class="dash-card connectivity-card">
+                        <div class="card-corner tl"></div><div class="card-corner tr"></div>
+                        <div class="health-grid-mini">
+                            <div class="health-item-mini">
+                                <span class="h-label">IOT CLOUD</span>
+                                <div class="h-bar"><div class="fill" style="width: 98%"></div></div>
+                            </div>
+                            <div class="health-item-mini">
+                                <span class="h-label">MSSQL SERVER</span>
+                                <div class="h-bar"><div class="fill" style="width: 100%; background: #0078d4;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>

@@ -318,21 +318,9 @@ updateSun();
 // Helpers eliminados para un look más limpio (daylight)
 
 const renderScene = new RenderPass(scene, camera);
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.5,
-  0.4,
-  0.85,
-);
-// Subimos el umbral muchísimo (20.0) porque el Cielo Procedural genera colores muy brillantes (> 5.0) en formato HDR.
-// Al subir el umbral, el Bloom ignorará el cielo (excepto el sol) y ya no sobreexpondrá la pantalla.
-bloomPass.threshold = 20.0;
-bloomPass.strength = 0.25;
-bloomPass.radius = 0.5;
-
+// Eliminamos BloomPass incesario que causaba el efecto "incandescente"
 const composer = new EffectComposer(renderer);
 composer.addPass(renderScene);
-composer.addPass(bloomPass);
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
@@ -1092,7 +1080,6 @@ function loadReservationsFromDB() {
     const historyList = document.getElementById("res-history-list");
     if (!historyList) return;
 
-    // Feedback visual de carga
     historyList.innerHTML = '<div class="mini-item">Consultando Base de Datos Laragon...</div>';
 
     fetch("api_reservas.php")
@@ -1117,8 +1104,8 @@ function loadReservationsFromDB() {
         });
 }
 
+// --- NUEVA LÓGICA DE DASHBOARD "INCREÍBLE" ---
 function updateDashboardData() {
-    // 1. Calcular Población Total y Promedios
     let total = 0;
     let totalTemp = 0;
     let count = 0;
@@ -1126,31 +1113,87 @@ function updateDashboardData() {
     Object.keys(digitalTwinData).forEach(key => {
         const val = parseInt(digitalTwinData[key].current) || 0;
         total += val;
-        
         const temp = parseFloat(digitalTwinData[key].temp) || 0;
         totalTemp += temp;
         count++;
 
-        // Actualizar barras de comparación
         const bar = document.getElementById(`bar-${key}`);
         const valTxt = document.getElementById(`val-${key}`);
-        if(bar) bar.style.width = `${Math.min(val * 2, 100)}%`; // Escala visual
-        if(valTxt) valTxt.innerText = val;
+        if(bar) bar.style.width = `${Math.min(val * 1.5, 100)}%`; 
+        if(valTxt) valTxt.innerText = `${val} Pax`;
     });
 
     const avgTemp = (totalTemp / count).toFixed(1);
 
-    // 2. Inyectar en el Dashboard
-    const totalEl = document.getElementById("dash-total-people");
+    // Animación de conteo simple
+    animateValue("dash-total-people", 0, total, 1000);
     const tempEl = document.getElementById("dash-avg-temp");
-    
-    if(totalEl) totalEl.innerText = total;
     if(tempEl) tempEl.innerText = `${avgTemp}°C`;
 
-    // 3. Simular variación de energía
-    const energyEl = document.getElementById("dash-energy");
-    if(energyEl) energyEl.innerText = (4 + Math.random() * 0.5).toFixed(2);
+    updateClock();
 }
+
+function updateClock() {
+    const timeEl = document.getElementById("dash-time-val");
+    const dateEl = document.getElementById("dash-date-val");
+    if(!timeEl || !dateEl) return;
+
+    const now = new Date();
+    timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
+    dateEl.innerText = now.toLocaleDateString([], { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function animateValue(id, start, end, duration) {
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerText = Math.floor(progress * (end - start) + start);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
+// Simulador de Terminal IA
+function initDashboardEffects() {
+    const terminal = document.getElementById("ai-terminal");
+    if (!terminal) return;
+
+    const logs = [
+        "Sincronizando malla del Digital Twin...",
+        "Analizando patrones térmicos en Alberca...",
+        "Optimización de flujo energético completada.",
+        "Detección de ocupación anómala: Ninguna.",
+        "Sincronizando con MSSQL Server... OK",
+        "IA: Sugiriendo ajuste en iluminación Campo 1.",
+        "Estado del sistema: ESTABLE (99.8%)",
+        "Analizando logs de reserva recientes...",
+        "Digital Twin v2.4 operativo y listo."
+    ];
+
+    setInterval(() => {
+        if (document.getElementById("extended-dashboard").classList.contains("hidden")) return;
+        
+        const p = document.createElement("p");
+        p.className = "log-line";
+        p.innerText = `> ${logs[Math.floor(Math.random() * logs.length)]}`;
+        terminal.appendChild(p);
+        
+        if (terminal.children.length > 20) terminal.removeChild(terminal.firstChild);
+        terminal.scrollTop = terminal.scrollHeight;
+    }, 3000);
+
+    // Reloj en tiempo real
+    setInterval(updateClock, 1000);
+}
+
+// Llamar a los efectos al inicio
+initDashboardEffects();
+
 
 let isModelExploded = false;
 const btnExplode = document.getElementById("btn-explode");
@@ -1475,20 +1518,23 @@ function onMouseMove(event) {
   const intersects = raycaster.intersectObject(model, true);
 
   let currentHoverRole = null;
+  const interestRoles = ["gym", "pool", "canchas"];
+
   if (intersects.length > 0) {
-    // HOVER PENETRANTE E INTELIGENTE: Buscamos primero zonas de INTERÉS OPERATIVO
+    // BÚSQUEDA ROBUSTA: Recorremos todas las intersecciones y sus ancestros
     for (const intersect of intersects) {
-      let obj = intersect.object;
-      let role = obj.userData.role;
-      let p = obj.parent;
-      while (!role && p && p !== model) {
-        role = p.userData.role;
-        p = p.parent;
+      let testObj = intersect.object;
+      let role = null;
+      
+      while (testObj && testObj !== model) {
+        if (testObj.userData.role && interestRoles.includes(testObj.userData.role)) {
+          role = testObj.userData.role;
+          break;
+        }
+        testObj = testObj.parent;
       }
 
-      // FILTRO DE INTERÉS: Solo nos interesa destacar estas tres áreas
-      const interestRoles = ["gym", "pool", "canchas"];
-      if (role && interestRoles.includes(role)) {
+      if (role) {
         currentHoverRole = role;
         break;
       }
@@ -1499,35 +1545,28 @@ function onMouseMove(event) {
     hoveredRole = currentHoverRole;
 
     // Cambiar cursor (pointer para zonas de interés)
-    const isClickable =
-      hoveredRole && hoveredRole !== "roof" && hoveredRole !== "structure";
-    const container = document.getElementById("canvas-container");
-    if (container) container.style.cursor = isClickable ? "pointer" : "default";
+    const containerEl = document.getElementById("container");
+    if (containerEl) {
+      containerEl.style.cursor = hoveredRole ? "pointer" : "default";
+    }
 
-    // Aplicar brillo suave de hover a todos los objetos del rol
+    // Aplicar brillo de hover a todos los objetos del rol
     model.traverse((child) => {
       if (child.isMesh && child.userData.role) {
-        const materials = Array.isArray(child.material)
-          ? child.material
-          : [child.material];
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
         materials.forEach((mat) => {
-          // Solo iluminar si coincide con el hover y NO es la zona seleccionada
-          if (
-            child.userData.role === hoveredRole &&
-            !child.userData.isSelectedInFocus
-          ) {
-            mat.emissive.copy(
-              child.userData.highlightColor || new THREE.Color(0xffffff),
-            );
-            mat.emissiveIntensity = 0.5; // Brillo suave
+          if (child.userData.role === hoveredRole && !child.userData.isSelectedInFocus) {
+            mat.emissive.copy(child.userData.highlightColor || new THREE.Color(0x3b82f6));
+            mat.emissiveIntensity = 1.0; 
           } else if (!child.userData.isSelectedInFocus) {
-            mat.emissive.setHex(0x000000); // Apagar
+            mat.emissive.setHex(0x000000);
           }
         });
       }
     });
   }
 }
+
 
 function onMouseClick(event) {
   // Solo procesar si fue una interacción rápida y sin movimiento (Punto a Punto) para no bloquear la navegación
