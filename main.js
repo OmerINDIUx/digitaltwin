@@ -31,6 +31,11 @@ let isPanoActive = false; // Control del giro panorámico
 let panoAngle = 0;
 const feedLimit = 5;
 
+// --- ETIQUETAS ESPACIALES ---
+const spatialLabels = [];
+const labelsContainer = document.getElementById("labels-container");
+
+
 // --- SISTEMA DE POBLACIÓN (Simulación de Personas) ---
 const peopleInstances = {
   gym: null,
@@ -1553,7 +1558,33 @@ function animate() {
   }
 
   composer.render(); // Usar composer en lugar de renderer normal para el efecto Bloom
+
+  // --- ACTUALIZAR ETIQUETAS ESPACIALES (3D a 2D) ---
+  spatialLabels.forEach(lbl => {
+      const vector = lbl.pos.clone();
+      vector.project(camera);
+
+      // Conversión de pantalla refinada
+      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+      // Unificar ocultamiento: detrás de cámara o fuera de rango
+      const isBehind = vector.z > 1;
+      lbl.el.style.display = isBehind ? "none" : "flex";
+
+      if (!isBehind) {
+          lbl.el.style.left = `${x}px`;
+          lbl.el.style.top = `${y}px`;
+          
+          const dist = camera.position.distanceTo(lbl.pos);
+          const scale = Math.max(0.5, Math.min(1.0, 750 / dist));
+          lbl.el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+          lbl.el.style.opacity = Math.max(0.1, Math.min(1.0, 950 / dist));
+      }
+  });
 }
+
+
 animate();
 
 // Responsivo
@@ -2215,6 +2246,59 @@ function initSensors() {
 
 
 
-// Inicializar sensores después de un breve delay
+// --- SISTEMA DE ETIQUETAS ESPACIALES REFORZADO ---
+function initSpatialLabels() {
+    if (!labelsContainer || !model) return;
+    labelsContainer.innerHTML = "";
+    spatialLabels.length = 0; // Limpiar lista
+    
+    const targets = [
+        { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 45 },
+        { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 45 },
+        { role: "canchas", label: "⚽ Zona Deportiva", color: "canchas", yOffset: 70 },
+        { role: "sensor1", label: "📡 Nodo 01 - Bosque", color: "sensor", yOffset: 25 },
+        { role: "sensor2", label: "📡 Nodo 02 - Canchas", color: "sensor", yOffset: 25 },
+        { role: "sensor3", label: "📡 Nodo 03 - Alberca", color: "sensor", yOffset: 25 }
+    ];
+
+    targets.forEach(t => {
+        const box = new THREE.Box3();
+        let found = false;
+        
+        // Buscamos mallas que tengan el rol asociado
+        model.traverse(child => {
+            if (child.isMesh && child.userData.role === t.role) {
+                box.expandByObject(child);
+                found = true;
+            }
+        });
+
+        if (found) {
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            
+            // Estabilización para áreas masivas
+            if (t.role === "canchas") center.y = 8;
+
+            center.y += t.yOffset; 
+            
+            const el = document.createElement("div");
+            el.className = `holo-label ${t.color}`;
+            el.innerHTML = `<span>${t.label}</span>`;
+            el.onclick = () => {
+                showInfoCard(t.role);
+                updateFocus(t.role);
+            };
+            
+            labelsContainer.appendChild(el);
+            spatialLabels.push({ el, pos: center });
+        }
+    });
+}
+
+// Inicializar sensores y etiquetas con delays escalonados
 setTimeout(initSensors, 2500);
+setTimeout(initSpatialLabels, 4500);
+
+
 

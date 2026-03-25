@@ -768,9 +768,66 @@ body {
     transition: width 0.5s ease;
 }
 
+.labels-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.holo-label {
+    position: absolute;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 1);
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #000;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.holo-label:hover {
+    transform: translate(-50%, -55%) scale(1.1);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Indicador de Línea hacia el punto */
+.holo-label::after {
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    width: 2px;
+    height: 15px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), transparent);
+}
+
+.holo-label i {
+    font-size: 14px;
+}
+
+.holo-label.sensor { border-color: #22d3ee; }
+.holo-label.gym { border-color: #6366f1; }
+.holo-label.pool { border-color: #0ea5e9; }
+.holo-label.canchas { border-color: #fbbf24; }
+
 .hidden {
     display: none !important;
 }
+
 
 
 
