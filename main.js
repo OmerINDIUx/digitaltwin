@@ -17,8 +17,83 @@ let clouds;
 let currentWeatherType = "normal";
 const timer = new THREE.Timer();
 timer.update();
+
+// Posiciones de Control de Cámara
+let selectionRing;
+let floatingLabel;
+const cameraTargetPos = new THREE.Vector3();
+const controlsTargetPos = new THREE.Vector3();
+const overviewCameraPos = new THREE.Vector3(525, -67.5, 525); 
+const overviewCameraTarget = new THREE.Vector3(0, -30, 0); 
+let isCameraMoving = false;
+
+// Detección de Arrastre para evitar Auto-Reset al Navegar
+let clickStartTime = 0;
+let clickStartX = 0;
+let clickStartY = 0;
+
+function onMouseDown(e) {
+    clickStartTime = Date.now();
+    clickStartX = e.clientX;
+    clickStartY = e.clientY;
+}
+
+
+
 const container = document.getElementById("container");
 const txtHour = document.getElementById("txt-hour");
+
+// --- INTERACTIVIDAD DIGITAL TWIN ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const infoCard = document.getElementById("info-card");
+const cardTitle = document.getElementById("card-title");
+const currentPeople = document.getElementById("current-people");
+const expectedPeople = document.getElementById("expected-people");
+const areaStatus = document.getElementById("area-status");
+const closeCardBtn = document.getElementById("close-card");
+
+const digitalTwinData = {
+  gym: {
+    title: "Gimnasio de Alto Rendimiento",
+    current: "24 personas",
+    expected: "85 hoy",
+    status: "Operativo",
+    statusClass: "status-good",
+    temp: "22.5°C",
+    hum: "45%",
+    maint: "Próximo: 12 Abr",
+    hours: "06:00 - 22:00",
+    trend: [40, 60, 85, 70, 50, 30] 
+  },
+  pool: {
+    title: "Centro Acuático",
+    current: "12 personas",
+    expected: "40 hoy",
+    status: "Limpieza en curso",
+    statusClass: "status-warning",
+    temp: "28.0°C",
+    hum: "85%",
+    maint: "En progreso",
+    hours: "07:00 - 21:00",
+    trend: [20, 30, 45, 90, 80, 60]
+  },
+  canchas: {
+    title: "Área de Canchas",
+    current: "36 personas",
+    expected: "120 hoy",
+    status: "Ocupación Máxima",
+    statusClass: "status-danger",
+    temp: "31.2°C",
+    hum: "30%",
+    maint: "Próximo: 05 Abr",
+    hours: "08:00 - 20:00",
+    trend: [10, 40, 70, 100, 90, 50]
+  }
+
+};
+
+
 
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
@@ -61,8 +136,40 @@ dirLight.position.set(100, 200, 50);
 scene.add(dirLight);
 
 const fillLight = new THREE.DirectionalLight(0xaabbff, 0.3);
-fillLight.position.set(-100, 50, -50);
-scene.add(fillLight);
+  fillLight.position.set(-100, 50, -50);
+  scene.add(fillLight);
+
+  // --- REJILLA DIGITAL (Digital Twin Look) ---
+  const gridHelper = new THREE.GridHelper(5000, 100, 0x3b82f6, 0x1e293b);
+  gridHelper.position.y = -1; // Ligeramente bajo el modelo
+  gridHelper.material.transparent = true;
+  gridHelper.material.opacity = 0.2;
+  scene.add(gridHelper);
+
+  // --- ANILLO DE SELECCIÓN HOLOGRÁFICO ---
+
+  const ringGeo = new THREE.RingGeometry(25, 28, 64);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x3b82f6,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide
+  });
+  selectionRing = new THREE.Mesh(ringGeo, ringMat);
+  selectionRing.rotation.x = -Math.PI / 2;
+  selectionRing.position.y = 0.5; // Justo arriba del suelo
+  scene.add(selectionRing);
+
+  // --- ETIQUETA FLOTANTE (HTML Overlay) ---
+  floatingLabel = document.createElement("div");
+  floatingLabel.className = "floating-label hidden";
+  floatingLabel.innerHTML = `
+    <div class="label-content">
+        <span id="label-name">Zona</span>
+        <div class="label-pulse"></div>
+    </div>
+  `;
+  document.body.appendChild(floatingLabel);
 
 // --- CIELO PROCEDURAL 360 ---
 const sky = new Sky();
@@ -361,104 +468,89 @@ const initModels = async () => {
 
     // Clasificar capas y respaldar materiales mediante herencia (cascade)
     model.traverse((child) => {
-      // Heredar el rol del padre (útil porque los nombres suelen estar en los Grupos, no en el Mesh)
-      if (child.parent && child.parent.userData.role) {
-        child.userData.role = child.parent.userData.role;
+      // Obtener todos los nombres en la jerarquía hacia arriba para una detección robusta
+      let fullName = "";
+      let p = child;
+      while(p) {
+        fullName += (p.name || "").toLowerCase() + " ";
+        p = p.parent;
       }
 
-      // Asignar rol según el nombre del nodo actual
-      const name = (child.name || "").toLowerCase();
-
-      // Categorías primarias (fuerzan su rol)
+      // Asignación de roles basada en el nombre completo (jerarquía)
+      // Prioridad 1: Techumbre (para permitir vista de rayos X)
       if (
-        name.includes("gym") ||
-        name.includes("gimnasio") ||
-        name.includes("madera") ||
-        name.includes("porcelana") ||
-        name.includes("pintura azul")
-      )
-        child.userData.role = "gym";
-      else if (name.includes("alberca") || name.includes("pool"))
-        child.userData.role = "pool";
-      else if (
-        name.includes("techo") ||
-        name.includes("roof") ||
-        name.includes("techumbre") ||
-        name.includes("lamina")
-      )
+        fullName.includes("techo") ||
+        fullName.includes("roof") ||
+        fullName.includes("techumbre") ||
+        fullName.includes("lamina") ||
+        fullName.includes("cubierta")
+      ) {
         child.userData.role = "roof";
-      else if (name.includes("cancha")) child.userData.role = "canchas";
-      // Categorías secundarias (sólo se aplican si no han heredado ya un rol principal)
+        child.userData.highlightColor = new THREE.Color(0x64748b);
+      } 
+      // Prioridad 2: Zonas de interés
+      else if (fullName.includes("gym") || fullName.includes("gimnasio")) {
+        child.userData.role = "gym";
+        child.userData.highlightColor = new THREE.Color(0x3b82f6);
+      } else if (fullName.includes("alberca") || fullName.includes("pool") || fullName.includes("acuatico")) {
+        child.userData.role = "pool";
+        child.userData.highlightColor = new THREE.Color(0x3b82f6);
+      } else if (
+        fullName.includes("cancha") || 
+        fullName.includes("tenis") || 
+        fullName.includes("padel") || 
+        fullName.includes("basket") || 
+        fullName.includes("basquet") || 
+        fullName.includes("pista")
+      ) {
+        child.userData.role = "canchas";
+        child.userData.highlightColor = new THREE.Color(0xfbbf24);
+      } 
+      // Prioridad 3: Estructura general
       else if (
-        !child.userData.role &&
-        (name.includes("muro") ||
-          name.includes("columna") ||
-          name.includes("planta baja") ||
-          name.includes("puertas") ||
-          name.includes("moviliario") ||
-          name.includes("case") ||
-          name.includes("administracion") ||
-          name.includes("estructura") ||
-          name.includes("acero") ||
-          name.includes("pintura blanca") ||
-          name.includes("concreto pulido") ||
-          name.includes("terreno"))
+        fullName.includes("muro") ||
+        fullName.includes("pared") ||
+        fullName.includes("columna") ||
+        fullName.includes("estructura") ||
+        fullName.includes("acero") ||
+        fullName.includes("viga") ||
+        fullName.includes("administracion")
       ) {
         child.userData.role = "structure";
+        child.userData.highlightColor = new THREE.Color(0x94a3b8);
       }
 
       if (child.isMesh) {
+
         // Localizar si esta pieza es parte del "Terreno"
-        let pt = child;
-        let isGrass = false;
-        while (pt) {
-          if (pt.name && pt.name.toLowerCase().includes("terreno")) {
-            isGrass = true;
-            break;
-          }
-          pt = pt.parent;
-        }
+        let isGrass = fullName.includes("terreno");
 
         let originalMat;
         if (isGrass && treeGrassMaterial) {
-          // Asignar literalmente TODO el material del árbol (textura/color/shading)
           originalMat = treeGrassMaterial.clone();
         } else {
-          originalMat =
-            child.material.clone() ||
-            new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-
-          // Forzar el color base limpio y mate a la arquitectura
+          originalMat = child.material.clone() || new THREE.MeshStandardMaterial({ color: 0xeeeeee });
           if (originalMat.color) {
             originalMat.color.setHex(0xeeeeee);
           }
-          originalMat.roughness = 1.0; // Totalmente mate
-          originalMat.metalness = 0.0; // Cero brillo metálico
+          originalMat.roughness = 1.0;
+          originalMat.metalness = 0.0;
         }
 
-        // Por defecto no es transparente para evitar que parezca "fantasma" o se pierda profundidad
         originalMat.transparent = false;
-
         child.userData.originalMaterial = originalMat;
-
-        // Crear el material de "trabajo"
         child.material = originalMat.clone();
 
-        // Si el mesh no tuvo rol heredado ni por nombre, darle por defecto
         if (!child.userData.role) child.userData.role = "structure";
 
-        // Asignar color de highlight según rol
-        if (child.userData.role === "gym")
-          child.userData.highlightColor = new THREE.Color(0xf43f5e); // rosa
-        else if (child.userData.role === "pool")
-          child.userData.highlightColor = new THREE.Color(0x0ea5e9); // azul
-        else if (child.userData.role === "roof")
-          child.userData.highlightColor = new THREE.Color(0x10b981); // verde
-        else if (child.userData.role === "canchas")
-          child.userData.highlightColor = new THREE.Color(0xfbbf24); // amarillo
-        else child.userData.highlightColor = new THREE.Color(0x6366f1); // indigo (structure y otros)
+        // Ajustar colores de highlight finales según rol asignado
+        if (child.userData.role === "gym") child.userData.highlightColor = new THREE.Color(0xf43f5e);
+        else if (child.userData.role === "pool") child.userData.highlightColor = new THREE.Color(0x0ea5e9);
+        else if (child.userData.role === "roof") child.userData.highlightColor = new THREE.Color(0x10b981);
+        else if (child.userData.role === "canchas") child.userData.highlightColor = new THREE.Color(0xfbbf24);
       }
     });
+
 
     scene.add(model);
 
@@ -618,7 +710,7 @@ const initModels = async () => {
     controls.update();
 
     // Arrancar controles y ocultar loader
-    initLayerControls();
+    initLayoutControls();
     initWeatherControls();
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
@@ -628,65 +720,145 @@ const initModels = async () => {
   }
 };
 
+
 initModels();
 
 // Lógica de Capas (Filtrado)
-function initLayerControls() {
-  const btns = document.querySelectorAll(".layer-btn");
+function updateFocus(mode) {
+  if (!model) return;
 
-  const updateFocus = (mode) => {
-    if (!model) return;
+  model.traverse((child) => {
+    if (!child.isMesh) return;
 
-    const transitionDuration = 0.5; // Segundos (para animaciones futuras, aquí lo hacemos directo)
+    const role = child.userData.role;
+    const isSelected = (role === mode);
+    const originalMaterial = child.userData.originalMaterial;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
 
-    model.traverse((child) => {
-      if (!child.isMesh) return;
-
-      const role = child.userData.role;
-      const mat = child.material;
-      const originalVal = child.userData.originalMaterial;
-
-      // Modo Mostrar Todo
-      if (mode === "all") {
-        mat.color.copy(originalVal.color);
+    materials.forEach((mat) => {
+      // SIEMPRE restaurar propiedades básicas primero
+      mat.wireframe = false;
+      
+      if (mode === "all" || mode === "completo" || !mode) {
+        // MODO NORMAL - Todo Visible
+        if (originalMaterial) mat.color.copy(originalMaterial.color);
         mat.emissive.setHex(0x000000);
         mat.opacity = 1.0;
-        mat.wireframe = false;
-        mat.transparent = false; // Opaco en modo "All"
-        return;
-      }
-
-      // Modo Específico (Filtro)
-      if (role === mode) {
-        // Capa activa -> Brillo y color
-        mat.color.copy(child.userData.highlightColor);
-        mat.emissive.copy(child.userData.highlightColor);
-        // Como el umbral de Bloom ahora es 20.0, el brillo interno debe ser mayor a 20 para resplandecer
-        mat.emissiveIntensity = 25.0;
-        mat.opacity = 1.0;
-        mat.wireframe = false;
-        mat.transparent = false; // Opaco cuando está resaltado
+        mat.transparent = false;
+        child.visible = true;
       } else {
-        // Capas inactivas -> Transparentes pero manteniendo su color original
-        mat.color.copy(originalVal.color);
-        mat.emissive.setHex(0x000000);
-        mat.opacity = 0.2;
-        mat.wireframe = false;
-        mat.transparent = true;
+        // MODO FILTRADO
+        if (role === 'roof') {
+          // X-RAY SIMPLE: Ocultar techumbre si estamos enfocados en algo
+          child.visible = false;
+        } else if (isSelected) {
+          // RESALTADO ACTIVO
+          mat.color.copy(child.userData.highlightColor);
+          mat.emissive.copy(child.userData.highlightColor);
+          mat.emissiveIntensity = 1.5; // Brillo suave, no encandila
+          mat.opacity = 1.0;
+          mat.transparent = false;
+          child.visible = true;
+        } else {
+          // EL RESTO: Transparencia suave para contexto
+          if (originalMaterial) mat.color.copy(originalMaterial.color);
+          mat.emissive.setHex(0x000000);
+          mat.transparent = true;
+          mat.opacity = 0.3; // Visible pero secundario
+          child.visible = true;
+        }
       }
     });
-  };
+  });
+
+  if (mode === "all" || mode === "completo" || !mode) {
+    // Ya NO reseteamos la cámara al overview por defecto (libertad total de navegación)
+    isCameraMoving = false; 
+    
+    // Ocultar elementos de UI espacial si se desea limpiar la vista
+    if (infoCard) infoCard.classList.add("hidden");
+    if (floatingLabel) floatingLabel.classList.add("hidden");
+    if (selectionRing) selectionRing.material.opacity = 0;
+  } else {
+    focusCameraOnRole(mode);
+  }
+}
+
+function focusCameraOnRole(role) {
+  const box = new THREE.Box3();
+  let found = false;
+
+  model.traverse((child) => {
+    if (child.isMesh && child.userData.role === role) {
+      box.expandByObject(child);
+      found = true;
+    }
+  });
+
+  if (found) {
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    // Posición ideal de la cámara: ángulo de 45 grados desde arriba
+    cameraTargetPos.copy(center).add(new THREE.Vector3(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5));
+    controlsTargetPos.copy(center);
+    
+    // Ajustar Anillo de Selección: Usar plano X-Z para un tamaño más armónico
+    if (selectionRing) {
+      selectionRing.position.copy(center);
+      selectionRing.position.y = 1.0; 
+      
+      // Para las canchas, el escalado debe ser más generoso pero contenido al área total
+      const planarSize = Math.max(size.x, size.z);
+      selectionRing.userData.baseScale = role === 'canchas' ? planarSize * 0.05 : maxDim * 0.08;
+      
+      selectionRing.scale.set(selectionRing.userData.baseScale, selectionRing.userData.baseScale, 1);
+      selectionRing.material.opacity = 0.8;
+      selectionRing.material.color.copy(digitalTwinData[role] ? 
+        (role === 'canchas' ? new THREE.Color(0xfbbf24) : new THREE.Color(0x3b82f6)) 
+        : new THREE.Color(0x3b82f6));
+    }
+
+    // Actualizar Etiqueta Flotante
+    if (floatingLabel) {
+      floatingLabel.dataset.target3d = JSON.stringify(center);
+      floatingLabel.querySelector("#label-name").innerText = digitalTwinData[role]?.title || role;
+      floatingLabel.classList.remove("hidden");
+    }
+    
+    // Anclaje de la Info Card principal
+    if (infoCard) infoCard.dataset.target3d = JSON.stringify(center);
+
+    isCameraMoving = true;
+  }
+}
+
+
+
+function initLayoutControls() {
+  const btns = document.querySelectorAll(".layer-btn");
 
   btns.forEach((btn) => {
     btn.addEventListener("click", () => {
-      // Actualizar UI
       btns.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
 
-      // Leer data-layer
       const mode = btn.getAttribute("data-layer");
       updateFocus(mode);
+      
+      // Mostrar la tarjeta si es una zona de interés (Gym, Pool, Canchas)
+      if (mode === "gym" || mode === "pool" || mode === "canchas") {
+          showInfoCard(mode);
+      } else {
+          infoCard.classList.add("hidden");
+          if (floatingLabel) floatingLabel.classList.add("hidden");
+      }
     });
+
   });
 }
 
@@ -836,6 +1008,62 @@ function initWeatherControls() {
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
+  const time = performance.now() * 0.001;
+  
+  // Suavizado de Cámara Pro
+  if (isCameraMoving) {
+    camera.position.lerp(cameraTargetPos, 0.05);
+    controls.target.lerp(controlsTargetPos, 0.05);
+    
+    if (camera.position.distanceTo(cameraTargetPos) < 1.0) {
+      isCameraMoving = false;
+    }
+  }
+
+  // Animación del Anillo
+  if (selectionRing && selectionRing.material.opacity > 0) {
+
+    selectionRing.rotation.z += 0.01;
+    const s = 1.0 + Math.sin(Date.now() * 0.005) * 0.1;
+    selectionRing.scale.x = selectionRing.userData.baseScale * s;
+    selectionRing.scale.y = selectionRing.userData.baseScale * s;
+  }
+
+  // Posicionamiento de Info Card 3D
+  if (infoCard && !infoCard.classList.contains("hidden")) {
+    const pos3dStr = infoCard.dataset.target3d;
+    if (pos3dStr) {
+        const center = JSON.parse(pos3dStr);
+        // Punto de anclaje de la tarjeta (un poco arriba del centro del objeto)
+        const vector = new THREE.Vector3(center.x, center.y + 40, center.z);
+        vector.project(camera);
+        
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+        
+        // Posicionar la tarjeta a la derecha del objeto con un offset
+        infoCard.style.top = `${y}px`;
+        infoCard.style.left = `${x}px`;
+        infoCard.style.transform = `translate(-5%, -50%) scale(0.9)`;
+    }
+  }
+
+
+  // Posicionamiento de Etiqueta Flotante
+  if (floatingLabel && !floatingLabel.classList.contains("hidden")) {
+    const pos3dStr = floatingLabel.dataset.target3d;
+    if (pos3dStr) {
+        const center = JSON.parse(pos3dStr);
+        const vector = new THREE.Vector3(center.x, center.y + 80, center.z);
+        vector.project(camera);
+        
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+        
+        floatingLabel.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+    }
+  }
+
   controls.update();
 
   updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
@@ -889,3 +1117,190 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// INTERACTIVIDAD: HOVER Y CLICK
+let hoveredRole = null;
+
+function onMouseMove(event) {
+    if (event.target.tagName !== "CANVAS") return;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(model, true);
+
+    let currentHoverRole = null;
+    if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        let role = obj.userData.role;
+        // Buscar herencia si es necesario
+        let p = obj.parent;
+        while(!role && p && p !== model) {
+            role = p.userData.role;
+            p = p.parent;
+        }
+
+        if (role && (role === 'gym' || role === 'pool' || role === 'canchas')) {
+            currentHoverRole = role;
+        }
+    }
+
+    if (currentHoverRole !== hoveredRole) {
+        hoveredRole = currentHoverRole;
+        container.style.cursor = hoveredRole ? "pointer" : "default";
+
+        // Aplicar brillo suave de hover a todos los objetos del rol
+        model.traverse(child => {
+            if (child.isMesh && child.userData.role) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach(mat => {
+                    if (child.userData.role === hoveredRole) {
+                        mat.emissive.copy(child.userData.highlightColor || new THREE.Color(0xffffff));
+                        mat.emissiveIntensity = 0.4; // Brillo suave de pre-selección
+                    } else {
+                        // Solo resetear si no es la zona activamente enfocada por click
+                        if (!child.userData.isSelectedInFocus) {
+                            mat.emissive.setHex(0x000000);
+                        }
+                    }
+                });
+            }
+        });
+    }
+}
+
+function onMouseClick(event) {
+  // Solo procesar si fue una interacción rápida y sin movimiento (Punto a Punto) para no bloquear la navegación
+  const duration = Date.now() - clickStartTime;
+  const dist = Math.hypot(event.clientX - clickStartX, event.clientY - clickStartY);
+  
+  // Si tardó más de 250ms o se movió más de 5px, es una navegación, NO un clic de selección
+  if (duration > 250 || dist > 5) return;
+
+  if (event.target.tagName !== "CANVAS") return;
+
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  if (model) {
+    const intersects = raycaster.intersectObject(model, true);
+
+    if (intersects.length > 0) {
+      // Buscar el rol del objeto golpeado (o su padre)
+      let selectedObject = intersects[0].object;
+      let role = selectedObject.userData.role;
+
+      // Si no tiene rol directo, buscar en ancestros (similar a la lógica de carga)
+      let parent = selectedObject.parent;
+      while (!role && parent && parent !== model) {
+        role = parent.userData.role;
+        parent = parent.parent;
+      }
+
+      if (role && digitalTwinData[role]) {
+        // Limpiar estado previo
+        model.traverse(c => { if(c.isMesh) c.userData.isSelectedInFocus = false; });
+        
+        showInfoCard(role);
+        // Marcar como seleccionado para que el hover no lo limpie
+        model.traverse(c => { if(c.isMesh && c.userData.role === role) c.userData.isSelectedInFocus = true; });
+        
+        updateFocus(role);
+        
+        // Sincronizar botones laterales
+        const btns = document.querySelectorAll(".layer-btn");
+        btns.forEach((b) => {
+          b.classList.remove("active");
+          if (b.dataset.layer === role) b.classList.add("active");
+        });
+      } else {
+        // Restaurar si se toca el suelo u otra cosa: MODO DESANCLAR
+        updateFocus("all");
+
+        const btns = document.querySelectorAll(".layer-btn");
+        btns.forEach((b) => {
+          b.classList.remove("active");
+          if (b.dataset.layer === "all") b.classList.add("active");
+        });
+      }
+    } else {
+        infoCard.classList.add("hidden");
+    }
+  }
+}
+
+function showInfoCard(role) {
+  if (!digitalTwinData[role]) return;
+  const data = digitalTwinData[role];
+  
+  // Elementos principales
+  const titleEl = document.getElementById("card-title");
+  const peopleEl = document.getElementById("current-people");
+  const expectedEl = document.getElementById("expected-people");
+  const tempEl = document.getElementById("card-temp");
+  const humEl = document.getElementById("card-hum");
+  const maintEl = document.getElementById("card-maint");
+  const hoursEl = document.getElementById("card-hours");
+  const statusEl = document.getElementById("area-status");
+  const alertBanner = document.getElementById("alert-banner");
+
+  if(titleEl) titleEl.innerText = data.title;
+  if(peopleEl) peopleEl.innerText = data.current.split(' ')[0]; // Solo el número para el diseño premium
+  if(expectedEl) expectedEl.innerText = data.expected.split(' ')[0];
+  if(tempEl) tempEl.innerText = data.temp;
+  if(humEl) humEl.innerText = data.hum;
+  if(maintEl) maintEl.innerText = data.maint;
+  if(hoursEl) hoursEl.innerText = data.hours;
+  if(statusEl) statusEl.innerText = data.status;
+
+  // Manejo de Alerta (Solo si el estado es crítico/danger como en las canchas)
+  if (alertBanner) {
+      if (data.statusClass === "status-danger") {
+          alertBanner.classList.add("active");
+      } else {
+          alertBanner.classList.remove("active");
+      }
+  }
+
+  // Actualizar Gráfico de Tendencia (Animación de barras)
+  const bars = document.querySelectorAll(".trend-bar");
+  if (bars.length > 0 && data.trend) {
+      bars.forEach((bar, i) => {
+          if (data.trend[i]) {
+              const val = data.trend[i];
+              bar.style.height = val + "%";
+              // Resaltar la barra más alta
+              if (val > 80) bar.classList.add("high");
+              else bar.classList.remove("high");
+          }
+      });
+  }
+
+  if(infoCard) infoCard.classList.remove("hidden");
+}
+
+
+
+
+
+
+window.addEventListener("mousedown", onMouseDown);
+window.addEventListener("click", onMouseClick);
+window.addEventListener("mousemove", onMouseMove);
+
+if (controls) {
+  controls.addEventListener('start', () => {
+    isCameraMoving = false; // Interrumpir auto-zoom si el usuario toma el mando
+  });
+}
+
+// Gestión del Cierre de Tarjeta (Botón X)
+document.addEventListener("click", (e) => {
+    if (e.target.id === "close-card") {
+        if (infoCard) infoCard.classList.add("hidden");
+    }
+});
+
