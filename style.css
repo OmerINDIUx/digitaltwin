@@ -262,6 +262,17 @@ body {
     color: #000000; /* Negro */
 }
 
+.metric-label-mini {
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+}
+
+
 .metric-value {
     font-size: 1.3rem; /* Reducido de 1.5rem */
     font-weight: 700;
@@ -663,12 +674,105 @@ body {
     width: 100%;
     height: 120px;
     background: #000;
-    border-radius: 16px;
+    border-radius: 12px;
     position: relative;
     overflow: hidden;
-    margin-bottom: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px; /* Keep existing margin-bottom */
 }
+
+.lidar-simulation {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, #062006 0%, #000 100%);
+}
+
+.lidar-radar {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        radial-gradient(circle, transparent 30%, rgba(0, 255, 0, 0.05) 31%, transparent 32%),
+        radial-gradient(circle, transparent 60%, rgba(0, 255, 0, 0.05) 61%, transparent 62%);
+    z-index: 1;
+}
+
+.lidar-sweep {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(from 0deg, rgba(0, 255, 0, 0.4) 0deg, transparent 90deg);
+    transform-origin: center;
+    animation: sweep 3s linear infinite;
+    z-index: 2;
+}
+
+.lidar-points {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background-image: radial-gradient(circle, #0f0 1.5px, transparent 1.5px);
+    background-size: 15px 15px;
+    opacity: 0.3;
+    animation: pulsePoints 2s ease-in-out infinite alternate;
+}
+
+@keyframes sweep {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes pulsePoints {
+    from { opacity: 0.2; transform: scale(1); }
+    to { opacity: 0.5; transform: scale(1.05); }
+}
+
+.sensor-diag-panel {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 20px;
+}
+
+.diag-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.diag-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.diag-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.diag-bar-container {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.diag-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #22d3ee);
+    transition: width 0.5s ease;
+}
+
+.hidden {
+    display: none !important;
+}
+
+
 
 .live-tag {
     position: absolute;

@@ -184,14 +184,22 @@
 
         <div class="card-body">
             <div class="live-visual">
-                <div class="live-tag">LIVE FEED</div>
+                <div class="live-tag" id="live-tag-text">LIVE FEED</div>
                 <div class="visual-placeholder">
-                    <div class="scan-line"></div>
-                    <div class="static-noise"></div>
+                    <div id="camera-noise" class="static-noise"></div>
+                    <div id="camera-scanline" class="scan-line"></div>
+                    
+                    <!-- Simulación de LiDAR para Sensores -->
+                    <div id="lidar-container" class="lidar-simulation hidden">
+                        <div class="lidar-radar"></div>
+                        <div class="lidar-points"></div>
+                        <div class="lidar-sweep"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="stats-grid">
+
+            <div id="standard-metrics" class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-label">OCUPACIÓN</span>
                     <span class="stat-value" id="current-people">0</span>
@@ -204,24 +212,40 @@
 
             <div class="sensor-grid">
                 <div class="sensor-card">
-                    <span class="sensor-label">🌡️ TEMP.</span>
+                    <span class="metric-label-mini">🌡️ TEMP.</span>
                     <span class="sensor-value" id="card-temp">--</span>
                 </div>
                 <div class="sensor-card">
-                    <span class="sensor-label">💧 HUMEDAD</span>
+                    <span class="metric-label-mini">💧 HUMEDAD</span>
                     <span class="sensor-value" id="card-hum">--</span>
                 </div>
                 <div class="sensor-card">
-                    <span class="sensor-label">⚙️ MANTENIMIENTO</span>
+                    <span class="metric-label-mini">⚙️ MANTENIMIENTO</span>
                     <span class="sensor-value" id="card-maint" style="font-size: 11px;">--</span>
                 </div>
                 <div class="sensor-card">
-                    <span class="sensor-label">🕒 HORARIO</span>
+                    <span class="metric-label-mini">🕒 HORARIO</span>
                     <span class="sensor-value" id="card-hours" style="font-size: 11px;">--</span>
                 </div>
             </div>
 
-            <div class="trend-section">
+
+            <div id="sensor-telemetry" class="hidden" style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 15px;">
+                <div class="sensor-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="sensor-card">
+                        <span class="metric-label-mini">🔋 BATERÍA</span>
+                        <span class="sensor-value" id="sensor-bat">--</span>
+                    </div>
+                    <div class="sensor-card">
+                        <span class="metric-label-mini" id="sensor-spec-label">SONIDO</span>
+                        <span class="sensor-value" id="sensor-spec-val">--</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Sección Dinámica: Telemetría (Áreas) vs Diagnóstico (Sensores) -->
+            <div id="standard-trend" class="trend-section">
                 <span class="trend-header">TELEMETRÍA SEMANAL</span>
                 <div id="chart-container" class="chart-container">
                     <svg id="line-chart-svg" width="100%" height="80" viewBox="0 0 300 80" preserveAspectRatio="none">
@@ -235,6 +259,27 @@
                     </svg>
                 </div>
             </div>
+
+            <div id="sensor-advanced" class="sensor-diag-panel hidden">
+                <span class="trend-header">DIAGNÓSTICO AVANZADO DEL NODO</span>
+                <div class="diag-rows">
+                    <div class="diag-row">
+                        <span id="diag-label-1" class="metric-label-mini">PARÁMETRO 1</span>
+                        <span id="diag-val-1" class="diag-value">--</span>
+                    </div>
+                    <div class="diag-row">
+                        <span id="diag-label-2" class="metric-label-mini">PARÁMETRO 2</span>
+                        <span id="diag-val-2" class="diag-value">--</span>
+                    </div>
+                    <div class="diag-row">
+                        <span id="diag-label-3" class="metric-label-mini">NIVEL / RIESGO</span>
+                        <div class="diag-bar-container">
+                            <div id="diag-bar-fill" class="diag-bar-fill" style="width: 30%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             
             <div id="status-box" class="status-box-premium">
                 <div class="security-status">

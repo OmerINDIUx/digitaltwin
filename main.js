@@ -108,15 +108,74 @@ const digitalTwinData = {
     title: "Área de Canchas",
     current: "36 personas",
     expected: "120 hoy",
-    status: "Ocupación Máxima",
-    statusClass: "status-danger",
+    status: "Activo",
+    statusClass: "status-good",
     temp: "31.2°C",
-    hum: "30%",
-    maint: "Próximo: 05 Abr",
-    hours: "08:00 - 20:00",
-    trend: [10, 40, 70, 100, 90, 50],
+    hum: "40%",
+    maint: "Próximo: 05 May",
+    hours: "08:00 - 23:00",
+    trend: [30, 50, 60, 95, 80, 70],
+  },
+  sensor1: {
+    title: "Módulo IoT 01 - Bosque",
+    isSensor: true,
+    sensorType: "lidar",
+    bat: "92%",
+    specialLabel: "HUM. SUELO",
+    specialVal: "48.2%",
+    temp: "21.2°C",
+    hum: "65%",
+    status: "Transmisión LoRaWAN",
+    statusClass: "status-good",
+    diag1_label: "TIPO DE SUELO",
+    diag1_val: "Arcilloso / Suelo 01",
+    diag2_label: "ÍNDICE FOTOSÍNTESIS",
+    diag2_val: "98.2% (Óptimo)",
+    diag3_label: "RIESGO DE INCENDIO",
+    diag3_val: "Bajo (5%)",
+    diag_bar: 5,
+  },
+  sensor2: {
+    title: "Módulo IoT 02 - Canchas",
+    isSensor: true,
+    sensorType: "lidar",
+    bat: "85%",
+    specialLabel: "SONIDO (dB)",
+    specialVal: "72.4 dB",
+    temp: "32.5°C",
+    hum: "38%",
+    status: "Malla Zigbee v3",
+    statusClass: "status-good",
+    diag1_label: "VIBRACIÓN DE IMPACTO",
+    diag1_val: "Detectado (Red Activa)",
+    diag2_label: "FRECUENCIA PICO",
+    diag2_val: "440Hz / Peak",
+    diag3_label: "NIVEL DE RUIDO",
+    diag3_val: "Medio (72%)",
+    diag_bar: 72,
+  },
+  sensor3: {
+    title: "Módulo IoT 03 - Alberca",
+    isSensor: true,
+    sensorType: "uv",
+    bat: "100%",
+    specialLabel: "RAD. UV-EXT",
+    specialVal: "9.2 Index",
+    temp: "27.8°C",
+    hum: "82%",
+    status: "Canal 15 (MQTT)",
+    statusClass: "status-good",
+    diag1_label: "TRASLUCIDEZ AGUA",
+    diag1_val: "94% (Óptimo)",
+    diag2_label: "pH QUÍMICO / Cl",
+    diag2_val: "pH: 7.2 | Cl: 1.5ppm",
+    diag3_label: "EXPOSICIÓN UV",
+    diag3_val: "Crítico (92%)",
+    diag_bar: 92,
   },
 };
+
+
 
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
@@ -1518,7 +1577,9 @@ function onMouseMove(event) {
   const intersects = raycaster.intersectObject(model, true);
 
   let currentHoverRole = null;
-  const interestRoles = ["gym", "pool", "canchas"];
+  // Añadimos sensores a los roles de interés
+  const interestRoles = ["gym", "pool", "canchas", "sensor1", "sensor2", "sensor3"];
+
 
   if (intersects.length > 0) {
     // BÚSQUEDA ROBUSTA: Recorremos todas las intersecciones y sus ancestros
@@ -1604,9 +1665,11 @@ function onMouseClick(event) {
           testRole = testObj.userData.role;
         }
 
-        // Si el rol es zona de interés, lo tomamos y cortamos la búsqueda
-        if (testRole && testRole !== "roof" && testRole !== "structure") {
+        // Si el rol es zona de interés o SENSORES
+        const allRoles = ["gym", "pool", "canchas", "sensor1", "sensor2", "sensor3"];
+        if (testRole && allRoles.includes(testRole)) {
           role = testRole;
+
           selectedObject = testObj;
           break;
         }
@@ -1676,13 +1739,87 @@ function showInfoCard(role) {
   const alertBanner = document.getElementById("alert-banner");
   const statusBox = document.getElementById("status-box");
 
+  // Nuevos campos de Sensores
+  const standardMetrics = document.getElementById("standard-metrics");
+  const sensorTelemetry = document.getElementById("sensor-telemetry");
+  const sensorBat = document.getElementById("sensor-bat");
+  const sensorSpecLabel = document.getElementById("sensor-spec-label");
+  const sensorSpecVal = document.getElementById("sensor-spec-val");
+
   if (titleEl) titleEl.innerText = data.title;
-  if (peopleEl) peopleEl.innerText = data.current.split(" ")[0]; 
-  if (expectedEl) expectedEl.innerText = data.expected.split(" ")[0];
-  if (tempEl) tempEl.innerText = data.temp;
-  if (humEl) humEl.innerText = data.hum;
-  if (maintEl) maintEl.innerText = data.maint;
-  if (hoursEl) hoursEl.innerText = data.hours;
+
+  // Control de Visualización (Cámara vs LiDAR)
+  const lidarCont = document.getElementById("lidar-container");
+  const camNoise = document.getElementById("camera-noise");
+  const camScan = document.getElementById("camera-scanline");
+  const liveTag = document.getElementById("live-tag-text");
+
+  // Paneles de Detalle dinámicos
+  const standardTrend = document.getElementById("standard-trend");
+  const sensorAdvanced = document.getElementById("sensor-advanced");
+  const diagL1 = document.getElementById("diag-label-1");
+  const diagV1 = document.getElementById("diag-val-1");
+  const diagL2 = document.getElementById("diag-label-2");
+  const diagV2 = document.getElementById("diag-val-2");
+  const diagL3 = document.getElementById("diag-label-3");
+  const diagBar = document.getElementById("diag-bar-fill");
+
+  if (data.isSensor) {
+      if (standardMetrics) standardMetrics.classList.add("hidden");
+      if (sensorTelemetry) sensorTelemetry.classList.remove("hidden");
+      
+      // Mostrar Diagnóstico Avanzado y ocultar Telemetría Semanal
+      if (standardTrend) standardTrend.classList.add("hidden");
+      if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
+
+      // Poblar Diagnósticos
+      if (diagL1) diagL1.innerText = data.diag1_label;
+      if (diagV1) diagV1.innerText = data.diag1_val;
+      if (diagL2) diagL2.innerText = data.diag2_label;
+      if (diagV2) diagV2.innerText = data.diag2_val;
+      if (diagL3) diagL3.innerText = data.diag3_label;
+      if (diagBar) diagBar.style.width = (data.diag_bar || 0) + "%";
+
+      // Activar LiDAR
+      if (lidarCont) lidarCont.classList.remove("hidden");
+      if (camNoise) camNoise.classList.add("hidden");
+      if (camScan) camScan.classList.add("hidden");
+      if (liveTag) liveTag.innerText = "LiDAR SCAN v2";
+      
+      if (sensorBat) sensorBat.innerText = data.bat;
+      if (sensorSpecLabel) sensorSpecLabel.innerText = data.specialLabel;
+      if (sensorSpecVal) sensorSpecVal.innerText = data.specialVal;
+
+      // Mantener visibles campos técnicos si existen
+      if (tempEl) tempEl.innerText = data.temp || "--";
+      if (humEl) humEl.innerText = data.hum || "--";
+      if (maintEl) maintEl.innerText = "SISTEMA OK";
+      if (hoursEl) hoursEl.innerText = "24 / 7";
+  } else {
+      if (standardMetrics) standardMetrics.classList.remove("hidden");
+      if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
+      
+      // Mostrar Telemetría Semanal y ocultar Diagnóstico
+      if (standardTrend) standardTrend.classList.remove("hidden");
+      if (sensorAdvanced) sensorAdvanced.classList.add("hidden");
+
+      // Restaurar Cámara normal
+      if (lidarCont) lidarCont.classList.add("hidden");
+      if (camNoise) camNoise.classList.remove("hidden");
+      if (camScan) camScan.classList.remove("hidden");
+      if (liveTag) liveTag.innerText = "LIVE FEED";
+
+      if (peopleEl) peopleEl.innerText = data.current ? data.current.split(" ")[0] : "0"; 
+      if (expectedEl) expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
+      if (tempEl) tempEl.innerText = data.temp;
+      if (humEl) humEl.innerText = data.hum;
+      if (maintEl) maintEl.innerText = data.maint;
+      if (hoursEl) hoursEl.innerText = data.hours;
+  }
+
+
+
+  
   if (statusEl) statusEl.innerText = data.status;
 
   // Actualizar clase de estado en el box premium
@@ -2000,3 +2137,84 @@ document.addEventListener("click", (e) => {
     if (infoCard) infoCard.classList.add("hidden");
   }
 });
+
+// --- INICIALIZACIÓN DE SENSORES ARDUINO ---
+function initSensors() {
+    if (!model) return;
+    
+    // Función auxiliar para hallar el centro de un rol específico (IGNORANDO TECHOS)
+    const getFloorCenter = (roleName) => {
+        const box = new THREE.Box3();
+        let found = false;
+        model.traverse(child => {
+            if (child.isMesh && child.userData.role === roleName) {
+                const name = (child.name || "").toLowerCase();
+                // Ignorar techos y estructuras elevadas para hallar el nivel del suelo real
+                if (!name.includes("techo") && !name.includes("roof") && !name.includes("viga")) {
+                    box.expandByObject(child);
+                    found = true;
+                }
+            }
+        });
+        if (!found) return null;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        return center;
+    };
+
+    const sensorGeo = new THREE.BoxGeometry(4, 4, 4);
+    const createSensor = (worldPos, role, color) => {
+        const localPos = worldPos.clone();
+        model.worldToLocal(localPos); // TRANSFORMACIÓN CRÍTICA: Mundo -> Modelo Local
+
+        const sensorGroup = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({
+            color: color, 
+            emissive: color,
+            emissiveIntensity: 6.0,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const mesh = new THREE.Mesh(sensorGeo, mat);
+        mesh.userData.role = role;
+        mesh.userData.highlightColor = new THREE.Color(0xffffff);
+        
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 2, 10),
+            new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 })
+        );
+        base.position.y = -3;
+        
+        sensorGroup.add(mesh);
+        sensorGroup.add(base);
+        sensorGroup.position.copy(localPos);
+        model.add(sensorGroup);
+    };
+
+    // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
+    // El terreno suele estar en Y=0 o cerca.
+    createSensor(new THREE.Vector3(-300, 2, -150), "sensor1", 0x10b981);
+    
+    // 2. Sensor Canchas: Pegado a la base de las canchas
+    const courtsCenter = getFloorCenter("canchas");
+    if (courtsCenter) {
+        courtsCenter.x += 80; // Offset lateral
+        courtsCenter.y = 2;   // Justo sobre el plano
+        createSensor(courtsCenter, "sensor2", 0xfbbf24);
+    }
+    
+    // 3. Sensor Alberca: Pegado a la base de la alberca
+    const poolCenter = getFloorCenter("pool");
+    if (poolCenter) {
+        poolCenter.z += 100; // Offset lateral
+        poolCenter.y = 2;    // Justo sobre el plano
+        createSensor(poolCenter, "sensor3", 0x22d3ee);
+    }
+}
+
+
+
+
+// Inicializar sensores después de un breve delay
+setTimeout(initSensors, 2500);
+
