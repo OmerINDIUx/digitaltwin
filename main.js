@@ -943,7 +943,6 @@ function initLayoutControls() {
       const mode = btn.getAttribute("data-layer");
       updateFocus(mode);
 
-      // Mostrar la tarjeta si es una zona de interés (Gym, Pool, Canchas)
       if (mode === "gym" || mode === "pool" || mode === "canchas") {
         showInfoCard(mode);
       } else {
@@ -960,7 +959,6 @@ function initLayoutControls() {
       const preset = btn.dataset.preset;
       camBtns.forEach((b) => b.classList.remove("active"));
       
-      // Detener pano si se cambia de vista
       if (preset !== "pano") isPanoActive = false;
 
       if (preset === "drone") {
@@ -984,6 +982,174 @@ function initLayoutControls() {
       }
     });
   });
+
+  // --- LÓGICA DEL NUEVO DASHBOARD MAESTRO ---
+  const btnDash = document.getElementById("btn-dashboard");
+  const dashOverlay = document.getElementById("extended-dashboard");
+  const closeDash = document.getElementById("close-dashboard");
+  
+  const btnNewRes = document.getElementById("btn-new-reservation");
+  const resModal = document.getElementById("res-modal-overlay");
+  const closeResModal = document.getElementById("close-res-modal");
+  const resForm = document.getElementById("reservation-form");
+
+  if (btnDash && dashOverlay) {
+    btnDash.addEventListener("click", () => {
+        dashOverlay.classList.remove("hidden");
+        updateDashboardData();
+        loadReservationsFromDB(); // <--- SINCRONIZACIÓN CON MYSQL
+        addFeedItem("Abriendo Dashboard de Control Maestro", "info");
+    });
+    
+    // Cerrar al hacer clic fuera o en X
+    dashOverlay.addEventListener("click", (e) => {
+        if (e.target === dashOverlay || e.target.closest("#close-dashboard")) {
+            dashOverlay.classList.add("hidden");
+        }
+    });
+  }
+
+  // Lógica del Modal de Reservas
+  if (btnNewRes && resModal) {
+    btnNewRes.addEventListener("click", () => {
+        resModal.classList.remove("hidden");
+        addFeedItem("Iniciando proceso de reserva segura", "info");
+    });
+
+    resModal.addEventListener("click", (e) => {
+        if (e.target === resModal || e.target.closest("#close-res-modal")) {
+            resModal.classList.add("hidden");
+        }
+    });
+  }
+
+  if (resForm) {
+    resForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = {
+            zone: document.getElementById("res-zone").value,
+            datetime: document.getElementById("res-datetime").value,
+            guests: document.getElementById("res-guests").value
+        };
+
+        const subBtn = resForm.querySelector(".prime-btn");
+        const originalText = subBtn.innerText;
+        subBtn.innerText = "SINCRONIZANDO CON MYSQL...";
+        subBtn.disabled = true;
+
+        // --- CONEXIÓN REAL CON LARAGON / PHP ---
+        fetch("api_reservas.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(response => {
+            if (response.status === "success") {
+                addFeedItem(`¡Registro guardado en MySQL! Zona: ${data.zone.toUpperCase()}`, "success");
+                
+                // Actualizar historial visualmente
+                const historyList = document.getElementById("res-history-list");
+                if (historyList) {
+                    const item = document.createElement("div");
+                    item.className = "mini-item";
+                    item.innerHTML = `<strong>${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleString()}`;
+                    historyList.prepend(item);
+                }
+
+                subBtn.innerText = "¡RESERVA EXITOSA!";
+                setTimeout(() => {
+                    resModal.classList.add("hidden");
+                    subBtn.innerText = originalText;
+                    subBtn.disabled = false;
+                    resForm.reset();
+                }, 1000);
+            } else {
+                throw new Error(response.message || "Error al guardar");
+            }
+        })
+        .catch(error => {
+            console.error("Error DB:", error);
+            addFeedItem("Fallo de conexión con Laragon: Registrando Localmente", "warning");
+            
+            // Fallback local si el PHP no está listo
+            const historyList = document.getElementById("res-history-list");
+            if (historyList) {
+                const item = document.createElement("div");
+                item.className = "mini-item";
+                item.innerHTML = `<strong>(LOCAL) ${data.zone.toUpperCase()}</strong> - ${new Date(data.datetime).toLocaleTimeString()}`;
+                historyList.prepend(item);
+            }
+            
+            subBtn.innerText = originalText;
+            subBtn.disabled = false;
+        });
+    });
+  }
+}
+
+function loadReservationsFromDB() {
+    const historyList = document.getElementById("res-history-list");
+    if (!historyList) return;
+
+    // Feedback visual de carga
+    historyList.innerHTML = '<div class="mini-item">Consultando Base de Datos Laragon...</div>';
+
+    fetch("api_reservas.php")
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+                historyList.innerHTML = "";
+                data.forEach(res => {
+                    const item = document.createElement("div");
+                    item.className = "mini-item";
+                    const dateStr = new Date(res.reservation_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                    item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> - ${dateStr} <small>(DB)</small>`;
+                    historyList.appendChild(item);
+                });
+            } else {
+                historyList.innerHTML = '<div class="mini-item">Sin historial en base de datos.</div>';
+            }
+        })
+        .catch(err => {
+            console.error("DB Error:", err);
+            historyList.innerHTML = '<div class="mini-item" style="color:#ef4444">Error al conectar con la DB de Laragon.</div>';
+        });
+}
+
+function updateDashboardData() {
+    // 1. Calcular Población Total y Promedios
+    let total = 0;
+    let totalTemp = 0;
+    let count = 0;
+
+    Object.keys(digitalTwinData).forEach(key => {
+        const val = parseInt(digitalTwinData[key].current) || 0;
+        total += val;
+        
+        const temp = parseFloat(digitalTwinData[key].temp) || 0;
+        totalTemp += temp;
+        count++;
+
+        // Actualizar barras de comparación
+        const bar = document.getElementById(`bar-${key}`);
+        const valTxt = document.getElementById(`val-${key}`);
+        if(bar) bar.style.width = `${Math.min(val * 2, 100)}%`; // Escala visual
+        if(valTxt) valTxt.innerText = val;
+    });
+
+    const avgTemp = (totalTemp / count).toFixed(1);
+
+    // 2. Inyectar en el Dashboard
+    const totalEl = document.getElementById("dash-total-people");
+    const tempEl = document.getElementById("dash-avg-temp");
+    
+    if(totalEl) totalEl.innerText = total;
+    if(tempEl) tempEl.innerText = `${avgTemp}°C`;
+
+    // 3. Simular variación de energía
+    const energyEl = document.getElementById("dash-energy");
+    if(energyEl) energyEl.innerText = (4 + Math.random() * 0.5).toFixed(2);
 }
 
 let isModelExploded = false;

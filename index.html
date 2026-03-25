@@ -14,14 +14,8 @@
             <div class="nav-brand">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             </div>
-            <div class="nav-icon active" title="Monitor 3D">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-            </div>
-            <div class="nav-icon" title="Analytics">
+            <div id="btn-dashboard" class="nav-icon active" title="Dashboard & Reservas">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-            </div>
-            <div class="nav-icon" title="Settings">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             </div>
             <div id="notif-bell" class="nav-icon" title="Notificaciones">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -255,6 +249,154 @@
         </div>
     </div>
 
+    <!-- Dashboard Maestro Extendido (Master Control Center) -->
+    <div id="extended-dashboard" class="dashboard-overlay hidden">
+        <div class="dashboard-content admin-dashboard">
+            <header class="dash-top">
+                <div class="dash-title-area">
+                    <span class="system-status-pill">● LIVE SYSTEM ACTIVE</span>
+                    <h1>Centro de Control Maestro</h1>
+                    <p>Utopia Japón - Digital Twin Management Platform</p>
+                </div>
+                <div class="dash-actions">
+                    <button id="btn-new-reservation" class="prime-btn-small">Nueva Reserva</button>
+                    <button id="close-dashboard" class="close-btn" onclick="document.getElementById('extended-dashboard').classList.add('hidden')">✖</button>
+                </div>
+            </header>
+
+            <div class="dash-main-grid">
+                <!-- PANEL IZQUIERDO: MÉTRICAS GENERALES -->
+                <section class="dash-section metrics-overview">
+                    <div class="section-header">
+                        <h3>Métricas de Red</h3>
+                        <span class="time-stamp">Live Telemetry</span>
+                    </div>
+                    
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <span class="kpi-label">POBLACIÓN TOTAL</span>
+                            <span id="dash-total-people" class="kpi-value">--</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">TEMP. MEDIA</span>
+                            <span id="dash-avg-temp" class="kpi-value">--</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">ENERGÍA (kw/h)</span>
+                            <span id="dash-energy" class="kpi-value">4.2</span>
+                        </div>
+                    </div>
+
+                    <div class="chart-box">
+                        <header>
+                            <h4>Ocupación por Zonas</h4>
+                        </header>
+                        <div class="comparison-bars">
+                            <div class="zone-bar-row">
+                                <span class="z-name">Gimnasio</span>
+                                <div class="z-track"><div id="bar-gym" class="z-fill" style="width: 0%"></div></div>
+                                <span id="val-gym" class="z-val">--</span>
+                            </div>
+                            <div class="zone-bar-row">
+                                <span class="z-name">Alberca</span>
+                                <div class="z-track"><div id="bar-pool" class="z-fill" style="width: 0%"></div></div>
+                                <span id="val-pool" class="z-val">--</span>
+                            </div>
+                            <div class="zone-bar-row">
+                                <span class="z-name">Canchas</span>
+                                <div class="z-track"><div id="bar-canchas" class="z-fill" style="width: 0%"></div></div>
+                                <span id="val-canchas" class="z-val">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PANEL CENTRAL: INFRAESTRUCTURA -->
+                <section class="dash-section telemetry-center">
+                    <div class="section-header">
+                        <h3>Estado de Instalaciones</h3>
+                    </div>
+                    
+                    <div class="maint-list">
+                        <div class="maint-item">
+                            <div class="m-icon">⚠️</div>
+                            <div class="m-info">
+                                <strong>Filtro de Aire - Alberca</strong>
+                                <span>Mtto. en 48h</span>
+                            </div>
+                            <span class="m-status priority">Alta</span>
+                        </div>
+                        <div class="maint-item">
+                            <div class="m-icon">✅</div>
+                            <div class="m-info">
+                                <strong>Iluminación Cancha 1</strong>
+                                <span>Operativa</span>
+                            </div>
+                            <span class="m-status ok">OK</span>
+                        </div>
+                    </div>
+
+                    <div class="system-health">
+                        <h4>Salud del Sistema</h4>
+                        <div class="health-grid">
+                            <div class="health-point">
+                                <label>Conectividad IoT</label>
+                                <div class="health-bar"><div class="fill" style="width: 98%"></div></div>
+                            </div>
+                            <div class="health-point">
+                                <label>Microsoft SQL DB</label>
+                                <div class="health-bar"><div class="fill" style="width: 100%; background: #0078d4;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PANEL DERECHO: HISTORIAL -->
+                <aside class="dash-section status-panel">
+                    <div class="section-header">
+                        <h3>Actividad Reciente</h3>
+                    </div>
+                    
+                    <div class="recent-reservations">
+                        <h4>Últimas Reservas (DB)</h4>
+                        <div id="res-history-list" class="mini-list pro-list">
+                            <!-- Inyectado via JS -->
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Reserva Independiente -->
+    <div id="res-modal-overlay" class="dashboard-overlay hidden" style="z-index: 4000;">
+        <div class="res-modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Agendar Nueva Reserva</h3>
+                <button id="close-res-modal" class="close-btn">✖</button>
+            </div>
+            <form id="reservation-form" class="pro-form">
+                <div class="form-row">
+                    <label>Instalación</label>
+                    <select id="res-zone" required>
+                        <option value="gym">🏃 Gimnasio de Alto Rendimiento</option>
+                        <option value="pool">🏊 Centro Acuático Olímpico</option>
+                        <option value="canchas">🎾 Áreas Deportivas Exteriores</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Fecha y Hora</label>
+                    <input type="datetime-local" id="res-datetime" required>
+                </div>
+                <div class="form-row">
+                    <label>Número de Acompañantes</label>
+                    <input type="number" id="res-guests" value="1" min="1" max="12">
+                </div>
+                <div class="form-footer">
+                    <button type="submit" class="prime-btn full-width">CONFIRMAR E INSCRIBIR EN BASE DE DATOS</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Panel de Notificaciones (Historial) -->
