@@ -2300,7 +2300,7 @@ function initSpatialLabels() {
     { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 45 },
     {
       role: "canchas",
-      label: "⚽ Zona Deportiva",
+      label: "⚽ Canchas",
       color: "canchas",
       yOffset: 70,
     },
