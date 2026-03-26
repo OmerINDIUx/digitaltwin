@@ -1080,6 +1080,7 @@ function initLayoutControls() {
   const closeDash = document.getElementById("close-dashboard");
 
   const btnNewRes = document.getElementById("btn-new-reservation");
+  const btnViewPanel = document.getElementById("btn-view-panel");
   const resModal = document.getElementById("res-modal-overlay");
   const closeResModal = document.getElementById("close-res-modal");
   const resForm = document.getElementById("reservation-form");
@@ -1098,6 +1099,59 @@ function initLayoutControls() {
         dashOverlay.classList.add("hidden");
       }
     });
+
+    // --- NUEVO: EVENTOS PARA EL MODAL DE RESERVA ---
+    if (btnNewRes && resModal) {
+      btnNewRes.addEventListener("click", (e) => {
+        e.stopPropagation();
+        resModal.classList.add("active");
+        addFeedItem("Abriendo formulario de reserva segura", "warning");
+      });
+
+      resModal.addEventListener("click", (e) => {
+        if (e.target === resModal || e.target.closest("#close-res-modal")) {
+          resModal.classList.remove("active");
+        }
+      });
+    }
+
+    if (btnViewPanel) {
+      btnViewPanel.addEventListener("click", () => {
+        window.open("http://127.0.0.1:8000/panel", "_blank");
+      });
+    }
+
+    // --- ENVIAR RESERVA A LARAVEL ---
+    if (resForm) {
+      resForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const formData = new FormData(resForm);
+        const data = Object.fromEntries(formData.entries());
+
+        addFeedItem("Enviando datos al servidor Laravel...", "info");
+
+        fetch("http://127.0.0.1:8000/api/reservations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+          .then((res) => res.json())
+          .then((result) => {
+            if (result.status === "success") {
+              addFeedItem(`¡Éxito! ${result.message}`, "success");
+              resModal.classList.remove("active");
+              resForm.reset();
+              loadReservationsFromDB(); // Recargar historial
+            } else {
+              addFeedItem("Error al procesar reserva", "danger");
+            }
+          })
+          .catch((err) => {
+            console.error("Save Error:", err);
+            addFeedItem("Error de conexión con el Backend Laravel", "danger");
+          });
+      });
+    }
   }
 }
 
@@ -1106,9 +1160,9 @@ function loadReservationsFromDB() {
   if (!historyList) return;
 
   historyList.innerHTML =
-    '<div class="mini-item">Consultando Base de Datos Laragon...</div>';
+    '<div class="mini-item">Sincronizando con Laravel (Puerto 8000)...</div>';
 
-  fetch("api_reservas.php")
+  fetch("http://127.0.0.1:8000/api/reservations")
     .then((res) => res.json())
     .then((data) => {
       if (Array.isArray(data) && data.length > 0) {

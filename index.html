@@ -441,6 +441,12 @@
                         <div id="res-history-list" class="pro-list-compact">
                             <!-- Inyectado via JS -->
                         </div>
+                        <div id="btn-new-reservation" class="new-res-dash-btn">
+                            + REGISTRAR NUEVA RESERVA
+                        </div>
+                        <div id="btn-view-panel" class="new-res-dash-btn border-indigo-500/30 text-indigo-400">
+                             ADMINISTRAR PANEL (LARAVEL)
+                        </div>
                     </div>
 
                     <div class="dash-card connectivity-card">
@@ -472,6 +478,39 @@
                 <input type="range" id="history-slider" min="0" max="1440" value="1440" step="15" class="cyber-slider">
             </div>
             <button id="btn-back-to-live" class="prime-btn full-width hidden">VOLVER A MODO VIVO</button>
+        </div>
+    </div>
+
+    <!-- Modal de Reservaciones -->
+    <div id="res-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div id="close-res-modal" class="close-modal font-bold text-xl">✖</div>
+            <div class="modal-header">
+                <h2>Nueva Reservación</h2>
+                <p class="text-slate-400 text-sm mt-1">Utopía Japón - Digital Twin</p>
+            </div>
+            <form id="reservation-form">
+                <div class="form-group">
+                    <label class="form-label">Zona del Complejo</label>
+                    <select name="zone" class="form-input" required>
+                        <option value="gym">Gimnasio</option>
+                        <option value="pool">Alberca / Natación</option>
+                        <option value="canchas">Canchas Deportivas</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fecha y Hora</label>
+                    <input type="datetime-local" name="datetime" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Número de Invitados (Pax)</label>
+                    <input type="number" name="guests" min="1" max="10" value="1" class="form-input" required>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="prime-btn">CONFIRMAR RESERVA</button>
+                    <p class="text-[10px] text-slate-500 text-center mt-3 uppercase tracking-widest">Sincronización segura con MSSQL Server / Laravel</p>
+                </div>
+            </form>
         </div>
     </div>
 
