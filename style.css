@@ -245,6 +245,163 @@ body {
   color: var(--success-color);
 }
 
+/* MONITOR MÓVIL EN HEADER */
+.header-monitor-mobile {
+    display: none;
+    flex: 1;
+    justify-content: center;
+    gap: 15px;
+    padding: 0 10px;
+}
+
+.h-mini-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.h-mini-label {
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+.h-mini-val {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+/* WEATHER DROPDOWN SYSTEM */
+.weather-dropdown-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.weather-dropdown-content {
+    display: none;
+    position: absolute;
+    left: 70px;
+    top: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
+    padding: 15px;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 5000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    min-width: 180px;
+}
+
+.weather-dropdown-container.active .weather-dropdown-content {
+    display: flex;
+}
+
+.dropdown-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding: 0 5px;
+}
+
+.dropdown-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.weather-btn.mini {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(0,0,0,0.03);
+}
+
+.weather-btn.mini:hover {
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateX(4px);
+}
+
+.weather-btn.mini.active {
+    background: var(--primary);
+    color: white;
+}
+
+.w-icon { font-size: 16px; }
+.w-text { font-size: 11px; font-weight: 600; }
+
+.dropdown-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.05);
+    margin: 8px 0;
+}
+
+.sync-weather-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.sync-weather-btn:hover {
+    background: #059669;
+    color: white;
+}
+
+.nav-label-mini {
+    font-size: 8px;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+@media screen and (max-width: 800px) {
+    .weather-dropdown-content {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 80px;
+        top: auto;
+        flex-direction: column; /* Cambiado a columna para que quepa el titulo y el boton */
+        width: 220px;
+        padding: 15px;
+    }
+    
+    .dropdown-row {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    
+    .weather-btn.mini {
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px;
+        flex: 1;
+        background: rgba(0,0,0,0.05);
+    }
+    
+    .weather-btn.mini .w-text { font-size: 9px; }
+    .weather-btn.mini:hover { transform: translateY(-3px); }
+}
+
 .close-btn-circle {
   width: 30px;
   height: 30px;
@@ -267,24 +424,154 @@ body {
   display: none;
 }
 
-/* Modo Historial Visual Global */
-body.history-mode::after {
-  content: "HISTORIAL: MODO VIAJE EN EL TIEMPO ACTIVO";
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-54%);
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 30px;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 1px;
-  z-index: 2000;
-  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
-  pointer-events: none;
+/* ==========================================================================
+   MEDIA QUERIES - OPTIMIZACIÓN MÓVIL Y TABLET REFINADA
+   ========================================================================== */
+
+/* TABLETS (< 1024px) */
+@media screen and (max-width: 1024px) {
+  .left-nav {
+    margin-top: 15px;
+  }
+  .glass-panel {
+    width: 320px;
+  }
 }
+
+/* SMARTPHONES (< 500px) */
+@media screen and (max-width: 800px) {
+  .mobile-only { display: flex !important; }
+  .mobile-hide { display: none !important; }
+
+  #ui-root {
+    flex-direction: column;
+  }
+
+  /* BARRA SUPERIOR FIJA MÓVIL (PREMIUM BAR) */
+  .top-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 0 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 5000;
+    pointer-events: auto !important; /* REPARADO: AHORA SÍ SE PUEDE HACER CLIC */
+  }
+
+  .header-left .page-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 0;
+  }
+
+  .header-left .subtitle { display: none; }
+
+  .system-status {
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.1);
+  }
+
+  .status-text { font-size: 0.65rem; font-weight: 800; }
+  .status-dot { width: 6px; height: 6px; }
+
+  /* SIDEBAR COMO DRAWER - FIJADO EL SELECTOR */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: -110% !important; /* Desplazado fuera */
+    width: 100% !important; /* Full width en móvil para mejor usabilidad */
+    height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    z-index: 3000 !important;
+    transition: left 0.4s cubic-bezier(0.19, 1, 0.22, 1) !important;
+    display: block !important;
+    background: white !important;
+    padding-top: 70px !important; /* Espacio para el header de cerrar */
+  }
+
+  .sidebar .glass-panel {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    padding: 20px !important;
+  }
+
+  .sidebar.mobile-visible {
+    left: 0 !important;
+    visibility: visible !important;
+  }
+
+  /* NAV INFERIOR COMPACTA */
+  .left-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 65px;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0 10px;
+    margin: 0;
+    border-radius: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    z-index: 2200;
+    background: white;
+    overflow: visible !important; /* REPARADO: PARA QUE SE VEA EL CLIMA */
+  }
+
+  .header-monitor-mobile {
+    display: flex !important;
+  }
+ 
+  .nav-brand {
+    transform: scale(0.8);
+    margin: 0;
+  }
+
+  .nav-separator, .nav-bottom-status {
+    display: none;
+  }
+
+  .nav-icon {
+    width: 45px;
+    height: 45px;
+  }
+
+  /* PANELES COMPACTOS */
+  .history-panel, #info-card, .heatmap-panel {
+    width: calc(100% - 20px) !important;
+    left: 10px !important;
+    bottom: 85px !important;
+    top: auto !important;
+    right: auto !important;
+    border-radius: 25px !important;
+  }
+
+  .heatmap-panel {
+    bottom: 85px !important;
+  }
+
+  .time-main {
+    font-size: 1.6rem;
+  }
+}
+
+.mobile-only { display: none; }
 
 .nav-icon:hover:not(.active) {
   background: rgba(255, 255, 255, 0.1);
@@ -1052,11 +1339,11 @@ body.history-mode::after {
 
 .holo-label {
   position: absolute;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.7);
+  padding: 10px 22px;
+  background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 1);
-  border-radius: 20px;
-  font-size: 10px;
+  border-radius: 30px;
+  font-size: 15px;
   font-weight: 800;
   color: #000;
   white-space: nowrap;
@@ -1083,11 +1370,11 @@ body.history-mode::after {
 .holo-label::after {
   content: "";
   position: absolute;
-  bottom: -15px;
+  bottom: -40px;
   left: 50%;
   width: 2px;
-  height: 15px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), transparent);
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), transparent);
 }
 
 .holo-label i {

@@ -830,6 +830,7 @@ const initModels = async () => {
     initLayoutControls();
     initWeatherControls();
     initPopulation();
+    updateDashboardData(); // NUEVO: Sincronizar UI al arrancar
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
     console.error("❌ Loader Error:", error);
@@ -840,7 +841,40 @@ const initModels = async () => {
 
 initModels();
 
-// Lógica de Capas (Filtrado)
+// --- LÓGICA DE INTERFAZ MÓVIL (TOGGLE SIDEBAR) ---
+function initMobileToggles() {
+  const btnMenu = document.getElementById("mobile-menu-toggle");
+  const sidebar = document.querySelector(".sidebar");
+  const btnCapas = document.querySelector('.nav-icon[title="Capas"]');
+
+  const toggleSidebar = () => {
+    sidebar.classList.toggle("mobile-visible");
+    
+    // Si abrimos el sidebar, cerramos otros paneles flotantes para no saturar
+    if (sidebar.classList.contains("mobile-visible")) {
+        document.getElementById("history-panel")?.classList.add("hidden");
+        document.getElementById("info-card")?.classList.add("hidden");
+    }
+  };
+
+  if (btnMenu) btnMenu.addEventListener("click", toggleSidebar);
+  if (btnCapas) btnCapas.addEventListener("click", toggleSidebar);
+
+  // Cerrar al hacer clic fuera del sidebar en móvil
+  document.addEventListener("click", (e) => {
+    if (window.innerWidth < 500 && 
+        sidebar.classList.contains("mobile-visible") && 
+        !sidebar.contains(e.target) && 
+        !btnMenu.contains(e.target) &&
+        !btnCapas.contains(e.target)) {
+      sidebar.classList.remove("mobile-visible");
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initMobileToggles();
+});
 function updateFocus(mode) {
   if (!model) return;
 
@@ -1207,11 +1241,31 @@ function updateDashboardData() {
   });
 
   const avgTemp = (totalTemp / count).toFixed(1);
+  const capacity = Math.min(100, Math.floor((total / 300) * 100));
 
-  // Animación de conteo simple
+  // Animación de conteo simple (Dashboard)
   animateValue("dash-total-people", 0, total, 1000);
   const tempEl = document.getElementById("dash-avg-temp");
   if (tempEl) tempEl.innerText = `${avgTemp}°C`;
+
+  // --- SINCRONIZACIÓN GLOBAL DE PANELES (SIDEBAR + HEADER) ---
+  const capSide = document.getElementById("txt-capacity");
+  const capMob = document.getElementById("txt-capacity-mob");
+  const tempSide = document.getElementById("txt-temp-avg");
+  const tempMob = document.getElementById("txt-temp-avg-mob");
+
+  const capColor = capacity < 50 ? "var(--success-color)" : (capacity < 80 ? "var(--warning-color)" : "var(--danger-color)");
+
+  if (capSide) {
+    capSide.innerText = `${capacity}%`;
+    capSide.style.color = capColor;
+  }
+  if (capMob) {
+    capMob.innerText = `${capacity}%`;
+    capMob.style.color = capColor;
+  }
+  if (tempSide) tempSide.innerText = `${avgTemp}°C`;
+  if (tempMob) tempMob.innerText = `${avgTemp}°C`;
 
   updateClock();
 }
@@ -1219,15 +1273,22 @@ function updateDashboardData() {
 function updateClock() {
   const timeEl = document.getElementById("dash-time-val");
   const dateEl = document.getElementById("dash-date-val");
-  if (!timeEl || !dateEl) return;
+  const txtHour = document.getElementById("txt-hour");
+  const mobHour = document.getElementById("txt-hour-mob");
 
   const now = new Date();
-  timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
-  dateEl.innerText = now.toLocaleDateString([], {
+  const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+  if (timeEl) timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
+  if (dateEl) dateEl.innerText = now.toLocaleDateString([], {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+
+  // Sync Global Header/Sidebar Hora
+  if (txtHour) txtHour.innerText = `${timeStr} (CDMX)`;
+  if (mobHour) mobHour.innerText = timeStr;
 }
 
 function animateValue(id, start, end, duration) {
@@ -1244,6 +1305,8 @@ function animateValue(id, start, end, duration) {
   };
   window.requestAnimationFrame(step);
 }
+
+// Simulador de Terminal IA
 
 // Simulador de Terminal IA
 function initDashboardEffects() {
@@ -1322,7 +1385,12 @@ function updateAtmosphere() {
 
   if (txtHour) {
     const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+    const txt = isHistoryMode ? `${timeStr} (HS)` : `${timeStr}`;
     txtHour.innerText = isHistoryMode ? `${timeStr} (HS)` : `${timeStr} (CDMX)`;
+    
+    // Sync móvil en header
+    const mobHour = document.getElementById("txt-hour-mob");
+    if (mobHour) mobHour.innerText = txt;
   }
 
   // Mapear hora al Sol (Simulación realista)
@@ -1400,139 +1468,122 @@ function updateAtmosphere() {
 }
 
 function initWeatherControls() {
-  const btns = document.querySelectorAll(".weather-btn");
+    const container = document.getElementById("weather-dropdown");
+    const trigger = container?.querySelector(".dropdown-trigger");
+    const btns = document.querySelectorAll(".weather-btn");
 
-  const rainGeo = new THREE.BufferGeometry();
-  const rainCount = 15000;
-  const positions = new Float32Array(rainCount * 3);
-  for (let i = 0; i < rainCount * 3; i += 3) {
-    positions[i] = (Math.random() - 0.5) * 4000;
-    positions[i + 1] = Math.random() * 2000;
-    positions[i + 2] = (Math.random() - 0.5) * 4000;
-  }
-  rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  const rainMat = new THREE.PointsMaterial({
-    color: 0xaaaaaa,
-    size: 1.5,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-  });
-  rain = new THREE.Points(rainGeo, rainMat);
-  scene.add(rain);
-
-  btns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      btns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentWeatherType = btn.dataset.weather;
-
-      // Control de lluvia
-      if (currentWeatherType === "rainy") {
-        rain.material.opacity = 0.6;
-      } else {
-        rain.material.opacity = 0;
-      }
-    });
-  });
-
-  // --- NUEVO: Sincronización Real de Clima ---
-  async function syncRealWeather() {
-    if (!weatherSyncEnabled) return;
-
-    try {
-      addFeedItem("Sincronizando con Open-Meteo...", "info");
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (!data.current) throw new Error("Datos no disponibles");
-
-      const code = data.current.weather_code;
-      const temp = Math.round(data.current.temperature_2m);
-      const humidity = data.current.relative_humidity_2m;
-
-      // Mapeo de códigos WMO de Open-Meteo
-      const wmoDescriptions = {
-        0: "Cielo despejado",
-        1: "Principalmente despejado",
-        2: "Nubosidad parcial",
-        3: "Nublado",
-        45: "Niebla",
-        48: "Niebla con escarcha",
-        51: "Llovizna ligera",
-        53: "Llovizna moderada",
-        55: "Llovizna densa",
-        61: "Lluvia ligera",
-        63: "Lluvia moderada",
-        65: "Lluvia fuerte",
-        80: "Chubascos ligeros",
-        81: "Chubascos moderados",
-        82: "Chubascos violentos",
-        95: "Tormenta",
-      };
-
-      const description = wmoDescriptions[code] || "Clima variable";
-
-      addFeedItem(
-        `Clima Real detectado: ${description} (${temp}°C)`,
-        "success",
-      );
-
-      // Mapear clima local a tipos del Digital Twin
-      let newType = "normal";
-      if (code >= 51) {
-        // Códigos de 51 en adelante son precipitaciones o tormentas
-        newType = "rainy";
-      } else if (code === 0) {
-        newType = "sunny";
-      } else {
-        newType = "normal";
-      }
-
-      // Actualizar estado global y visuales
-      currentWeatherType = newType;
-
-      // Actualizar UI de botones
-      const btns = document.querySelectorAll(".weather-btn");
-      btns.forEach((btn) => {
-        btn.classList.remove("active");
-        if (btn.dataset.weather === newType) btn.classList.add("active");
-      });
-
-      // Control de lluvia
-      if (currentWeatherType === "rainy") {
-        rain.material.opacity = 0.6;
-      } else {
-        rain.material.opacity = 0;
-      }
-
-      // Actualizar Metas y Dashboard con datos REALES
-      const tempLabel = document.getElementById("txt-temp-avg"); // TEMP. AVG
-      if (tempLabel) tempLabel.innerText = `${temp}°C`;
-
-      // Inyectar en digitalTwinData para que sea dinámico
-      Object.keys(digitalTwinData).forEach((role) => {
-        if (!digitalTwinData[role].isSensor) {
-          digitalTwinData[role].temp =
-            `${temp + (Math.random() * 2 - 1).toFixed(1)}°C`;
-          digitalTwinData[role].hum =
-            `${humidity + (Math.random() * 5 - 2).toFixed(0)}%`;
+    // 1. Inicializar sistema de lluvia una sola vez
+    if (!rain) {
+        const rainGeo = new THREE.BufferGeometry();
+        const rainCount = 15000;
+        const positions = new Float32Array(rainCount * 3);
+        for (let i = 0; i < rainCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 4000;
+            positions[i + 1] = Math.random() * 2000;
+            positions[i + 2] = (Math.random() - 0.5) * 4000;
         }
-      });
-    } catch (error) {
-      console.error("Weather Sync Error:", error);
-      addFeedItem(
-        "Error al sincronizar clima real. Usando simulación local.",
-        "warning",
-      );
+        rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const rainMat = new THREE.PointsMaterial({
+            color: 0xaaaaaa,
+            size: 1.5,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+        });
+        rain = new THREE.Points(rainGeo, rainMat);
+        scene.add(rain);
     }
-  }
 
-  // Ejecutar primera sincronización
-  syncRealWeather();
-  // Auto-sincronizar cada 10 minutos
-  setInterval(syncRealWeather, 10 * 60 * 1000);
+    // 2. Control del Dropdown
+    if (trigger && container) {
+        trigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            container.classList.toggle("active");
+            // Cerrar otros al abrir este
+            document.querySelector(".sidebar")?.classList.remove("mobile-visible");
+            document.getElementById("history-panel")?.classList.add("hidden");
+        });
+    }
+
+    // 3. Selección de Clima (Manual)
+    btns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            btns.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentWeatherType = btn.dataset.weather;
+            
+            // Al cambiar manual, apagamos la sincronización real automática
+            weatherSyncEnabled = false;
+            
+            // Actualizar Visuales
+            if (rain) {
+                rain.material.opacity = (currentWeatherType === "rainy") ? 0.6 : 0;
+            }
+            updateAtmosphere();
+            
+            if (container) container.classList.remove("active");
+            addFeedItem(`Simulación Manuel: ${currentWeatherType.toUpperCase()}`, "info");
+        });
+    });
+
+    // 4. Regresar al Clima Real (Sincronización)
+    const btnSync = document.getElementById("btn-sync-weather");
+    if (btnSync) {
+        btnSync.addEventListener("click", () => {
+            weatherSyncEnabled = true;
+            syncRealWeather(); // Ejecutar inmediatamente
+            if (container) container.classList.remove("active");
+            addFeedItem("Sincronizando clima real de hoy...", "success");
+        });
+    }
+
+    // Cerrar al hacer clic fuera
+    document.addEventListener("click", () => {
+        container?.classList.remove("active");
+    });
+
+    // 5. Función Maestra: Sincronización Real (Open-Meteo)
+    async function syncRealWeather() {
+        if (!weatherSyncEnabled) return;
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!data.current) return;
+
+            const code = data.current.weather_code;
+            const temp = Math.round(data.current.temperature_2m);
+            const humidity = data.current.relative_humidity_2m;
+
+            // Mapear clima real a tipos locales
+            let newType = "normal";
+            if (code >= 51) newType = "rainy";
+            else if (code === 0) newType = "sunny";
+
+            currentWeatherType = newType;
+            
+            // Sincronizar UI de botones
+            btns.forEach(b => {
+                b.classList.toggle("active", b.dataset.weather === newType);
+            });
+
+            if (rain) rain.material.opacity = (newType === "rainy") ? 0.6 : 0;
+            updateAtmosphere();
+
+            const tempLabel = document.getElementById("txt-temp-avg");
+            if (tempLabel) tempLabel.innerText = `${temp}°C`;
+            const mobTemp = document.getElementById("txt-temp-avg-mob");
+            if (mobTemp) mobTemp.innerText = `${temp}°C`;
+
+            addFeedItem(`Clima Real Detectado: ${temp}°C`, "success");
+        } catch (e) {
+            console.warn("Weather Sync Fail", e);
+        }
+    }
+
+    // Primera ejecución y loop
+    syncRealWeather();
+    setInterval(syncRealWeather, 10 * 60 * 1000);
 }
 
 // --- VIAJE EN EL TIEMPO: LÓGICA DE CONTROL ---
@@ -1704,13 +1755,27 @@ function simulateHistoryEffect(min) {
   const tempAvgEl = document.getElementById("txt-temp-avg");
 
   if (capacityEl) {
-    const capPercent = Math.min(100, Math.floor((totalPeople / 300) * 100)); // Capacidad total base de 300
-    capacityEl.innerText = `${capPercent}%`;
-    capacityEl.style.color = isClosed ? "var(--text-muted)" : (capPercent > 80 ? "var(--danger-color)" : "var(--success-color)");
+    const capacity = Math.min(100, Math.floor((totalPeople / 300) * 100)); // Capacidad total base de 300
+    capacityEl.innerText = `${capacity}%`;
+    capacityEl.style.color = isClosed ? "var(--text-muted)" : (capacity < 50 ? "var(--success-color)" : (capacity < 80 ? "var(--warning-color)" : "var(--danger-color)"));
+    
+    // Sync móvil
+    const mobCap = document.getElementById("txt-capacity-mob");
+    if (mobCap) {
+        mobCap.innerText = `${capacity}%`;
+        mobCap.style.color = capacityEl.style.color;
+    }
   }
 
   if (tempAvgEl && zoneCount > 0) {
-    tempAvgEl.innerText = `${(totalTemp / zoneCount).toFixed(1)}°C`;
+    const avgTemp = (totalTemp / zoneCount).toFixed(1);
+    tempAvgEl.innerText = `${avgTemp}°C`;
+
+    // Sync móvil
+    const mobTemp = document.getElementById("txt-temp-avg-mob");
+    if (mobTemp) {
+        mobTemp.innerText = `${avgTemp}°C`;
+    }
   }
 
   // Actualizar métricas del panel principal si está abierto
@@ -2264,20 +2329,14 @@ function updateLineChart(data) {
   path.setAttribute("d", closedD);
 }
 
-function addFeedItem(text, type = "") {
+function addFeedItem(text, type = "info") {
   const container = document.getElementById("notification-container");
-
   if (!container) return;
 
-  // 1. Crear el Toast (Notificación momentánea)
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-
   const now = new Date();
-  const timeStr = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   toast.innerHTML = `
         <div class="toast-header">
@@ -2288,8 +2347,6 @@ function addFeedItem(text, type = "") {
     `;
 
   container.appendChild(toast);
-
-  // Auto-eliminar toast
   setTimeout(() => {
     toast.classList.add("hidden");
     setTimeout(() => toast.remove(), 400);
@@ -2563,31 +2620,31 @@ function initSpatialLabels() {
   spatialLabels.length = 0; // Limpiar lista
 
   const targets = [
-    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 45 },
-    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 45 },
+    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 120 },
+    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 120 },
     {
       role: "canchas",
       label: "⚽ Canchas",
       color: "canchas",
-      yOffset: 70,
+      yOffset: 160,
     },
     {
       role: "sensor1",
       label: "📡 Nodo 01 - Bosque",
       color: "sensor",
-      yOffset: 25,
+      yOffset: 80,
     },
     {
       role: "sensor2",
       label: "📡 Nodo 02 - Canchas",
       color: "sensor",
-      yOffset: 25,
+      yOffset: 80,
     },
     {
       role: "sensor3",
       label: "📡 Nodo 03 - Alberca",
       color: "sensor",
-      yOffset: 25,
+      yOffset: 80,
     },
   ];
 
@@ -2615,7 +2672,15 @@ function initSpatialLabels() {
       const el = document.createElement("div");
       el.className = `holo-label ${t.color}`;
       el.innerHTML = `<span>${t.label}</span>`;
-      el.onclick = () => {
+      
+      // Etiquetas ahora son grandes en todos los tamaños (Petición usuario)
+      if (window.innerWidth < 800) {
+          el.style.fontSize = "12px";
+          el.style.padding = "8px 16px";
+      }
+
+      el.onclick = (e) => {
+        e.stopPropagation();
         showInfoCard(t.role);
         updateFocus(t.role);
       };

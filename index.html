@@ -23,35 +23,57 @@
 
             <div class="nav-separator"></div>
 
-            <div class="nav-icon weather-btn" data-weather="sunny" title="Clima Caluroso">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            </div>
-            <div class="nav-icon weather-btn active" data-weather="normal" title="Clima Normal">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.43-1.92-4.4-4.35-4.47A7.54 7.54 0 0 0 7 13.52a5 5 0 0 0-.5 9.98V23.5"></path></svg>
-            </div>
-            <div class="nav-icon weather-btn" data-weather="rainy" title="Clima Lluvioso">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16.2A4.5 4.5 0 0 0 17.5 8h-1.8A7 7 0 1 0 4 14.9"></path><path d="M16 14v6"></path><path d="M8 14v6"></path><path d="M12 16v6"></path></svg>
+            <!-- SISTEMA DE CLIMA (SIMULADOR) -->
+            <div id="weather-dropdown" class="weather-dropdown-container">
+                <div class="nav-icon dropdown-trigger" title="Simulador de Clima">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.43-1.92-4.4-4.35-4.47A7.54 7.54 0 0 0 7 13.52a5 5 0 0 0-.5 9.98V23.5"></path></svg>
+                    <span class="nav-label-mini">CLIMA</span>
+                </div>
+                <div class="weather-dropdown-content">
+                    <span class="dropdown-title">SIMULADOR DE CLIMA</span>
+                    <div class="dropdown-row">
+                        <div class="weather-btn mini" data-weather="sunny" title="Soleado">
+                            <span class="w-icon">☀️</span>
+                            <span class="w-text">Soleado</span>
+                        </div>
+                        <div class="weather-btn mini" data-weather="normal" title="Normal">
+                            <span class="w-icon">☁️</span>
+                            <span class="w-text">Normal</span>
+                        </div>
+                        <div class="weather-btn mini" data-weather="rainy" title="Lluvioso">
+                            <span class="w-icon">🌧️</span>
+                            <span class="w-text">Lluvioso</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <button id="btn-sync-weather" class="sync-weather-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        REGRESAR AL CLIMA DE HOY
+                    </button>
+                </div>
             </div>
 
-            <div class="nav-separator"></div>
+            <div class="nav-separator mobile-hide"></div>
 
             <!-- Cam Presets -->
-            <div class="nav-icon cam-preset" data-preset="drone" title="Vista Drone">
+            <div class="nav-icon cam-preset mobile-hide" data-preset="drone" title="Vista Drone">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
             </div>
-            <div class="nav-icon cam-preset" data-preset="walk" title="Vista Peatonal">
+            <div class="nav-icon cam-preset mobile-hide" data-preset="walk" title="Vista Peatonal">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path><path d="M10 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path><path d="M4 21l1-5h14l1 5"></path><path d="M6 16v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"></path></svg>
             </div>
-            <div class="nav-icon cam-preset" data-preset="pano" title="Giro Panorámico">
+            <div class="nav-icon cam-preset mobile-hide" data-preset="pano" title="Giro Panorámico">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 12l-4-4-4 4"></path><path d="M12 16V8"></path></svg>
             </div>
 
             <div class="nav-separator"></div>
 
             <!-- MODO VIAJE EN EL TIEMPO -->
+            <!-- MODO VIAJE EN EL TIEMPO -->
             <div id="btn-history" class="nav-icon" title="Modo Viaje en el Tiempo">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline><path d="M3.3 7a9 9 0 1 1-1 3.2"></path><polyline points="2 2 2 7 7 7"></polyline></svg>
             </div>
+
 
             <div class="nav-bottom-status">
                 <div class="status-indicator">
@@ -63,16 +85,36 @@
         <!-- 2. Main Content Area Overlay -->
         <main class="main-overlay">
             <header class="top-header">
-                <div class="header-left">
-                    <h1 class="page-title">Utopia Japón</h1>
-                    <span class="subtitle">Digital Twin Dashboard</span>
+                <div id="mobile-menu-toggle" class="nav-icon mobile-only" style="margin-right: 15px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </div>
-                <div class="header-right">
-                    <!-- Status moved elsewhere or kept as a subtle indicator -->
+                <div class="header-left">
+                    <h1 class="page-title">Utopía Japón</h1>
+                </div>
+
+                <!-- MONITOR MÓVIL PERMANENTE -->
+                <div class="header-monitor-mobile mobile-only">
+                    <div class="h-mini-card">
+                        <span class="h-mini-label">CAP.</span>
+                        <span id="txt-capacity-mob" class="h-mini-val" style="color: var(--success-color);">0%</span>
+                    </div>
+                    <div class="h-mini-card">
+                        <span class="h-mini-label">TEMP.</span>
+                        <span id="txt-temp-avg-mob" class="h-mini-val">--</span>
+                    </div>
+                    <div class="h-mini-card">
+                        <span class="h-mini-label">HORA</span>
+                        <span id="txt-hour-mob" class="h-mini-val">--</span>
+                    </div>
+                </div>
+
+                <div class="system-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text mobile-hide">Arduino Activa</span>
                 </div>
             </header>
 
-            <div class="panels-container">
+            <div class="panels-container sidebar">
                 <!-- Data Panel -->
                 <aside class="panel glass-panel">
                     <h2 class="panel-title">Monitoreo</h2>
@@ -173,7 +215,6 @@
         <div class="menu-item" onclick="window.copyCoordinates && window.copyCoordinates()">📍 Copiar Coordenadas</div>
     </div>
 
-    <!-- TARJETA PREMIUM (Glassmorphism Rich UI) -->
     <div id="info-card" class="info-card hidden">
         <div class="card-header">
             <div class="title-group">
