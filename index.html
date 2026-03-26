@@ -157,9 +157,30 @@
 
                         <div class="layer-group">
                             <h3 class="group-title">Zonas Operativas</h3>
-                            <button class="layer-btn" data-layer="gym">🏃 Gimnasio</button>
-                            <button class="layer-btn" data-layer="pool">🏊 Alberca</button>
-                            <button class="layer-btn" data-layer="canchas">⚽ Canchas</button>
+                            
+                            <button class="layer-btn" data-layer="gym">
+                                <div class="layer-info">
+                                    <span class="layer-name">🏃 Gimnasio</span>
+                                    <span class="layer-desc">Zonas de ejercicio</span>
+                                </div>
+                                <div class="layer-status"></div>
+                            </button>
+
+                            <button class="layer-btn" data-layer="pool">
+                                <div class="layer-info">
+                                    <span class="layer-name">🏊 Alberca</span>
+                                    <span class="layer-desc">Centro acuático</span>
+                                </div>
+                                <div class="layer-status"></div>
+                            </button>
+
+                            <button class="layer-btn" data-layer="canchas">
+                                <div class="layer-info">
+                                    <span class="layer-name">⚽ Canchas</span>
+                                    <span class="layer-desc">Áreas deportivas</span>
+                                </div>
+                                <div class="layer-status"></div>
+                            </button>
                         </div>
                     </div>
                 </aside>
@@ -193,23 +214,113 @@
 
     <!-- Tarjeta de Información -->
     <div id="info-card" class="info-card hidden">
+        <div id="alert-banner" class="alert-banner">
+            <span id="alert-text">ALERTA DE MANTENIMIENTO REQUERIDO</span>
+        </div>
+
+        <div class="card-visual">
+            <div id="lidar-container" class="lidar-feed hidden">
+                <div class="lidar-grid"></div>
+                <div class="lidar-scan"></div>
+            </div>
+            <div id="camera-noise" class="camera-noise"></div>
+            <div id="camera-scanline" class="scan-line"></div>
+            <div class="live-tag">
+                <span class="dot blink"></span> <span id="live-tag-text">LIVE FEED</span>
+            </div>
+        </div>
+
         <div class="card-header">
             <h3 id="card-title">Zona</h3>
             <div id="close-card" class="close-btn">✖</div>
         </div>
+
         <div class="card-body">
+            <!-- Métricas Estándar -->
             <div id="standard-metrics" class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-label">OCUPACIÓN</span>
                     <span class="stat-value" id="current-people">0</span>
+                    <span class="stat-meta">Esp. <span id="expected-people">0</span></span>
                 </div>
             </div>
-            <div id="status-box" class="status-box-premium">
+
+            <!-- Métricas Sensor IoT -->
+            <div id="sensor-telemetry" class="stats-grid hidden">
+                <div class="stat-item">
+                    <span class="stat-label">BATERÍA</span>
+                    <span class="stat-value" id="sensor-bat">--</span>
+                </div>
+                <div class="stat-item">
+                    <span id="sensor-spec-label" class="stat-label">PARAMETRO</span>
+                    <span id="sensor-spec-val" class="stat-value">--</span>
+                </div>
+            </div>
+
+            <div class="tech-info">
+                <div class="tech-row">
+                    <span>TEMP</span> <strong id="card-temp">--</strong>
+                </div>
+                <div class="tech-row">
+                    <span>HUM</span> <strong id="card-hum">--</strong>
+                </div>
+                <div class="tech-row">
+                    <span>MANT</span> <strong id="card-maint">--</strong>
+                </div>
+                <div class="tech-row">
+                    <span>HORARIO</span> <strong id="card-hours">--</strong>
+                </div>
+            </div>
+
+            <!-- Gráfico Semanal -->
+            <div id="standard-trend" class="trend-container">
+                <span class="trend-label">TELEMETRÍA SEMANAL</span>
+                <div class="line-chart-svg">
+                    <svg viewBox="0 0 300 80">
+                        <path id="chart-path" d="" fill="url(#grad1)" stroke="#3b82f6" stroke-width="2"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+                                <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.0" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div class="trend-visual">
+                    <div class="trend-bar" style="height: 40%"></div>
+                    <div class="trend-bar" style="height: 60%"></div>
+                    <div class="trend-bar" style="height: 85%"></div>
+                    <div class="trend-bar" style="height: 70%"></div>
+                    <div class="trend-bar" style="height: 50%"></div>
+                    <div class="trend-bar" style="height: 30%"></div>
+                </div>
+            </div>
+
+            <!-- Diagnóstico Avanzado Lidar (Solo sensores) -->
+            <div id="sensor-advanced" class="sensor-advanced hidden">
+                <span class="trend-label">DIAGNÓSTICO AVANZADO</span>
+                <div class="diag-rows">
+                    <div class="diag-item">
+                        <span id="diag-label-1">--</span>
+                        <strong id="diag-val-1">--</strong>
+                    </div>
+                    <div class="diag-item">
+                        <span id="diag-label-2">--</span>
+                        <strong id="diag-val-2">--</strong>
+                    </div>
+                </div>
+                <div class="diag-health-bar">
+                    <span id="diag-label-3">NIVEL DE SEÑAL</span>
+                    <div class="d-track"><div id="diag-bar-fill" class="d-fill" style="width: 80%"></div></div>
+                </div>
+            </div>
+
+            <div id="status-box" class="status-box-premium status-good">
                 <div class="security-status">
-                    <span class="stat-label">OPERACIÓN</span>
+                    <span class="stat-label">ESTADO DE OPERACIÓN</span>
                     <div class="status-row">
                         <span class="status-dot"></span>
-                        <span id="area-status">--</span>
+                        <span id="area-status">Operativo</span>
                     </div>
                 </div>
                 <button class="action-btn">DETALLES</button>
