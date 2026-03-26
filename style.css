@@ -2037,10 +2037,10 @@ body {
 /* Dashboard Cards - Cyber Style */
 .dash-main-grid {
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
-  padding: 30px;
-  gap: 30px;
-  height: 100%;
+  grid-template-columns: 280px 1.4fr 280px;
+  padding: 20px 30px;
+  gap: 25px;
+  height: calc(100% - 100px);
 }
 
 .dash-column {
@@ -2118,8 +2118,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 40px;
+  justify-content: flex-start;
+  gap: 30px;
+  padding-top: 10px;
 }
 
 .core-status-container {
@@ -2200,8 +2201,8 @@ body {
 /* Terminal Content */
 .telemetry-log {
   width: 100%;
-  flex: 1;
-  max-height: 200px;
+  flex: none;
+  height: 220px;
 }
 .log-header {
   display: flex;
@@ -2354,4 +2355,56 @@ body {
 .terminal-content::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+@media screen and (max-width: 800px) {
+  .dashboard-overlay {
+    padding: 10px;
+    overflow-y: auto;
+  }
+  
+  .dashboard-content {
+    min-height: 100%;
+    height: auto;
+    padding-bottom: 40px;
+  }
+
+  .dash-main-grid {
+    grid-template-columns: 1fr;
+    padding: 15px;
+    gap: 20px;
+    height: auto;
+  }
+  
+  .dash-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+  }
+  
+  .dash-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .core-status-container {
+    width: 180px !important;
+    height: 180px !important;
+    margin: 20px auto;
+  }
+
+  .dash-column {
+    gap: 15px;
+  }
+
+  .kpi-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+  }
 }
