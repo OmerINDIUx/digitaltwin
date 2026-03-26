@@ -16,8 +16,8 @@ let rain;
 let clouds;
 let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
-const WEATHER_API_KEY = "34f5d2f6f4c8e79207e4088a53165780"; // Proporciono una llave de ejemplo (idealmente el usuario pondría la suya)
-const CITY_NAME = "Mexico City";
+const LATITUDE = 19.4326; // Ciudad de México
+const LONGITUDE = -99.1332;
 const timer = new THREE.Timer();
 timer.update();
 
@@ -1427,35 +1427,58 @@ function initWeatherControls() {
     if (!weatherSyncEnabled) return;
 
     try {
-      addFeedItem("Sincronizando con servicios meteorológicos...", "info");
-      const url = `https://api.openweathermap.org/data/2.5/weather?q=${CITY_NAME}&units=metric&appid=${WEATHER_API_KEY}&lang=es`;
+      addFeedItem("Sincronizando con Open-Meteo...", "info");
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
       const response = await fetch(url);
       const data = await response.json();
 
-      if (data.cod !== 200) throw new Error(data.message);
+      if (!data.current) throw new Error("Datos no disponibles");
 
-      const mainStatus = data.weather[0].main; // Ej: Clear, Clouds, Rain
-      const description = data.weather[0].description;
-      const temp = Math.round(data.main.temp);
-      const humidity = data.main.humidity;
+      const code = data.current.weather_code;
+      const temp = Math.round(data.current.temperature_2m);
+      const humidity = data.current.relative_humidity_2m;
 
-      addFeedItem(`Clima Real detectado: ${description} (${temp}°C)`, "success");
+      // Mapeo de códigos WMO de Open-Meteo
+      const wmoDescriptions = {
+        0: "Cielo despejado",
+        1: "Principalmente despejado",
+        2: "Nubosidad parcial",
+        3: "Nublado",
+        45: "Niebla",
+        48: "Niebla con escarcha",
+        51: "Llovizna ligera",
+        53: "Llovizna moderada",
+        55: "Llovizna densa",
+        61: "Lluvia ligera",
+        63: "Lluvia moderada",
+        65: "Lluvia fuerte",
+        80: "Chubascos ligeros",
+        81: "Chubascos moderados",
+        82: "Chubascos violentos",
+        95: "Tormenta",
+      };
+
+      const description = wmoDescriptions[code] || "Clima variable";
+
+      addFeedItem(
+        `Clima Real detectado: ${description} (${temp}°C)`,
+        "success",
+      );
 
       // Mapear clima local a tipos del Digital Twin
       let newType = "normal";
-      if (["Rain", "Drizzle", "Thunderstorm"].includes(mainStatus)) {
+      if (code >= 51) {
+        // Códigos de 51 en adelante son precipitaciones o tormentas
         newType = "rainy";
-      } else if (mainStatus === "Clear") {
+      } else if (code === 0) {
         newType = "sunny";
-      } else if (mainStatus === "Clouds" && data.clouds.all > 70) {
-        // Si hay muchas nubes, podríamos forzar un tono más grisáceo o lluvia
-        // pero por ahora lo dejamos en normal/nubes
+      } else {
         newType = "normal";
       }
 
       // Actualizar estado global y visuales
       currentWeatherType = newType;
-      
+
       // Actualizar UI de botones
       const btns = document.querySelectorAll(".weather-btn");
       btns.forEach((btn) => {
@@ -1471,20 +1494,24 @@ function initWeatherControls() {
       }
 
       // Actualizar Metas y Dashboard con datos REALES
-      const tempLabel = document.getElementById('txt-temp-avg'); // TEMP. AVG
+      const tempLabel = document.getElementById("txt-temp-avg"); // TEMP. AVG
       if (tempLabel) tempLabel.innerText = `${temp}°C`;
 
       // Inyectar en digitalTwinData para que sea dinámico
-      Object.keys(digitalTwinData).forEach(role => {
+      Object.keys(digitalTwinData).forEach((role) => {
         if (!digitalTwinData[role].isSensor) {
-            digitalTwinData[role].temp = `${temp + (Math.random() * 2 - 1).toFixed(1)}°C`;
-            digitalTwinData[role].hum = `${humidity + (Math.random() * 5 - 2).toFixed(0)}%`;
+          digitalTwinData[role].temp =
+            `${temp + (Math.random() * 2 - 1).toFixed(1)}°C`;
+          digitalTwinData[role].hum =
+            `${humidity + (Math.random() * 5 - 2).toFixed(0)}%`;
         }
       });
-
     } catch (error) {
       console.error("Weather Sync Error:", error);
-      addFeedItem("Error al sincronizar clima real. Usando simulación local.", "warning");
+      addFeedItem(
+        "Error al sincronizar clima real. Usando simulación local.",
+        "warning",
+      );
     }
   }
 
