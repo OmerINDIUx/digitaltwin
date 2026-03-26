@@ -20,10 +20,6 @@
             <div id="btn-dashboard" class="nav-icon active" title="Dashboard & Reservas">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             </div>
-            <div id="notif-bell" class="nav-icon" title="Notificaciones">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                <div id="notif-badge" class="notif-badge hidden"></div>
-            </div>
 
             <div class="nav-separator"></div>
 
@@ -48,6 +44,13 @@
             </div>
             <div class="nav-icon cam-preset" data-preset="pano" title="Giro Panorámico">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 12l-4-4-4 4"></path><path d="M12 16V8"></path></svg>
+            </div>
+
+            <div class="nav-separator"></div>
+
+            <!-- MODO VIAJE EN EL TIEMPO -->
+            <div id="btn-history" class="nav-icon" title="Modo Viaje en el Tiempo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline><path d="M3.3 7a9 9 0 1 1-1 3.2"></path><polyline points="2 2 2 7 7 7"></polyline></svg>
             </div>
 
             <div class="nav-bottom-status">
@@ -471,10 +474,44 @@
         </div>
     </div>
 
-    <!-- Panel de Notificaciones (Historial) -->
-    <div id="notif-panel" class="notif-panel hidden">
-        <div class="notif-panel-header">HISTORIAL DE OPERACIÓN</div>
-        <div id="notif-list" class="notif-list"></div>
+
+    <!-- Panel de Viaje en el Tiempo (History Slider) -->
+    <div id="history-panel" class="history-panel hidden">
+        <div class="history-panel-header">
+            <div class="title-group">
+                <span class="area-badge">Time Travel [BETA]</span>
+                <h3>Historial de Operación</h3>
+            </div>
+            <button id="close-history" class="close-btn-circle">✖</button>
+        </div>
+        
+        <div class="history-panel-body">
+            <div class="history-time-display">
+                <div class="time-main" id="hist-selected-time">2:00 PM</div>
+                <div class="date-sub" id="hist-selected-date">Ayer, 25 de Marzo</div>
+            </div>
+
+            <div class="slider-container">
+                <input type="range" id="history-slider" min="0" max="1440" value="1440" step="15" class="cyber-slider">
+                <div class="slider-labels">
+                    <span>Hace 24h</span>
+                    <span>Hoy (Vivo)</span>
+                </div>
+            </div>
+
+            <div class="history-stats-preview">
+                <div class="h-stat">
+                    <span class="h-label">Ocupación Promedio</span>
+                    <span class="h-value" id="hist-avg-occ">--</span>
+                </div>
+                <div class="h-stat">
+                    <span class="h-label">Estado de Red</span>
+                    <span class="h-value success">Estable</span>
+                </div>
+            </div>
+
+            <button id="btn-back-to-live" class="prime-btn full-width hidden">VOLVER A MODO VIVO</button>
+        </div>
     </div>
 
     <!-- Sistema de Notificaciones (Toasts) -->

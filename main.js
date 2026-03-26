@@ -182,6 +182,11 @@ const digitalTwinData = {
   },
 };
 
+// --- VIAJE EN EL TIEMPO ---
+let isHistoryMode = false;
+let historyTimeValue = 1440; // En minutos (0 a 1440). 1440 = Hoy (Vivo)
+const liveDataBackup = JSON.parse(JSON.stringify(digitalTwinData)); // Respaldo para volver a vivo
+
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -1303,12 +1308,21 @@ if (btnExplode) {
 
 function updateAtmosphere() {
   const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  const decimalHour = hour + minute / 60;
+  let hour, minute, decimalHour;
+
+  if (isHistoryMode) {
+    hour = Math.floor(historyTimeValue / 60) % 24;
+    minute = historyTimeValue % 60;
+    decimalHour = hour + minute / 60;
+  } else {
+    hour = now.getHours();
+    minute = now.getMinutes();
+    decimalHour = hour + minute / 60;
+  }
 
   if (txtHour) {
-    txtHour.innerText = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} (CDMX)`;
+    const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+    txtHour.innerText = isHistoryMode ? `${timeStr} (HS)` : `${timeStr} (CDMX)`;
   }
 
   // Mapear hora al Sol (Simulación realista)
@@ -1520,6 +1534,199 @@ function initWeatherControls() {
   // Auto-sincronizar cada 10 minutos
   setInterval(syncRealWeather, 10 * 60 * 1000);
 }
+
+// --- VIAJE EN EL TIEMPO: LÓGICA DE CONTROL ---
+const btnHistory = document.getElementById("btn-history");
+const historyPanel = document.getElementById("history-panel");
+const historySlider = document.getElementById("history-slider");
+const btnBackToLive = document.getElementById("btn-back-to-live");
+const closeHistory = document.getElementById("close-history");
+
+if (btnHistory && historyPanel) {
+  btnHistory.addEventListener("click", () => {
+    historyPanel.classList.toggle("hidden");
+    btnHistory.classList.toggle("history-active");
+
+    if (!historyPanel.classList.contains("hidden")) {
+      // addFeedItem("Iniciando Interfaz de Viaje en el Tiempo", "warning");
+    }
+  });
+
+  closeHistory.addEventListener("click", () => {
+    historyPanel.classList.add("hidden");
+    btnHistory.classList.remove("history-active");
+  });
+}
+
+if (historySlider) {
+  historySlider.addEventListener("input", (e) => {
+    const val = parseInt(e.target.value);
+    updateHistoryMode(val);
+  });
+}
+
+if (btnBackToLive) {
+  btnBackToLive.addEventListener("click", () => {
+    historySlider.value = 1440;
+    updateHistoryMode(1440);
+  });
+}
+
+function updateHistoryMode(minutes) {
+  historyTimeValue = minutes;
+  isHistoryMode = minutes < 1440;
+
+  if (isHistoryMode) {
+    document.body.classList.add("history-mode");
+    btnBackToLive.classList.remove("hidden");
+  } else {
+    document.body.classList.remove("history-mode");
+    btnBackToLive.classList.add("hidden");
+    // Restaurar datos originales
+    Object.assign(digitalTwinData, liveDataBackup);
+    initPopulation(); // Respawn people in their current live counts
+  }
+
+  // Actualizar Visores de Tiempo
+  updateHistoryUI(minutes);
+
+  // Actualizar Atmósfera (Sol)
+  updateAtmosphere();
+
+  // Simular cambios en data y población
+  simulateHistoryEffect(minutes);
+}
+
+function minutesToTimeStr(min) {
+  const h = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+function updateHistoryUI(min) {
+  const timeDisplay = document.getElementById("hist-selected-time");
+  const dateDisplay = document.getElementById("hist-selected-date");
+  const avgOcc = document.getElementById("hist-avg-occ");
+
+  if (timeDisplay) timeDisplay.innerText = minutesToTimeStr(min);
+
+  if (dateDisplay) {
+    if (min === 1440) dateDisplay.innerText = "Hoy (Vivo)";
+    else if (min > 720) dateDisplay.innerText = "Hace unas horas";
+    else dateDisplay.innerText = "Ayer, 25 de Marzo";
+  }
+
+  if (avgOcc) {
+    // Simulación de ocupación basada en hora
+    const hour = Math.floor(min / 60);
+    let occ = "Baja";
+    if (hour >= 8 && hour <= 12) occ = "Alta";
+    else if (hour > 12 && hour <= 18) occ = "Media";
+    else if (hour > 18 && hour <= 22) occ = "Alta";
+    avgOcc.innerText = occ;
+  }
+}
+
+function simulateHistoryEffect(min) {
+  if (min === 1440) {
+    // Restaurar datos en vivo
+    Object.keys(digitalTwinData).forEach((role) => {
+      if (liveDataBackup[role]) {
+        Object.assign(digitalTwinData[role], liveDataBackup[role]);
+      }
+    });
+
+    // Actualizar 3D con datos en vivo
+    Object.keys(peopleInstances).forEach((role) => {
+      const liveCount = parseInt(digitalTwinData[role]?.current) || 0;
+      spawnPeopleInRole(role, liveCount);
+    });
+
+    updateDashboardData(); // Esto actualiza también los textos del panel Izq
+    return;
+  }
+
+  const hour = (Math.floor(min / 60)) % 24;
+  const isClosed = hour >= 23 || hour < 6;
+
+  let totalPeople = 0;
+  let totalTemp = 0;
+  let zoneCount = 0;
+
+  // Alterar datos de ocupación y sensores para "mostrar" el pasado
+  Object.keys(digitalTwinData).forEach((role) => {
+    const data = digitalTwinData[role];
+
+    if (data.isSensor) {
+      // Simulación de Sensores basada en hora
+      const dayFactor = Math.sin((hour * Math.PI) / 12); // Picos al medio dia
+      data.bat = (90 + Math.random() * 8).toFixed(0) + "%";
+      data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + "°C";
+      data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + "%";
+      data.status = hour < 6 ? "Modo Hibernación" : "Transmisión LoRaWAN";
+
+      if (data.specialLabel === "SONIDO (dB)") {
+        data.specialVal = (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + " dB";
+      }
+    } else {
+      // Áreas: Ocupación simulada por hora
+      let finalCount = 0;
+
+      if (!isClosed) {
+        let baseCount = 10;
+        if (hour >= 6 && hour <= 10) baseCount = 50;
+        else if (hour > 10 && hour <= 16) baseCount = 20;
+        else if (hour > 16 && hour <= 21) baseCount = 70;
+        else if (hour > 21 && hour < 23) baseCount = 30;
+
+        const randomFactor = Math.floor(Math.random() * 15);
+        finalCount = baseCount + randomFactor;
+      }
+
+      data.current = `${finalCount} personas`;
+      data.status = isClosed ? "Cerrado / Limpieza" : "Operativo";
+      data.statusClass = isClosed ? "status-warning" : "status-good";
+      data.temp = (22 + (isClosed ? -2 : 1) + Math.random() * 2).toFixed(1) + "°C";
+
+      totalPeople += finalCount;
+      totalTemp += parseFloat(data.temp);
+      zoneCount++;
+
+      // Spawn/Respawn de gente en 3D
+      spawnPeopleInRole(role, finalCount);
+    }
+  });
+
+  // ACTUALIZAR MÉTRICAS DEL PANEL IZQUIERDO (MONITOREO)
+  const capacityEl = document.getElementById("txt-capacity");
+  const tempAvgEl = document.getElementById("txt-temp-avg");
+
+  if (capacityEl) {
+    const capPercent = Math.min(100, Math.floor((totalPeople / 300) * 100)); // Capacidad total base de 300
+    capacityEl.innerText = `${capPercent}%`;
+    capacityEl.style.color = isClosed ? "var(--text-muted)" : (capPercent > 80 ? "var(--danger-color)" : "var(--success-color)");
+  }
+
+  if (tempAvgEl && zoneCount > 0) {
+    tempAvgEl.innerText = `${(totalTemp / zoneCount).toFixed(1)}°C`;
+  }
+
+  // Actualizar métricas del panel principal si está abierto
+  const activeLayerBtn = document.querySelector(".layer-btn.active");
+  if (activeLayerBtn) {
+    const mode = activeLayerBtn.dataset.layer;
+    if (mode && mode !== "all") showInfoCard(mode);
+  }
+
+  // Actualizar Dashboard si está abierto
+  if (!document.getElementById("extended-dashboard").classList.contains("hidden")) {
+    updateDashboardData();
+  }
+}
+
+// --- FIN VIAJE EN EL TIEMPO ---
 
 // Bucle de Animación
 function animate() {
@@ -2059,9 +2266,6 @@ function updateLineChart(data) {
 
 function addFeedItem(text, type = "") {
   const container = document.getElementById("notification-container");
-  const notifList = document.getElementById("notif-list");
-  const badge = document.getElementById("notif-badge");
-  const panel = document.getElementById("notif-panel");
 
   if (!container) return;
 
@@ -2090,50 +2294,8 @@ function addFeedItem(text, type = "") {
     toast.classList.add("hidden");
     setTimeout(() => toast.remove(), 400);
   }, 5000);
-
-  // 2. Agregar al Historial (Panel Desplegable)
-  if (notifList) {
-    const item = document.createElement("div");
-    item.className = `notif-item ${type}`;
-    item.innerHTML = `
-            <div class="notif-item-header">
-                <span>GESTIÓN DE OPERACIÓN</span>
-                <span>${timeStr}</span>
-            </div>
-            <div class="notif-item-body">${text}</div>
-        `;
-    notifList.prepend(item);
-
-    // 3. Mostrar punto rojo si el panel está cerrado
-    if (badge && panel && panel.classList.contains("hidden")) {
-      badge.classList.remove("hidden");
-    }
-  }
 }
 
-// Control del Panel de Notificaciones
-const bell = document.getElementById("notif-bell");
-const notifPanel = document.getElementById("notif-panel");
-const notifBadge = document.getElementById("notif-badge");
-
-if (bell && notifPanel) {
-  bell.addEventListener("click", (e) => {
-    e.stopPropagation();
-    notifPanel.classList.toggle("hidden");
-
-    // Al abrir, quitar el punto rojo
-    if (!notifPanel.classList.contains("hidden")) {
-      if (notifBadge) notifBadge.classList.add("hidden");
-    }
-  });
-
-  // Cerrar al hacer clic fuera
-  document.addEventListener("click", (e) => {
-    if (!notifPanel.contains(e.target) && e.target !== bell) {
-      notifPanel.classList.add("hidden");
-    }
-  });
-}
 
 // Inicializar feed con algunos eventos de bienvenida
 setTimeout(() => {
@@ -2168,7 +2330,16 @@ function initPopulation() {
 }
 
 function spawnPeopleInRole(role, count) {
-  if (!model || count <= 0) return;
+  if (!model) return;
+
+  // Limpiar instancias previas si existen (Para que desaparezcan en horas de cierre)
+  if (peopleInstances[role]) {
+    scene.remove(peopleInstances[role]);
+    peopleInstances[role] = null;
+    peopleStates[role] = [];
+  }
+
+  if (count <= 0) return;
 
   // Recolectar superficies de tránsito (Menos techumbres y estructuras elevadas)
   let roleMeshes = [];
@@ -2230,11 +2401,6 @@ function spawnPeopleInRole(role, count) {
   }
 
   if (roleMeshes.length === 0) return;
-
-  // Crear/Limpiar InstancedMesh
-  if (peopleInstances[role]) {
-    scene.remove(peopleInstances[role]);
-  }
 
   const instMesh = new THREE.InstancedMesh(
     peopleGeometry,
