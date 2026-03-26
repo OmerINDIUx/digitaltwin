@@ -1159,8 +1159,8 @@ function loadReservationsFromDB() {
   const historyList = document.getElementById("res-history-list");
   if (!historyList) return;
 
-  historyList.innerHTML =
-    '<div class="mini-item">Sincronizando con Laravel (Puerto 8000)...</div>';
+  let counts = { gym: 0, pool: 0, canchas: 0 };
+  const now = new Date();
 
   fetch("http://127.0.0.1:8000/api/reservations")
     .then((res) => res.json())
@@ -1168,9 +1168,21 @@ function loadReservationsFromDB() {
       if (Array.isArray(data) && data.length > 0) {
         historyList.innerHTML = "";
         data.forEach((res) => {
+          const resDate = new Date(res.reservation_date);
+          
+          // Calcular ocupación actual (reservas activas +- 60 min)
+          const diffMs = Math.abs(now - resDate);
+          const diffMins = diffMs / (1000 * 60);
+          
+          if (diffMins <= 60 && res.status === 'confirmed') {
+            if (counts[res.zone] !== undefined) {
+              counts[res.zone] += parseInt(res.guests) || 1;
+            }
+          }
+
           const item = document.createElement("div");
           item.className = "mini-item";
-          const dateStr = new Date(res.reservation_date).toLocaleString([], {
+          const dateStr = resDate.toLocaleString([], {
             month: "short",
             day: "numeric",
             hour: "2-digit",
@@ -1179,6 +1191,16 @@ function loadReservationsFromDB() {
           item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> - ${dateStr} <small>(DB)</small>`;
           historyList.appendChild(item);
         });
+
+        // Actualizar datos del Digital Twin con valores REALES de la DB
+        Object.keys(counts).forEach(zone => {
+           if (digitalTwinData[zone]) {
+             digitalTwinData[zone].current = counts[zone];
+             addFeedItem(`Sync DB: ${zone.toUpperCase()} detecta ${counts[zone]} personas`, "info");
+           }
+        });
+        updateDashboardData(); // Refrescar indicadores visuales
+
       } else {
         historyList.innerHTML =
           '<div class="mini-item">Sin historial en base de datos.</div>';

@@ -8,11 +8,38 @@ use Illuminate\Http\Request;
 class ReservationController extends Controller
 {
     /**
-     * API: Listar las últimas 5 reservas (Capa de compatibilidad con 3D)
+     * API & Web: Listar todas o filtrar con estadísticas.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Reservation::orderBy('created_at', 'desc')->limit(5)->get());
+        $query = Reservation::orderBy('reservation_date', 'desc');
+
+        // Filtros opcionales
+        if ($request->has('zone') && $request->zone != 'all') {
+            $query->where('zone', $request->zone);
+        }
+        if ($request->has('status') && $request->status != 'all') {
+            $query->where('status', $request->status);
+        }
+        
+        // Historial total
+        $reservations = $query->get();
+
+        // Si es API para el motor 3D, devolvemos solo lo necesario (JSON)
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json($reservations->take(10));
+        }
+
+        // Estadísticas para el Panel Web (Cards de Resumen)
+        $stats = [
+            'total' => Reservation::count(),
+            'today' => Reservation::whereDate('reservation_date', now()->toDateString())->count(),
+            'guests' => Reservation::sum('guests'),
+            'gym' => Reservation::where('zone', 'gym')->count(),
+            'pool' => Reservation::where('zone', 'pool')->count(),
+        ];
+
+        return view('reservations-panel', compact('reservations', 'stats'));
     }
 
     /**
