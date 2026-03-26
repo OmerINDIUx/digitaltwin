@@ -482,14 +482,32 @@
     <!-- Panel de Viaje en el Tiempo -->
     <div id="history-panel" class="history-panel hidden">
         <div class="history-panel-header">
-            <h3>Historial de Operación</h3>
+            <div>
+                <span class="panel-tag">MODO SIMULACIÓN</span>
+                <h3>Simulador de Operación</h3>
+            </div>
             <button id="close-history" class="close-btn-circle">✖</button>
         </div>
         <div class="history-panel-body">
-            <div class="slider-container">
-                <!-- -1440=ayer 00:00 | 0=AHORA | +1440=mañana mismo tiempo -->
-                <input type="range" id="history-slider" min="-1440" max="1440" value="0" step="15" class="cyber-slider">
+            <div class="history-time-display">
+                <div id="hist-selected-time" class="time-main">12:00 PM</div>
+                <div id="hist-selected-date" class="date-sub">Hoy (Vivo)</div>
             </div>
+
+            <div class="slider-container">
+                <input type="range" id="history-slider" min="-1440" max="1440" value="0" step="15" class="cyber-slider">
+                <div class="slider-labels">
+                    <span>-24h</span>
+                    <span>AHORA</span>
+                    <span>+24h</span>
+                </div>
+            </div>
+
+            <div class="prediction-info">
+                <span class="info-label">PREDICCIÓN DE AFLUENCIA</span>
+                <span id="hist-avg-occ" class="info-value">MEDIA</span>
+            </div>
+
             <button id="btn-back-to-live" class="prime-btn full-width hidden">VOLVER A MODO VIVO</button>
         </div>
     </div>

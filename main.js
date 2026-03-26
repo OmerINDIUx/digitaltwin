@@ -1699,7 +1699,8 @@ if (btnHistory && historyPanel) {
     btnHistory.classList.toggle("history-active");
 
     if (!historyPanel.classList.contains("hidden")) {
-      // addFeedItem("Iniciando Interfaz de Viaje en el Tiempo", "warning");
+      // Sincronizar UI del tiempo con el valor actual del slider (0 = AHORA)
+      updateHistoryUI(parseInt(historySlider.value || 0));
     }
   });
 
