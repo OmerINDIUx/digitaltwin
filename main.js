@@ -33,7 +33,6 @@ const timer = new THREE.Timer();
 timer.update();
 
 // Posiciones de Control de Cámara
-let selectionRing;
 let floatingLabel;
 const cameraTargetPos = new THREE.Vector3();
 const controlsTargetPos = new THREE.Vector3();
@@ -254,19 +253,7 @@ gridHelper.material.transparent = true;
 gridHelper.material.opacity = 0.2;
 scene.add(gridHelper);
 
-// --- ANILLO DE SELECCIÓN HOLOGRÁFICO ---
-
-const ringGeo = new THREE.RingGeometry(25, 28, 64);
-const ringMat = new THREE.MeshBasicMaterial({
-  color: 0x3b82f6,
-  transparent: true,
-  opacity: 0,
-  side: THREE.DoubleSide,
-});
-selectionRing = new THREE.Mesh(ringGeo, ringMat);
-selectionRing.rotation.x = -Math.PI / 2;
-selectionRing.position.y = 0.5; // Justo arriba del suelo
-scene.add(selectionRing);
+// --- ANILLO DE SELECCIÓN (ELIMINADO SEGÚN SOLICITUD DEL USUARIO) ---
 
 // --- ETIQUETA FLOTANTE (HTML Overlay) ---
 floatingLabel = document.createElement("div");
@@ -961,7 +948,6 @@ function updateFocus(mode) {
     // Ocultar elementos de UI espacial si se desea limpiar la vista
     if (infoCard) infoCard.classList.add("hidden");
     if (floatingLabel) floatingLabel.classList.add("hidden");
-    if (selectionRing) selectionRing.material.opacity = 0;
   } else {
     focusCameraOnRole(mode);
   }
@@ -1008,33 +994,7 @@ function focusCameraOnRole(role) {
       );
     controlsTargetPos.copy(center).add(lookAtOffset);
 
-    // --- MEJORA VISUAL DE SELECCIÓN (EL ANILLO SE ADAPTA AL ESPACIO) ---
-    if (selectionRing) {
-      selectionRing.position.copy(center);
-      selectionRing.position.y = 0.5; // Ras del suelo
-
-      if (role === "canchas") {
-        if (selectionRing.geometry.type !== "PlaneGeometry") {
-          selectionRing.geometry.dispose();
-          selectionRing.geometry = new THREE.PlaneGeometry(1, 1);
-        }
-        selectionRing.scale.set(size.x * 1.1, size.z * 1.1, 1);
-        selectionRing.userData.baseScale = 1.0; 
-        selectionRing.material.color.setHex(0xfbbf24);
-      } else {
-        if (selectionRing.geometry.type !== "RingGeometry") {
-          selectionRing.geometry.dispose();
-          selectionRing.geometry = new THREE.RingGeometry(25, 28, 64);
-        }
-        const diskScale = (maxDim / 25) * 0.7;
-        selectionRing.scale.set(diskScale, diskScale, 1);
-        selectionRing.userData.baseScale = diskScale; 
-        selectionRing.material.color.setHex(0x3b82f6);
-      }
-
-      selectionRing.material.opacity = 0.8;
-      selectionRing.material.transparent = true;
-    }
+    // --- ANILLO DE SELECCIÓN ELIMINADO ---
 
     // Actualizar Etiqueta Flotante
     if (floatingLabel) {
@@ -2039,13 +1999,7 @@ function animate() {
     }
   }
 
-  // Animación del Anillo
-  if (selectionRing && selectionRing.material.opacity > 0) {
-    selectionRing.rotation.z += 0.01;
-    const s = 1.0 + Math.sin(Date.now() * 0.005) * 0.1;
-    selectionRing.scale.x = selectionRing.userData.baseScale * s;
-    selectionRing.scale.y = selectionRing.userData.baseScale * s;
-  }
+  // Animación de UI Espacial
 
   // Posicionamiento de Info Card (Fijo a la Izquierda, ya no sigue el objeto 3D)
   /* if (infoCard && !infoCard.classList.contains("hidden")) {
@@ -2327,19 +2281,27 @@ function onMouseClick(event) {
           if (b.dataset.layer === role) b.classList.add("active");
         });
       } else {
-        // Restaurar si se toca el suelo u otra cosa: MODO DESANCLAR
-        updateFocus("all");
-
-        const btns = document.querySelectorAll(".layer-btn");
-        btns.forEach((b) => {
-          b.classList.remove("active");
-          if (b.dataset.layer === "all") b.classList.add("active");
-        });
+        // Restaurar si se toca el suelo u otra cosa: MODO DESANCLAR (Deselector)
+        deselectEverything();
       }
     } else {
-      infoCard.classList.add("hidden");
+      // Si se hace clic en el cielo: MODO DESANCLAR (Deselector)
+      deselectEverything();
     }
   }
+}
+
+function deselectEverything() {
+  updateFocus("all");
+  
+  if (infoCard) infoCard.classList.add("hidden");
+  if (floatingLabel) floatingLabel.classList.add("hidden");
+
+  const btns = document.querySelectorAll(".layer-btn");
+  btns.forEach((b) => {
+    b.classList.remove("active");
+    if (b.dataset.layer === "all") b.classList.add("active");
+  });
 }
 
 function showInfoCard(role) {
