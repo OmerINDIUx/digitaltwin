@@ -1928,9 +1928,9 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(3, 7, 18, 0.75);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  background: rgba(255, 255, 255, 0.5); /* Mucho más claro para modo luz */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1951,17 +1951,17 @@ body {
 .admin-dashboard {
   width: 1200px;
   height: 750px;
-  background: rgba(15, 23, 42, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(248, 250, 252, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 40px !important;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow:
-    0 0 100px rgba(0, 0, 0, 0.5),
-    inset 0 0 40px rgba(99, 102, 241, 0.05);
-  color: #f8fafc;
+    0 40px 100px rgba(0, 0, 0, 0.1),
+    inset 0 0 40px rgba(0, 0, 0, 0.02);
+  color: #1e293b; /* Texto oscuro */
 }
 
 /* Scanline Effect */
@@ -1992,21 +1992,20 @@ body {
 }
 
 .dash-top {
-  padding: 30px 50px;
+  padding: 30px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .dash-title-area h1 {
   font-size: 1.4rem;
   font-weight: 900;
   letter-spacing: 4px;
-  color: white;
+  color: #0f172a; /* Título oscuro */
   margin: 0;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .dash-id-tag {
@@ -2027,11 +2026,11 @@ body {
 }
 #dash-time-val {
   font-size: 1.2rem;
-  color: var(--primary);
+  color: #0f172a;
 }
 #dash-date-val {
   font-size: 0.8rem;
-  opacity: 0.6;
+  color: #64748b;
 }
 
 /* Dashboard Cards - Cyber Style */
@@ -2050,17 +2049,20 @@ body {
 }
 
 .dash-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.04);
   border-radius: 20px;
   padding: 20px;
   position: relative;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
 }
 
 .dash-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: #fdfdfd;
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
 }
 
 .card-corner {
@@ -2101,10 +2103,11 @@ body {
 .kpi-value {
   font-size: 2rem;
   font-weight: 900;
-  color: white;
+  color: #0f172a; /* Texto KPI oscuro */
 }
+
 .glow-text {
-  text-shadow: 0 0 15px var(--primary-glow);
+  text-shadow: none; /* Quitamos brillo en modo claro */
 }
 
 .mini-sparkline {
@@ -2177,8 +2180,7 @@ body {
 .core-percent {
   font-size: 2.2rem;
   font-weight: 900;
-  color: white;
-  text-shadow: 0 0 20px var(--primary-glow);
+  color: #0f172a;
 }
 
 @keyframes spin {
@@ -2220,10 +2222,13 @@ body {
 .terminal-content {
   font-family: "Courier New", Courier, monospace;
   font-size: 12px;
-  color: #94a3b8;
+  color: #334155; /* Texto terminal más oscuro */
   line-height: 1.6;
   height: 120px;
   overflow-y: auto;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 10px;
+  border-radius: 10px;
 }
 .log-line {
   margin: 2px 0;
@@ -2265,7 +2270,7 @@ body {
 .m-title {
   font-size: 11px;
   font-weight: 700;
-  color: white;
+  color: #1e293b;
 }
 .m-status {
   font-size: 9px;
@@ -2323,9 +2328,9 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05); /* Botón X oscuro suave */
   border: none;
-  color: white;
+  color: #0f172a;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s;
