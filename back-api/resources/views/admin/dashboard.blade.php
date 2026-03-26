@@ -21,12 +21,23 @@
         .scroll-table::-webkit-scrollbar { height: 4px; }
         .scroll-table::-webkit-scrollbar-track { background: #f1f5f9; }
         .scroll-table::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); z-index: 50; transition: transform 0.3s ease; }
+            .sidebar.active { transform: translateX(0); }
+            main { margin-left: 0 !important; width: 100%; }
+            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; backdrop-filter: blur(4px); }
+            .mobile-overlay.active { display: block; }
+        }
     </style>
 </head>
-<body class="flex min-h-screen">
+<body class="flex min-h-screen bg-slate-50">
+
+    <div id="mobile-overlay" class="mobile-overlay"></div>
 
     <!-- SIDEBAR -->
-    <aside class="sidebar w-64 min-h-screen flex-shrink-0 flex flex-col p-6 fixed top-0 left-0 h-full">
+    <aside id="sidebar" class="sidebar w-64 min-h-screen flex-shrink-0 flex flex-col p-6 fixed top-0 left-0 h-full">
         <!-- Logo -->
         <div class="flex items-center gap-3 mb-10 px-2">
             <div class="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-lg shadow-lg shadow-indigo-600/30">🏙️</div>
@@ -68,13 +79,24 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="ml-64 flex-1 p-8">
+    <main class="ml-64 flex-1 p-4 lg:p-8 transition-all duration-300">
+
+        <!-- MOBILE NAV BAR -->
+        <div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-100 p-4 -mx-4 -mt-4 mb-6">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-sm shadow-md">🏙️</div>
+                <span class="font-bold text-slate-800 text-sm">Digital Twin Admin</span>
+            </div>
+            <button id="menu-toggle" class="p-2 text-slate-600 hover:bg-slate-50 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+            </button>
+        </div>
 
         <!-- TOP BAR -->
-        <div class="flex items-center justify-between mb-10">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Centro de <span class="text-indigo-600">Reservaciones</span></h1>
-                <p class="text-slate-400 text-sm mt-1">Vista completa del sistema — {{ now()->format('d \d\e F, Y') }}</p>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Centro de <span class="text-indigo-600">Reservaciones</span></h1>
+                <p class="text-slate-400 text-xs md:text-sm mt-1">Vista completa del sistema — {{ now()->format('d \d\e F, Y') }}</p>
             </div>
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl">
@@ -92,7 +114,7 @@
         @endif
 
         <!-- STATS CARDS -->
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-10">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-10">
             <div class="bg-white rounded-3xl p-6 stat-card col-span-1">
                 <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">Total</p>
                 <p class="text-4xl font-extrabold text-slate-900">{{ $stats['total'] }}</p>
@@ -369,6 +391,25 @@
         </div>
     </main>
     <script>
+        // Toggle Sidebar Mobile
+        const menuBtn = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => {
+                sidebar.classList.add('active');
+                overlay.classList.add('active');
+            });
+        }
+
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            });
+        }
+
         // Auto-refresco cada 60 segundos con countdown visible
         let secs = 60;
         const el = document.getElementById('refresh-countdown');
