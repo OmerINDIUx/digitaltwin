@@ -11,6 +11,17 @@ import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.j
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
+// Detectar si estamos en local o producción para la API
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+const API_BASE_URL = isLocal
+  ? "http://127.0.0.1:8000"
+  : `${window.location.origin}/back-api/public`;
+
+// NOTA: Si usas un subdominio separado (ej: api.tudominio.com),
+// cambia la línea de arriba por: 'https://api.tudominio.com'
+
 let model;
 let rain;
 let clouds;
@@ -852,11 +863,11 @@ function initMobileToggles() {
 
   const toggleSidebar = () => {
     sidebar.classList.toggle("mobile-visible");
-    
+
     // Si abrimos el sidebar, cerramos otros paneles flotantes para no saturar
     if (sidebar.classList.contains("mobile-visible")) {
-        document.getElementById("history-panel")?.classList.add("hidden");
-        document.getElementById("info-card")?.classList.add("hidden");
+      document.getElementById("history-panel")?.classList.add("hidden");
+      document.getElementById("info-card")?.classList.add("hidden");
     }
   };
 
@@ -865,11 +876,13 @@ function initMobileToggles() {
 
   // Cerrar al hacer clic fuera del sidebar en móvil
   document.addEventListener("click", (e) => {
-    if (window.innerWidth < 500 && 
-        sidebar.classList.contains("mobile-visible") && 
-        !sidebar.contains(e.target) && 
-        !btnMenu.contains(e.target) &&
-        !btnCapas.contains(e.target)) {
+    if (
+      window.innerWidth < 500 &&
+      sidebar.classList.contains("mobile-visible") &&
+      !sidebar.contains(e.target) &&
+      !btnMenu.contains(e.target) &&
+      !btnCapas.contains(e.target)
+    ) {
       sidebar.classList.remove("mobile-visible");
     }
   });
@@ -1133,7 +1146,7 @@ function initLayoutControls() {
 
         addFeedItem("Enviando datos al servidor Laravel...", "info");
 
-        fetch("http://127.0.0.1:8000/api/reservations", {
+        fetch(`${API_BASE_URL}/api/reservations/store`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -1161,16 +1174,19 @@ function initLayoutControls() {
 // Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
 function syncDBCounts() {
   if (isHistoryMode) return; // NO sincronizar si estamos en el pasado/futuro
-  fetch("http://127.0.0.1:8000/api/reservations/live")
+  fetch(`${API_BASE_URL}/api/reservations/live`)
     .then((res) => res.json())
     .then((data) => {
       const totals = data.totals || null;
       if (totals) {
-        dbCounts.gym     = totals.gym     ?? 0;
-        dbCounts.pool    = totals.pool    ?? 0;
+        dbCounts.gym = totals.gym ?? 0;
+        dbCounts.pool = totals.pool ?? 0;
         dbCounts.canchas = totals.canchas ?? 0;
         const total = dbCounts.gym + dbCounts.pool + dbCounts.canchas;
-        addFeedItem(`📊 DB SYNC (±90´) — ${total} pax: GYM ${dbCounts.gym} · POOL ${dbCounts.pool} · CANCHAS ${dbCounts.canchas}`, "info");
+        addFeedItem(
+          `📊 DB SYNC (±90´) — ${total} pax: GYM ${dbCounts.gym} · POOL ${dbCounts.pool} · CANCHAS ${dbCounts.canchas}`,
+          "info",
+        );
         applyDBCountsToWorld();
       }
     })
@@ -1181,10 +1197,10 @@ function syncDBCounts() {
 function applyDBCountsToWorld() {
   const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
   let totalPeople = 0;
-  let totalTemp   = 0;
-  let zoneCount   = 0;
+  let totalTemp = 0;
+  let zoneCount = 0;
 
-  ['gym', 'pool', 'canchas'].forEach((role) => {
+  ["gym", "pool", "canchas"].forEach((role) => {
     const count = dbCounts[role] ?? 0;
     totalPeople += count;
 
@@ -1192,8 +1208,8 @@ function applyDBCountsToWorld() {
     const data = digitalTwinData[role];
     if (data) {
       data.current = count;
-      data.status = 'Operativo';
-      data.statusClass = 'status-good';
+      data.status = "Operativo";
+      data.statusClass = "status-good";
       totalTemp += parseFloat(data.temp) || 22;
       zoneCount++;
     }
@@ -1205,18 +1221,29 @@ function applyDBCountsToWorld() {
   });
 
   // --- Actualizar panel Monitoreo (barra CAPACIDAD y TOTAL) ---
-  const capacityEl = document.getElementById('txt-capacity');
-  const mobCapEl   = document.getElementById('txt-capacity-mob');
+  const capacityEl = document.getElementById("txt-capacity");
+  const mobCapEl = document.getElementById("txt-capacity-mob");
   const totalCapacity = 50 + 30 + 20; // gym+pool+canchas
   const capPct = Math.min(100, Math.floor((totalPeople / totalCapacity) * 100));
-  const capColor = capPct < 50 ? 'var(--success-color)' : (capPct < 80 ? 'var(--warning-color)' : 'var(--danger-color)');
+  const capColor =
+    capPct < 50
+      ? "var(--success-color)"
+      : capPct < 80
+        ? "var(--warning-color)"
+        : "var(--danger-color)";
 
-  if (capacityEl) { capacityEl.innerText = `${capPct}%`; capacityEl.style.color = capColor; }
-  if (mobCapEl)   { mobCapEl.innerText   = `${capPct}%`; mobCapEl.style.color   = capColor; }
+  if (capacityEl) {
+    capacityEl.innerText = `${capPct}%`;
+    capacityEl.style.color = capColor;
+  }
+  if (mobCapEl) {
+    mobCapEl.innerText = `${capPct}%`;
+    mobCapEl.style.color = capColor;
+  }
 
   // Temperatura promedio
-  const tempAvgEl = document.getElementById('txt-temp-avg');
-  const mobTemp   = document.getElementById('txt-temp-avg-mob');
+  const tempAvgEl = document.getElementById("txt-temp-avg");
+  const mobTemp = document.getElementById("txt-temp-avg-mob");
   if (tempAvgEl && zoneCount > 0) {
     const avg = (totalTemp / zoneCount).toFixed(1);
     tempAvgEl.innerText = `${avg}°C`;
@@ -1224,22 +1251,22 @@ function applyDBCountsToWorld() {
   }
 
   // Total personas visible
-  const totalEl = document.getElementById('txt-total-people');
+  const totalEl = document.getElementById("txt-total-people");
   if (totalEl) totalEl.innerText = totalPeople;
 
   // Desglose por zona en el panel Monitoreo
-  const gymEl     = document.getElementById('txt-pop-gym');
-  const poolEl    = document.getElementById('txt-pop-pool');
-  const canchasEl = document.getElementById('txt-pop-canchas');
-  if (gymEl)     gymEl.innerText     = dbCounts.gym     ?? 0;
-  if (poolEl)    poolEl.innerText    = dbCounts.pool    ?? 0;
+  const gymEl = document.getElementById("txt-pop-gym");
+  const poolEl = document.getElementById("txt-pop-pool");
+  const canchasEl = document.getElementById("txt-pop-canchas");
+  if (gymEl) gymEl.innerText = dbCounts.gym ?? 0;
+  if (poolEl) poolEl.innerText = dbCounts.pool ?? 0;
   if (canchasEl) canchasEl.innerText = dbCounts.canchas ?? 0;
 
   updateDashboardData();
 }
 
 // Sincronizar al cargar y cada 60 segundos
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   syncDBCounts();
   setInterval(syncDBCounts, 60000);
 });
@@ -1252,11 +1279,11 @@ function loadReservationsFromDB() {
   let counts = { gym: 0, pool: 0, canchas: 0 };
   const now = new Date();
 
-  fetch("http://127.0.0.1:8000/api/reservations/live")
+  fetch(`${API_BASE_URL}/api/reservations/live`)
     .then((res) => res.json())
     .then((data) => {
       // El endpoint /live devuelve { date, reservations, totals, grand_total }
-      const reservations = Array.isArray(data) ? data : (data.reservations || []);
+      const reservations = Array.isArray(data) ? data : data.reservations || [];
       const totals = data.totals || null;
 
       if (reservations.length > 0) {
@@ -1271,7 +1298,7 @@ function loadReservationsFromDB() {
             hour: "2-digit",
             minute: "2-digit",
           });
-          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> · ${res.name || 'Invitado'} · ${dateStr}`;
+          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> · ${res.name || "Invitado"} · ${dateStr}`;
           historyList.appendChild(item);
         });
 
@@ -1281,7 +1308,8 @@ function loadReservationsFromDB() {
         } else {
           // Fallback: calcular manualmente con ventana de ±3 horas
           reservations.forEach((res) => {
-            const diffMins = Math.abs(now - new Date(res.reservation_date)) / 60000;
+            const diffMins =
+              Math.abs(now - new Date(res.reservation_date)) / 60000;
             if (diffMins <= 180 && counts[res.zone] !== undefined) {
               counts[res.zone] += parseInt(res.guests) || 1;
             }
@@ -1290,13 +1318,14 @@ function loadReservationsFromDB() {
 
         // Guardar en dbCounts (fuente de verdad) — el motor 3D lo lee en cada tick
         if (totals) {
-          dbCounts.gym     = totals.gym     ?? 0;
-          dbCounts.pool    = totals.pool    ?? 0;
+          dbCounts.gym = totals.gym ?? 0;
+          dbCounts.pool = totals.pool ?? 0;
           dbCounts.canchas = totals.canchas ?? 0;
         } else {
           // Fallback: calcular con ventana ±3h
           reservations.forEach((res) => {
-            const diffMins = Math.abs(now - new Date(res.reservation_date)) / 60000;
+            const diffMins =
+              Math.abs(now - new Date(res.reservation_date)) / 60000;
             if (diffMins <= 180 && dbCounts[res.zone] !== undefined) {
               if (dbCounts[res.zone] === null) dbCounts[res.zone] = 0;
               dbCounts[res.zone] += parseInt(res.guests) || 1;
@@ -1304,11 +1333,14 @@ function loadReservationsFromDB() {
           });
         }
 
-        const total = (dbCounts.gym || 0) + (dbCounts.pool || 0) + (dbCounts.canchas || 0);
-        addFeedItem(`🏟️ DB SYNC — Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`, "info");
+        const total =
+          (dbCounts.gym || 0) + (dbCounts.pool || 0) + (dbCounts.canchas || 0);
+        addFeedItem(
+          `🏟️ DB SYNC — Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`,
+          "info",
+        );
         applyDBCountsToWorld(); // ← actualiza capacidad + spawns 3D
         updateDashboardData();
-
       } else {
         historyList.innerHTML =
           '<div class="mini-item">Sin historial en base de datos.</div>';
@@ -1354,7 +1386,12 @@ function updateDashboardData() {
   const tempSide = document.getElementById("txt-temp-avg");
   const tempMob = document.getElementById("txt-temp-avg-mob");
 
-  const capColor = capacity < 50 ? "var(--success-color)" : (capacity < 80 ? "var(--warning-color)" : "var(--danger-color)");
+  const capColor =
+    capacity < 50
+      ? "var(--success-color)"
+      : capacity < 80
+        ? "var(--warning-color)"
+        : "var(--danger-color)";
 
   if (capSide) {
     capSide.innerText = `${capacity}%`;
@@ -1377,14 +1414,19 @@ function updateClock() {
   const mobHour = document.getElementById("txt-hour-mob");
 
   const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' });
+  const timeStr = now.toLocaleTimeString([], {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   if (timeEl) timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
-  if (dateEl) dateEl.innerText = now.toLocaleDateString([], {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  if (dateEl)
+    dateEl.innerText = now.toLocaleDateString([], {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
   // Sync Global Header/Sidebar Hora
   if (txtHour) txtHour.innerText = `${timeStr} (CDMX)`;
@@ -1487,7 +1529,7 @@ function updateAtmosphere() {
     const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
     const txt = isHistoryMode ? `${timeStr} (HS)` : `${timeStr}`;
     txtHour.innerText = isHistoryMode ? `${timeStr} (HS)` : `${timeStr} (CDMX)`;
-    
+
     // Sync móvil en header
     const mobHour = document.getElementById("txt-hour-mob");
     if (mobHour) mobHour.innerText = txt;
@@ -1568,122 +1610,125 @@ function updateAtmosphere() {
 }
 
 function initWeatherControls() {
-    const container = document.getElementById("weather-dropdown");
-    const trigger = container?.querySelector(".dropdown-trigger");
-    const btns = document.querySelectorAll(".weather-btn");
+  const container = document.getElementById("weather-dropdown");
+  const trigger = container?.querySelector(".dropdown-trigger");
+  const btns = document.querySelectorAll(".weather-btn");
 
-    // 1. Inicializar sistema de lluvia una sola vez
-    if (!rain) {
-        const rainGeo = new THREE.BufferGeometry();
-        const rainCount = 15000;
-        const positions = new Float32Array(rainCount * 3);
-        for (let i = 0; i < rainCount * 3; i += 3) {
-            positions[i] = (Math.random() - 0.5) * 4000;
-            positions[i + 1] = Math.random() * 2000;
-            positions[i + 2] = (Math.random() - 0.5) * 4000;
-        }
-        rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        const rainMat = new THREE.PointsMaterial({
-            color: 0xaaaaaa,
-            size: 1.5,
-            transparent: true,
-            opacity: 0,
-            depthWrite: false,
-        });
-        rain = new THREE.Points(rainGeo, rainMat);
-        scene.add(rain);
+  // 1. Inicializar sistema de lluvia una sola vez
+  if (!rain) {
+    const rainGeo = new THREE.BufferGeometry();
+    const rainCount = 15000;
+    const positions = new Float32Array(rainCount * 3);
+    for (let i = 0; i < rainCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 4000;
+      positions[i + 1] = Math.random() * 2000;
+      positions[i + 2] = (Math.random() - 0.5) * 4000;
     }
-
-    // 2. Control del Dropdown
-    if (trigger && container) {
-        trigger.addEventListener("click", (e) => {
-            e.stopPropagation();
-            container.classList.toggle("active");
-            // Cerrar otros al abrir este
-            document.querySelector(".sidebar")?.classList.remove("mobile-visible");
-            document.getElementById("history-panel")?.classList.add("hidden");
-        });
-    }
-
-    // 3. Selección de Clima (Manual)
-    btns.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            btns.forEach((b) => b.classList.remove("active"));
-            btn.classList.add("active");
-            currentWeatherType = btn.dataset.weather;
-            
-            // Al cambiar manual, apagamos la sincronización real automática
-            weatherSyncEnabled = false;
-            
-            // Actualizar Visuales
-            if (rain) {
-                rain.material.opacity = (currentWeatherType === "rainy") ? 0.6 : 0;
-            }
-            updateAtmosphere();
-            
-            if (container) container.classList.remove("active");
-            addFeedItem(`Simulación Manuel: ${currentWeatherType.toUpperCase()}`, "info");
-        });
+    rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const rainMat = new THREE.PointsMaterial({
+      color: 0xaaaaaa,
+      size: 1.5,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
     });
+    rain = new THREE.Points(rainGeo, rainMat);
+    scene.add(rain);
+  }
 
-    // 4. Regresar al Clima Real (Sincronización)
-    const btnSync = document.getElementById("btn-sync-weather");
-    if (btnSync) {
-        btnSync.addEventListener("click", () => {
-            weatherSyncEnabled = true;
-            syncRealWeather(); // Ejecutar inmediatamente
-            if (container) container.classList.remove("active");
-            addFeedItem("Sincronizando clima real de hoy...", "success");
-        });
-    }
-
-    // Cerrar al hacer clic fuera
-    document.addEventListener("click", () => {
-        container?.classList.remove("active");
+  // 2. Control del Dropdown
+  if (trigger && container) {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      container.classList.toggle("active");
+      // Cerrar otros al abrir este
+      document.querySelector(".sidebar")?.classList.remove("mobile-visible");
+      document.getElementById("history-panel")?.classList.add("hidden");
     });
+  }
 
-    // 5. Función Maestra: Sincronización Real (Open-Meteo)
-    async function syncRealWeather() {
-        if (!weatherSyncEnabled) return;
-        try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (!data.current) return;
+  // 3. Selección de Clima (Manual)
+  btns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentWeatherType = btn.dataset.weather;
 
-            const code = data.current.weather_code;
-            const temp = Math.round(data.current.temperature_2m);
-            const humidity = data.current.relative_humidity_2m;
+      // Al cambiar manual, apagamos la sincronización real automática
+      weatherSyncEnabled = false;
 
-            // Mapear clima real a tipos locales
-            let newType = "normal";
-            if (code >= 51) newType = "rainy";
-            else if (code === 0) newType = "sunny";
+      // Actualizar Visuales
+      if (rain) {
+        rain.material.opacity = currentWeatherType === "rainy" ? 0.6 : 0;
+      }
+      updateAtmosphere();
 
-            currentWeatherType = newType;
-            
-            // Sincronizar UI de botones
-            btns.forEach(b => {
-                b.classList.toggle("active", b.dataset.weather === newType);
-            });
+      if (container) container.classList.remove("active");
+      addFeedItem(
+        `Simulación Manuel: ${currentWeatherType.toUpperCase()}`,
+        "info",
+      );
+    });
+  });
 
-            if (rain) rain.material.opacity = (newType === "rainy") ? 0.6 : 0;
-            updateAtmosphere();
+  // 4. Regresar al Clima Real (Sincronización)
+  const btnSync = document.getElementById("btn-sync-weather");
+  if (btnSync) {
+    btnSync.addEventListener("click", () => {
+      weatherSyncEnabled = true;
+      syncRealWeather(); // Ejecutar inmediatamente
+      if (container) container.classList.remove("active");
+      addFeedItem("Sincronizando clima real de hoy...", "success");
+    });
+  }
 
-            const tempLabel = document.getElementById("txt-temp-avg");
-            if (tempLabel) tempLabel.innerText = `${temp}°C`;
-            const mobTemp = document.getElementById("txt-temp-avg-mob");
-            if (mobTemp) mobTemp.innerText = `${temp}°C`;
+  // Cerrar al hacer clic fuera
+  document.addEventListener("click", () => {
+    container?.classList.remove("active");
+  });
 
-            addFeedItem(`Clima Real Detectado: ${temp}°C`, "success");
-        } catch (e) {
-            console.warn("Weather Sync Fail", e);
-        }
+  // 5. Función Maestra: Sincronización Real (Open-Meteo)
+  async function syncRealWeather() {
+    if (!weatherSyncEnabled) return;
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!data.current) return;
+
+      const code = data.current.weather_code;
+      const temp = Math.round(data.current.temperature_2m);
+      const humidity = data.current.relative_humidity_2m;
+
+      // Mapear clima real a tipos locales
+      let newType = "normal";
+      if (code >= 51) newType = "rainy";
+      else if (code === 0) newType = "sunny";
+
+      currentWeatherType = newType;
+
+      // Sincronizar UI de botones
+      btns.forEach((b) => {
+        b.classList.toggle("active", b.dataset.weather === newType);
+      });
+
+      if (rain) rain.material.opacity = newType === "rainy" ? 0.6 : 0;
+      updateAtmosphere();
+
+      const tempLabel = document.getElementById("txt-temp-avg");
+      if (tempLabel) tempLabel.innerText = `${temp}°C`;
+      const mobTemp = document.getElementById("txt-temp-avg-mob");
+      if (mobTemp) mobTemp.innerText = `${temp}°C`;
+
+      addFeedItem(`Clima Real Detectado: ${temp}°C`, "success");
+    } catch (e) {
+      console.warn("Weather Sync Fail", e);
     }
+  }
 
-    // Primera ejecución y loop
-    syncRealWeather();
-    setInterval(syncRealWeather, 10 * 60 * 1000);
+  // Primera ejecución y loop
+  syncRealWeather();
+  setInterval(syncRealWeather, 10 * 60 * 1000);
 }
 
 // --- VIAJE EN EL TIEMPO: LÓGICA DE CONTROL ---
@@ -1751,9 +1796,9 @@ function minutesToTimeStr(min) {
   const targetDate = new Date(Date.now() + min * 60000);
   const h = targetDate.getHours();
   const m = targetDate.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
-  return `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+  return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
 
 function updateHistoryUI(min) {
@@ -1765,23 +1810,25 @@ function updateHistoryUI(min) {
   const targetDate = new Date(Date.now() + min * 60000);
   const h = targetDate.getHours();
   const m = targetDate.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
-  const timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+  const timeStr = `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
 
   if (timeDisplay) timeDisplay.innerText = timeStr;
 
   if (dateDisplay) {
-    if (min === 0)       dateDisplay.innerText = 'Ahora (En vivo)';
-    else if (min < 0)    dateDisplay.innerText = `Hace ${Math.abs(Math.round(min/60))}h — ${targetDate.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'})}`;
-    else                 dateDisplay.innerText = `En ${Math.round(min/60)}h — ${targetDate.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'})}`;
+    if (min === 0) dateDisplay.innerText = "Ahora (En vivo)";
+    else if (min < 0)
+      dateDisplay.innerText = `Hace ${Math.abs(Math.round(min / 60))}h — ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
+    else
+      dateDisplay.innerText = `En ${Math.round(min / 60)}h — ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
   }
 
   if (avgOcc) {
-    let occ = 'Baja';
-    if (h >= 8 && h <= 12) occ = 'Alta';
-    else if (h > 12 && h <= 18) occ = 'Media';
-    else if (h > 18 && h <= 22) occ = 'Alta';
+    let occ = "Baja";
+    if (h >= 8 && h <= 12) occ = "Alta";
+    else if (h > 12 && h <= 18) occ = "Media";
+    else if (h > 18 && h <= 22) occ = "Alta";
     avgOcc.innerText = occ;
   }
 }
@@ -1802,26 +1849,27 @@ function simulateHistoryEffect(offsetMin) {
     const data = digitalTwinData[role];
     if (!data.isSensor) return;
     const dayFactor = Math.sin((hour * Math.PI) / 12);
-    data.bat = (90 + Math.random() * 8).toFixed(0) + '%';
-    data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + '°C';
-    data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + '%';
-    data.status = hour < 6 ? 'Modo Hibernación' : 'Transmisión LoRaWAN';
-    if (data.specialLabel === 'SONIDO (dB)') {
-      data.specialVal = (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + ' dB';
+    data.bat = (90 + Math.random() * 8).toFixed(0) + "%";
+    data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + "°C";
+    data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + "%";
+    data.status = hour < 6 ? "Modo Hibernación" : "Transmisión LoRaWAN";
+    if (data.specialLabel === "SONIDO (dB)") {
+      data.specialVal =
+        (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + " dB";
     }
   });
 
   // ── Fetch datos reales de la DB para el momento seleccionado (debounced 300ms) ──
   clearTimeout(_historyDebounceTimer);
   _historyDebounceTimer = setTimeout(() => {
-    fetch(`http://127.0.0.1:8000/api/reservations/history?offset=${offsetMin}`)
-      .then(r => r.json())
-      .then(data => {
+    fetch(`${API_BASE_URL}/api/reservations/history?offset=${offsetMin}`)
+      .then((r) => r.json())
+      .then((data) => {
         const totals = data.totals || { gym: 0, pool: 0, canchas: 0 };
         const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
         let totalPeople = 0;
 
-        ['gym', 'pool', 'canchas'].forEach((role) => {
+        ["gym", "pool", "canchas"].forEach((role) => {
           let count = totals[role] ?? 0;
 
           // Si la hora está cerrada, forzar 0
@@ -1830,59 +1878,83 @@ function simulateHistoryEffect(offsetMin) {
           totalPeople += count;
           if (digitalTwinData[role]) {
             digitalTwinData[role].current = count;
-            digitalTwinData[role].status = isClosed ? 'Cerrado / Limpieza' : 'Operativo';
-            digitalTwinData[role].statusClass = isClosed ? 'status-warning' : 'status-good';
+            digitalTwinData[role].status = isClosed
+              ? "Cerrado / Limpieza"
+              : "Operativo";
+            digitalTwinData[role].statusClass = isClosed
+              ? "status-warning"
+              : "status-good";
           }
           spawnPeopleInRole(role, Math.min(count, capacityLimits[role]));
         });
 
         // Actualizar Monitoreo
         const totalCap = 50 + 30 + 20;
-        const capPct = Math.min(100, Math.floor((totalPeople / totalCap) * 100));
-        const capColor = capPct < 50 ? 'var(--success-color)' : (capPct < 80 ? 'var(--warning-color)' : 'var(--danger-color)');
-        const el = document.getElementById('txt-capacity');
-        const elMob = document.getElementById('txt-capacity-mob');
-        if (el) { el.innerText = `${capPct}%`; el.style.color = capColor; }
-        if (elMob) { elMob.innerText = `${capPct}%`; elMob.style.color = capColor; }
+        const capPct = Math.min(
+          100,
+          Math.floor((totalPeople / totalCap) * 100),
+        );
+        const capColor =
+          capPct < 50
+            ? "var(--success-color)"
+            : capPct < 80
+              ? "var(--warning-color)"
+              : "var(--danger-color)";
+        const el = document.getElementById("txt-capacity");
+        const elMob = document.getElementById("txt-capacity-mob");
+        if (el) {
+          el.innerText = `${capPct}%`;
+          el.style.color = capColor;
+        }
+        if (elMob) {
+          elMob.innerText = `${capPct}%`;
+          elMob.style.color = capColor;
+        }
 
-        const totalEl = document.getElementById('txt-total-people');
+        const totalEl = document.getElementById("txt-total-people");
         if (totalEl) totalEl.innerText = totalPeople;
-        const gymEl     = document.getElementById('txt-pop-gym');
-        const poolEl    = document.getElementById('txt-pop-pool');
-        const canchasEl = document.getElementById('txt-pop-canchas');
-        if (gymEl)     gymEl.innerText     = totals.gym;
-        if (poolEl)    poolEl.innerText    = totals.pool;
+        const gymEl = document.getElementById("txt-pop-gym");
+        const poolEl = document.getElementById("txt-pop-pool");
+        const canchasEl = document.getElementById("txt-pop-canchas");
+        if (gymEl) gymEl.innerText = totals.gym;
+        if (poolEl) poolEl.innerText = totals.pool;
         if (canchasEl) canchasEl.innerText = totals.canchas;
 
-        addFeedItem(`🕐 Historial ${offsetMin >= 0 ? '+' : ''}${Math.round(offsetMin/60)}h → ${totalPeople} pax (${data.window?.from}–${data.window?.to})`, 'info');
+        addFeedItem(
+          `🕐 Historial ${offsetMin >= 0 ? "+" : ""}${Math.round(offsetMin / 60)}h → ${totalPeople} pax (${data.window?.from}–${data.window?.to})`,
+          "info",
+        );
 
         // Actualizar info card si está abierta (sea cual sea el método de apertura)
-        if (currentSelectedRole && !infoCard.classList.contains('hidden')) {
+        if (currentSelectedRole && !infoCard.classList.contains("hidden")) {
           showInfoCard(currentSelectedRole);
         }
 
-        if (!document.getElementById('extended-dashboard').classList.contains('hidden')) {
+        if (
+          !document
+            .getElementById("extended-dashboard")
+            .classList.contains("hidden")
+        ) {
           updateDashboardData();
         }
       })
       .catch((err) => {
         console.error("History Fetch Error:", err);
         // Fallback simulado si el API no responde
-        ['gym', 'pool', 'canchas'].forEach((role) => {
+        ["gym", "pool", "canchas"].forEach((role) => {
           const count = isClosed ? 0 : Math.floor(Math.random() * 20);
           if (digitalTwinData[role]) {
             digitalTwinData[role].current = count;
-            digitalTwinData[role].status = 'Simulación (Sin Conexión)';
+            digitalTwinData[role].status = "Simulación (Sin Conexión)";
           }
           spawnPeopleInRole(role, count);
         });
-        if (currentSelectedRole && !infoCard.classList.contains('hidden')) {
-            showInfoCard(currentSelectedRole);
+        if (currentSelectedRole && !infoCard.classList.contains("hidden")) {
+          showInfoCard(currentSelectedRole);
         }
       });
   }, 300);
 }
-
 
 // Bucle de Animación
 function animate() {
@@ -2346,7 +2418,12 @@ function showInfoCard(role) {
 
     if (peopleEl) {
       // Usar data.current como fuente única de verdad para el UI
-      peopleEl.innerText = typeof data.current === 'number' ? data.current : (typeof data.current === 'string' ? data.current.split(" ")[0] : "...");
+      peopleEl.innerText =
+        typeof data.current === "number"
+          ? data.current
+          : typeof data.current === "string"
+            ? data.current.split(" ")[0]
+            : "...";
     }
     if (expectedEl)
       expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
@@ -2430,7 +2507,10 @@ function addFeedItem(text, type = "info") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeStr = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   toast.innerHTML = `
         <div class="toast-header">
@@ -2446,7 +2526,6 @@ function addFeedItem(text, type = "info") {
     setTimeout(() => toast.remove(), 400);
   }, 5000);
 }
-
 
 // Inicializar feed con algunos eventos de bienvenida
 setTimeout(() => {
@@ -2766,11 +2845,11 @@ function initSpatialLabels() {
       const el = document.createElement("div");
       el.className = `holo-label ${t.color}`;
       el.innerHTML = `<span>${t.label}</span>`;
-      
+
       // Etiquetas ahora son grandes en todos los tamaños (Petición usuario)
       if (window.innerWidth < 800) {
-          el.style.fontSize = "12px";
-          el.style.padding = "8px 16px";
+        el.style.fontSize = "12px";
+        el.style.padding = "8px 16px";
       }
 
       el.onclick = (e) => {

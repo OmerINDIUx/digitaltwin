@@ -69,7 +69,7 @@
             @php $poolPct = ($stats['pool']['count'] / $stats['pool']['limit']) * 100; @endphp
             <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
                 <div class="h-48 overflow-hidden relative">
-                    <img src="https://images.unsplash.com/photo-1519449556851-5720b33024e7?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                    <img src="{{ asset('Natación.JPG') }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
                     <div class="absolute bottom-4 left-6">
                          <span class="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter">Aquatic area</span>
@@ -181,14 +181,39 @@
                 <!-- DETALLES DE RESERVA -->
                 <div class="bg-slate-50 rounded-3xl p-6 space-y-4">
                     <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">📅 Detalles del Espacio</p>
-                    <div>
+
+                    <!-- CALENDARIO DE DISPONIBILIDAD (DYNAMIC) -->
+                    <div class="space-y-4 mt-2">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 1. Elegir Día
+                            </p>
+                            <span id="selected-date-label" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">Hoy</span>
+                        </div>
+                        <div id="availability-grid" class="flex flex-wrap gap-2 pt-1">
+                            <!-- Se llena con JS -->
+                        </div>
+
+                        <!-- SELECCIÓN DE HORA -->
+                        <div id="hour-selection-container" class="space-y-3 pt-4 border-t border-slate-100 hidden">
+                            <p class="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> 2. Horarios disponibles
+                            </p>
+                            <div id="hour-grid" class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                <!-- Se llena con JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
                         <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Zona del complejo</label>
                         <div id="zone-display" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 font-bold text-sm">—</div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Fecha y Hora <span class="text-red-500">*</span></label>
-                            <input type="datetime-local" name="datetime" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-sm">
+                        <div class="col-span-1">
+                             <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Fecha y Hora Seleccionada</label>
+                             <div id="final-datetime-display" class="w-full bg-slate-100 border border-slate-200 rounded-2xl text-slate-400 py-3.5 px-5 font-bold text-xs">— Selecciona día y hora —</div>
+                             <input type="hidden" name="datetime" id="res-datetime" required>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Pax (Invitados)</label>
@@ -198,7 +223,7 @@
                 </div>
 
                 <div class="pt-2">
-                    <button type="submit" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-extrabold py-5 rounded-3xl transition-all shadow-xl text-base tracking-wide">
+                    <button type="submit" id="submit-btn" disabled class="w-full bg-slate-300 text-white font-extrabold py-5 rounded-3xl transition-all shadow-xl text-base tracking-wide cursor-not-allowed">
                         CONFIRMAR RESERVACIÓN ✓
                     </button>
                     <p class="text-[9px] text-slate-300 text-center mt-4 uppercase tracking-[0.2em] font-bold">Datos protegidos · Digital Twin Certified</p>
@@ -208,12 +233,135 @@
     </div>
 
     <script>
-        const zoneLabels = { gym: '🏃 Gimnasio Fitness', pool: '🏊 Natación Olímpica', canchas: '⚽ Canchas Deportivas' };
+        const zoneConfig = {
+            gym: { label: 'Gimnasio', start: 7, end: 22, limit: 50 },
+            pool: { label: 'Natación', start: 8, end: 20, limit: 30 },
+            canchas: { label: 'Canchas', start: 9, end: 21, limit: 20 }
+        };
+        const availabilityData = @json($availability);
+        
+        let selectedZone = null;
+        let selectedDate = null;
+        let selectedHour = null;
+
         function openReserveModal(zone) {
+            selectedZone = zone;
+            selectedDate = null;
+            selectedHour = null;
+            updateUI();
+            
             document.getElementById('modal-zone').value = zone;
-            document.getElementById('modal-zone-label').textContent = zoneLabels[zone] || zone;
-            document.getElementById('zone-display').textContent = zoneLabels[zone] || zone;
+            document.getElementById('modal-zone-label').textContent = '🏃 ' + (zoneConfig[zone]?.label || zone);
+            document.getElementById('zone-display').textContent = zoneConfig[zone]?.label || zone;
+            
+            // Generar Calendario Mini de 7 días
+            const grid = document.getElementById('availability-grid');
+            grid.innerHTML = '';
+            
+            const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const today = new Date();
+            
+            for(let i=0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(today.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayName = days[date.getDay()];
+                const dayNum = date.getDate();
+                
+                // Ocupación diaria TOTAL (suma de horas)
+                let zoneDayTotal = 0;
+                if(availabilityData[dateStr] && availabilityData[dateStr][zone]) {
+                    Object.values(availabilityData[dateStr][zone]).forEach(count => zoneDayTotal += parseInt(count));
+                }
+                
+                let dayIntensity = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                let dayLabel = 'LIBRE';
+                if(zoneDayTotal > (zoneConfig[zone].limit * 3)) { dayIntensity = 'bg-amber-50 text-amber-600 border-amber-100'; dayLabel = 'ALGO LLENO'; }
+                if(zoneDayTotal > (zoneConfig[zone].limit * 8)) { dayIntensity = 'bg-rose-50 text-rose-600 border-rose-100'; dayLabel = 'MUY LLENO'; }
+
+                const div = document.createElement('div');
+                div.className = `flex-1 min-w-[55px] p-2 rounded-2xl border text-center transition-all cursor-pointer hover:scale-105 day-card ${dayIntensity}`;
+                div.id = `day-${dateStr}`;
+                div.innerHTML = `
+                    <p class="text-[9px] font-bold uppercase mb-0.5">${dayName}</p>
+                    <p class="text-base font-black tracking-tighter leading-none">${dayNum}</p>
+                    <p class="text-[7px] font-black mt-1 uppercase opacity-60">${dayLabel}</p>
+                `;
+                
+                div.onclick = () => selectDay(dateStr, date);
+                grid.appendChild(div);
+            }
+
+            document.getElementById('hour-selection-container').classList.add('hidden');
             document.getElementById('res-modal').classList.remove('hidden');
+        }
+
+        function selectDay(dateStr, dateObj) {
+            selectedDate = dateStr;
+            selectedHour = null;
+            
+            // Highlight card
+            document.querySelectorAll('.day-card').forEach(c => c.classList.remove('ring-2', 'ring-indigo-600', 'ring-offset-2', 'bg-indigo-600', 'text-white'));
+            const card = document.getElementById(`day-${dateStr}`);
+            card.classList.add('ring-2', 'ring-indigo-600', 'ring-offset-2');
+            
+            document.getElementById('selected-date-label').textContent = dateStr;
+            
+            // Generate Hours
+            const hourGrid = document.getElementById('hour-grid');
+            hourGrid.innerHTML = '';
+            
+            const config = zoneConfig[selectedZone];
+            for(let h = config.start; h < config.end; h++) {
+                const hourStr = h < 10 ? `0${h}:00` : `${h}:00`;
+                const occupancy = (availabilityData[dateStr] && availabilityData[dateStr][selectedZone] && availabilityData[dateStr][selectedZone][h]) ? parseInt(availabilityData[dateStr][selectedZone][h]) : 0;
+                
+                let hColor = 'bg-slate-50 text-slate-700 border-slate-200';
+                if(occupancy >= config.limit) hColor = 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed opacity-50';
+                else if(occupancy > config.limit * 0.7) hColor = 'bg-amber-50 text-amber-600 border-amber-200';
+
+                const hDiv = document.createElement('div');
+                hDiv.className = `p-2.5 rounded-xl border text-center text-xs font-bold cursor-pointer hover:bg-indigo-50 transition-colors hour-pill ${hColor}`;
+                hDiv.textContent = hourStr;
+                hDiv.id = `hour-${h}`;
+                
+                if(occupancy < config.limit) {
+                    hDiv.onclick = () => selectHour(h, hourStr);
+                }
+                
+                hourGrid.appendChild(hDiv);
+            }
+            
+            document.getElementById('hour-selection-container').classList.remove('hidden');
+            updateUI();
+        }
+
+        function selectHour(h, hourStr) {
+            selectedHour = h;
+            document.querySelectorAll('.hour-pill').forEach(p => p.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600'));
+            const pill = document.getElementById(`hour-${h}`);
+            pill.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+            
+            const dtFinal = `${selectedDate}T${h < 10 ? '0'+h : h}:00`;
+            document.getElementById('res-datetime').value = dtFinal;
+            document.getElementById('final-datetime-display').textContent = `${selectedDate} a las ${hourStr}`;
+            document.getElementById('final-datetime-display').classList.remove('text-slate-400', 'bg-slate-100');
+            document.getElementById('final-datetime-display').classList.add('text-indigo-600', 'bg-indigo-50');
+            
+            updateUI();
+        }
+
+        function updateUI() {
+            const btn = document.getElementById('submit-btn');
+            if(selectedDate && selectedHour !== null) {
+                btn.disabled = false;
+                btn.classList.remove('bg-slate-300', 'cursor-not-allowed');
+                btn.classList.add('bg-slate-900', 'hover:bg-indigo-600');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-slate-300', 'cursor-not-allowed');
+                btn.classList.remove('bg-slate-900', 'hover:bg-indigo-600');
+            }
         }
     </script>
 </body>

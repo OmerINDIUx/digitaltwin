@@ -54,7 +54,20 @@ class ReservationController extends Controller
             ],
         ];
 
-        return view('reservations-panel', compact('reservations', 'stats'));
+        // Disponibilidad por día, zona y HORA (Próximos 7 días)
+        $availability = Reservation::selectRaw('DATE(reservation_date) as date, HOUR(reservation_date) as hour, zone, SUM(guests) as total_guests')
+            ->where('reservation_date', '>=', now()->toDateString())
+            ->where('reservation_date', '<=', now()->addDays(7)->toDateString())
+            ->groupBy('date', 'hour', 'zone')
+            ->get()
+            ->groupBy('date')
+            ->map(function ($dateItems) {
+                return $dateItems->groupBy('zone')->map(function ($zoneItems) {
+                    return $zoneItems->pluck('total_guests', 'hour');
+                });
+            });
+
+        return view('reservations-panel', compact('reservations', 'stats', 'availability'));
     }
 
     /**
