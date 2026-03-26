@@ -2741,6 +2741,7 @@ body {
     letter-spacing: -0.025em;
     background: linear-gradient(to right, #60a5fa, #a78bfa);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 

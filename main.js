@@ -38,7 +38,10 @@ const feedLimit = 5;
 const spatialLabels = [];
 const labelsContainer = document.getElementById("labels-container");
 
-// --- SISTEMA DE POBLACIÓN (Simulación de Personas) ---
+// Valores reales de la DB (se actualizan al abrir el Dashboard)
+let dbCounts = { gym: null, pool: null, canchas: null };
+let currentSelectedRole = null; // Para refrescar la card abierta durante el historial
+
 const peopleInstances = {
   gym: null,
   pool: null,
@@ -89,7 +92,7 @@ const closeCardBtn = document.getElementById("close-card");
 const digitalTwinData = {
   gym: {
     title: "Gimnasio de Alto Rendimiento",
-    current: "24 personas",
+    current: null,
     expected: "85 hoy",
     status: "Operativo",
     statusClass: "status-good",
@@ -101,7 +104,7 @@ const digitalTwinData = {
   },
   pool: {
     title: "Centro Acuático",
-    current: "12 personas",
+    current: null,
     expected: "40 hoy",
     status: "Limpieza en curso",
     statusClass: "status-warning",
@@ -113,7 +116,7 @@ const digitalTwinData = {
   },
   canchas: {
     title: "Área de Canchas",
-    current: "36 personas",
+    current: null,
     expected: "120 hoy",
     status: "Activo",
     statusClass: "status-good",
@@ -258,10 +261,10 @@ scene.add(selectionRing);
 floatingLabel = document.createElement("div");
 floatingLabel.className = "floating-label hidden";
 floatingLabel.innerHTML = `
-    <div class="label-content">
-        <span id="label-name">Zona</span>
-        <div class="label-pulse"></div>
-    </div>
+            <div class="slider-container">
+                <!-- min=-1440 (ayer) | 0 = AHORA | max=+1440 (mañana) -->
+                <input type="range" id="history-slider" min="-1440" max="1440" value="0" step="15" class="cyber-slider">
+            </div>
   `;
 document.body.appendChild(floatingLabel);
 
@@ -1155,31 +1158,111 @@ function initLayoutControls() {
   }
 }
 
+// Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
+function syncDBCounts() {
+  if (isHistoryMode) return; // NO sincronizar si estamos en el pasado/futuro
+  fetch("http://127.0.0.1:8000/api/reservations/live")
+    .then((res) => res.json())
+    .then((data) => {
+      const totals = data.totals || null;
+      if (totals) {
+        dbCounts.gym     = totals.gym     ?? 0;
+        dbCounts.pool    = totals.pool    ?? 0;
+        dbCounts.canchas = totals.canchas ?? 0;
+        const total = dbCounts.gym + dbCounts.pool + dbCounts.canchas;
+        addFeedItem(`📊 DB SYNC (±90´) — ${total} pax: GYM ${dbCounts.gym} · POOL ${dbCounts.pool} · CANCHAS ${dbCounts.canchas}`, "info");
+        applyDBCountsToWorld();
+      }
+    })
+    .catch(() => console.warn("[DB Sync] API no disponible"));
+}
+
+// Aplica dbCounts al mundo 3D: actualiza capacidad, spawns y panel de monitoreo
+function applyDBCountsToWorld() {
+  const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
+  let totalPeople = 0;
+  let totalTemp   = 0;
+  let zoneCount   = 0;
+
+  ['gym', 'pool', 'canchas'].forEach((role) => {
+    const count = dbCounts[role] ?? 0;
+    totalPeople += count;
+
+    // Actualizar digitalTwinData
+    const data = digitalTwinData[role];
+    if (data) {
+      data.current = count;
+      data.status = 'Operativo';
+      data.statusClass = 'status-good';
+      totalTemp += parseFloat(data.temp) || 22;
+      zoneCount++;
+    }
+
+    // Spawn personas en el modelo 3D proporcional al aforo
+    const limit = capacityLimits[role] || 50;
+    const scaled = Math.min(count, limit); // no exceder el límite visual
+    spawnPeopleInRole(role, scaled);
+  });
+
+  // --- Actualizar panel Monitoreo (barra CAPACIDAD y TOTAL) ---
+  const capacityEl = document.getElementById('txt-capacity');
+  const mobCapEl   = document.getElementById('txt-capacity-mob');
+  const totalCapacity = 50 + 30 + 20; // gym+pool+canchas
+  const capPct = Math.min(100, Math.floor((totalPeople / totalCapacity) * 100));
+  const capColor = capPct < 50 ? 'var(--success-color)' : (capPct < 80 ? 'var(--warning-color)' : 'var(--danger-color)');
+
+  if (capacityEl) { capacityEl.innerText = `${capPct}%`; capacityEl.style.color = capColor; }
+  if (mobCapEl)   { mobCapEl.innerText   = `${capPct}%`; mobCapEl.style.color   = capColor; }
+
+  // Temperatura promedio
+  const tempAvgEl = document.getElementById('txt-temp-avg');
+  const mobTemp   = document.getElementById('txt-temp-avg-mob');
+  if (tempAvgEl && zoneCount > 0) {
+    const avg = (totalTemp / zoneCount).toFixed(1);
+    tempAvgEl.innerText = `${avg}°C`;
+    if (mobTemp) mobTemp.innerText = `${avg}°C`;
+  }
+
+  // Total personas visible
+  const totalEl = document.getElementById('txt-total-people');
+  if (totalEl) totalEl.innerText = totalPeople;
+
+  // Desglose por zona en el panel Monitoreo
+  const gymEl     = document.getElementById('txt-pop-gym');
+  const poolEl    = document.getElementById('txt-pop-pool');
+  const canchasEl = document.getElementById('txt-pop-canchas');
+  if (gymEl)     gymEl.innerText     = dbCounts.gym     ?? 0;
+  if (poolEl)    poolEl.innerText    = dbCounts.pool    ?? 0;
+  if (canchasEl) canchasEl.innerText = dbCounts.canchas ?? 0;
+
+  updateDashboardData();
+}
+
+// Sincronizar al cargar y cada 60 segundos
+document.addEventListener('DOMContentLoaded', () => {
+  syncDBCounts();
+  setInterval(syncDBCounts, 60000);
+});
+
 function loadReservationsFromDB() {
   const historyList = document.getElementById("res-history-list");
+  syncDBCounts(); // siempre re-sincroniza al abrir el panel
   if (!historyList) return;
 
   let counts = { gym: 0, pool: 0, canchas: 0 };
   const now = new Date();
 
-  fetch("http://127.0.0.1:8000/api/reservations")
+  fetch("http://127.0.0.1:8000/api/reservations/live")
     .then((res) => res.json())
     .then((data) => {
-      if (Array.isArray(data) && data.length > 0) {
-        historyList.innerHTML = "";
-        data.forEach((res) => {
-          const resDate = new Date(res.reservation_date);
-          
-          // Calcular ocupación actual (reservas activas +- 60 min)
-          const diffMs = Math.abs(now - resDate);
-          const diffMins = diffMs / (1000 * 60);
-          
-          if (diffMins <= 60 && res.status === 'confirmed') {
-            if (counts[res.zone] !== undefined) {
-              counts[res.zone] += parseInt(res.guests) || 1;
-            }
-          }
+      // El endpoint /live devuelve { date, reservations, totals, grand_total }
+      const reservations = Array.isArray(data) ? data : (data.reservations || []);
+      const totals = data.totals || null;
 
+      if (reservations.length > 0) {
+        historyList.innerHTML = "";
+        reservations.forEach((res) => {
+          const resDate = new Date(res.reservation_date);
           const item = document.createElement("div");
           item.className = "mini-item";
           const dateStr = resDate.toLocaleString([], {
@@ -1188,18 +1271,43 @@ function loadReservationsFromDB() {
             hour: "2-digit",
             minute: "2-digit",
           });
-          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> - ${dateStr} <small>(DB)</small>`;
+          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> · ${res.name || 'Invitado'} · ${dateStr}`;
           historyList.appendChild(item);
         });
 
-        // Actualizar datos del Digital Twin con valores REALES de la DB
-        Object.keys(counts).forEach(zone => {
-           if (digitalTwinData[zone]) {
-             digitalTwinData[zone].current = counts[zone];
-             addFeedItem(`Sync DB: ${zone.toUpperCase()} detecta ${counts[zone]} personas`, "info");
-           }
-        });
-        updateDashboardData(); // Refrescar indicadores visuales
+        // Usar totales pre-calculados de la DB (toda la jornada de hoy)
+        if (totals) {
+          counts = totals;
+        } else {
+          // Fallback: calcular manualmente con ventana de ±3 horas
+          reservations.forEach((res) => {
+            const diffMins = Math.abs(now - new Date(res.reservation_date)) / 60000;
+            if (diffMins <= 180 && counts[res.zone] !== undefined) {
+              counts[res.zone] += parseInt(res.guests) || 1;
+            }
+          });
+        }
+
+        // Guardar en dbCounts (fuente de verdad) — el motor 3D lo lee en cada tick
+        if (totals) {
+          dbCounts.gym     = totals.gym     ?? 0;
+          dbCounts.pool    = totals.pool    ?? 0;
+          dbCounts.canchas = totals.canchas ?? 0;
+        } else {
+          // Fallback: calcular con ventana ±3h
+          reservations.forEach((res) => {
+            const diffMins = Math.abs(now - new Date(res.reservation_date)) / 60000;
+            if (diffMins <= 180 && dbCounts[res.zone] !== undefined) {
+              if (dbCounts[res.zone] === null) dbCounts[res.zone] = 0;
+              dbCounts[res.zone] += parseInt(res.guests) || 1;
+            }
+          });
+        }
+
+        const total = (dbCounts.gym || 0) + (dbCounts.pool || 0) + (dbCounts.canchas || 0);
+        addFeedItem(`🏟️ DB SYNC — Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`, "info");
+        applyDBCountsToWorld(); // ← actualiza capacidad + spawns 3D
+        updateDashboardData();
 
       } else {
         historyList.innerHTML =
@@ -1610,14 +1718,14 @@ if (historySlider) {
 
 if (btnBackToLive) {
   btnBackToLive.addEventListener("click", () => {
-    historySlider.value = 1440;
-    updateHistoryMode(1440);
+    historySlider.value = 0;
+    updateHistoryMode(0);
   });
 }
 
 function updateHistoryMode(minutes) {
   historyTimeValue = minutes;
-  isHistoryMode = minutes < 1440;
+  isHistoryMode = minutes !== 0; // 0 = AHORA (modo vivo)
 
   if (isHistoryMode) {
     document.body.classList.add("history-mode");
@@ -1625,27 +1733,26 @@ function updateHistoryMode(minutes) {
   } else {
     document.body.classList.remove("history-mode");
     btnBackToLive.classList.add("hidden");
-    // Restaurar datos originales
+    // Restaurar datos en vivo
     Object.assign(digitalTwinData, liveDataBackup);
-    initPopulation(); // Respawn people in their current live counts
+    applyDBCountsToWorld();
+    return;
   }
 
-  // Actualizar Visores de Tiempo
   updateHistoryUI(minutes);
-
-  // Actualizar Atmósfera (Sol)
   updateAtmosphere();
-
-  // Simular cambios en data y población
   simulateHistoryEffect(minutes);
 }
 
 function minutesToTimeStr(min) {
-  const h = Math.floor(min / 60) % 24;
-  const m = min % 60;
-  const ampm = h >= 12 ? "PM" : "AM";
+  // min = offset en minutos desde AHORA
+  const absMin = Math.abs(min);
+  const targetDate = new Date(Date.now() + min * 60000);
+  const h = targetDate.getHours();
+  const m = targetDate.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
-  return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+  return `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
 }
 
 function updateHistoryUI(min) {
@@ -1653,137 +1760,128 @@ function updateHistoryUI(min) {
   const dateDisplay = document.getElementById("hist-selected-date");
   const avgOcc = document.getElementById("hist-avg-occ");
 
-  if (timeDisplay) timeDisplay.innerText = minutesToTimeStr(min);
+  // Hora del momento seleccionado
+  const targetDate = new Date(Date.now() + min * 60000);
+  const h = targetDate.getHours();
+  const m = targetDate.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  const timeStr = `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+
+  if (timeDisplay) timeDisplay.innerText = timeStr;
 
   if (dateDisplay) {
-    if (min === 1440) dateDisplay.innerText = "Hoy (Vivo)";
-    else if (min > 720) dateDisplay.innerText = "Hace unas horas";
-    else dateDisplay.innerText = "Ayer, 25 de Marzo";
+    if (min === 0)       dateDisplay.innerText = 'Ahora (En vivo)';
+    else if (min < 0)    dateDisplay.innerText = `Hace ${Math.abs(Math.round(min/60))}h — ${targetDate.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'})}`;
+    else                 dateDisplay.innerText = `En ${Math.round(min/60)}h — ${targetDate.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'})}`;
   }
 
   if (avgOcc) {
-    // Simulación de ocupación basada en hora
-    const hour = Math.floor(min / 60);
-    let occ = "Baja";
-    if (hour >= 8 && hour <= 12) occ = "Alta";
-    else if (hour > 12 && hour <= 18) occ = "Media";
-    else if (hour > 18 && hour <= 22) occ = "Alta";
+    let occ = 'Baja';
+    if (h >= 8 && h <= 12) occ = 'Alta';
+    else if (h > 12 && h <= 18) occ = 'Media';
+    else if (h > 18 && h <= 22) occ = 'Alta';
     avgOcc.innerText = occ;
   }
 }
 
-function simulateHistoryEffect(min) {
-  if (min === 1440) {
-    // Restaurar datos en vivo
-    Object.keys(digitalTwinData).forEach((role) => {
-      if (liveDataBackup[role]) {
-        Object.assign(digitalTwinData[role], liveDataBackup[role]);
-      }
-    });
+// Debounce para evitar flood de requests mientras se arrastra el slider
+let _historyDebounceTimer = null;
 
-    // Actualizar 3D con datos en vivo
-    Object.keys(peopleInstances).forEach((role) => {
-      const liveCount = parseInt(digitalTwinData[role]?.current) || 0;
-      spawnPeopleInRole(role, liveCount);
-    });
+function simulateHistoryEffect(offsetMin) {
+  // offsetMin = 0 → AHORA, negativo = pasado, positivo = futuro
 
-    updateDashboardData(); // Esto actualiza también los textos del panel Izq
-    return;
-  }
-
-  const hour = (Math.floor(min / 60)) % 24;
+  // Calcular la hora del momento seleccionado (para sensores)
+  const targetDate = new Date(Date.now() + offsetMin * 60000);
+  const hour = targetDate.getHours();
   const isClosed = hour >= 23 || hour < 6;
 
-  let totalPeople = 0;
-  let totalTemp = 0;
-  let zoneCount = 0;
-
-  // Alterar datos de ocupación y sensores para "mostrar" el pasado
+  // Actualizar sensores (simulación pura, no necesita DB)
   Object.keys(digitalTwinData).forEach((role) => {
     const data = digitalTwinData[role];
-
-    if (data.isSensor) {
-      // Simulación de Sensores basada en hora
-      const dayFactor = Math.sin((hour * Math.PI) / 12); // Picos al medio dia
-      data.bat = (90 + Math.random() * 8).toFixed(0) + "%";
-      data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + "°C";
-      data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + "%";
-      data.status = hour < 6 ? "Modo Hibernación" : "Transmisión LoRaWAN";
-
-      if (data.specialLabel === "SONIDO (dB)") {
-        data.specialVal = (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + " dB";
-      }
-    } else {
-      // Áreas: Ocupación simulada por hora
-      let finalCount = 0;
-
-      if (!isClosed) {
-        let baseCount = 10;
-        if (hour >= 6 && hour <= 10) baseCount = 50;
-        else if (hour > 10 && hour <= 16) baseCount = 20;
-        else if (hour > 16 && hour <= 21) baseCount = 70;
-        else if (hour > 21 && hour < 23) baseCount = 30;
-
-        const randomFactor = Math.floor(Math.random() * 15);
-        finalCount = baseCount + randomFactor;
-      }
-
-      data.current = `${finalCount} personas`;
-      data.status = isClosed ? "Cerrado / Limpieza" : "Operativo";
-      data.statusClass = isClosed ? "status-warning" : "status-good";
-      data.temp = (22 + (isClosed ? -2 : 1) + Math.random() * 2).toFixed(1) + "°C";
-
-      totalPeople += finalCount;
-      totalTemp += parseFloat(data.temp);
-      zoneCount++;
-
-      // Spawn/Respawn de gente en 3D
-      spawnPeopleInRole(role, finalCount);
+    if (!data.isSensor) return;
+    const dayFactor = Math.sin((hour * Math.PI) / 12);
+    data.bat = (90 + Math.random() * 8).toFixed(0) + '%';
+    data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + '°C';
+    data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + '%';
+    data.status = hour < 6 ? 'Modo Hibernación' : 'Transmisión LoRaWAN';
+    if (data.specialLabel === 'SONIDO (dB)') {
+      data.specialVal = (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + ' dB';
     }
   });
 
-  // ACTUALIZAR MÉTRICAS DEL PANEL IZQUIERDO (MONITOREO)
-  const capacityEl = document.getElementById("txt-capacity");
-  const tempAvgEl = document.getElementById("txt-temp-avg");
+  // ── Fetch datos reales de la DB para el momento seleccionado (debounced 300ms) ──
+  clearTimeout(_historyDebounceTimer);
+  _historyDebounceTimer = setTimeout(() => {
+    fetch(`http://127.0.0.1:8000/api/reservations/history?offset=${offsetMin}`)
+      .then(r => r.json())
+      .then(data => {
+        const totals = data.totals || { gym: 0, pool: 0, canchas: 0 };
+        const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
+        let totalPeople = 0;
 
-  if (capacityEl) {
-    const capacity = Math.min(100, Math.floor((totalPeople / 300) * 100)); // Capacidad total base de 300
-    capacityEl.innerText = `${capacity}%`;
-    capacityEl.style.color = isClosed ? "var(--text-muted)" : (capacity < 50 ? "var(--success-color)" : (capacity < 80 ? "var(--warning-color)" : "var(--danger-color)"));
-    
-    // Sync móvil
-    const mobCap = document.getElementById("txt-capacity-mob");
-    if (mobCap) {
-        mobCap.innerText = `${capacity}%`;
-        mobCap.style.color = capacityEl.style.color;
-    }
-  }
+        ['gym', 'pool', 'canchas'].forEach((role) => {
+          let count = totals[role] ?? 0;
 
-  if (tempAvgEl && zoneCount > 0) {
-    const avgTemp = (totalTemp / zoneCount).toFixed(1);
-    tempAvgEl.innerText = `${avgTemp}°C`;
+          // Si la hora está cerrada, forzar 0
+          if (isClosed) count = 0;
 
-    // Sync móvil
-    const mobTemp = document.getElementById("txt-temp-avg-mob");
-    if (mobTemp) {
-        mobTemp.innerText = `${avgTemp}°C`;
-    }
-  }
+          totalPeople += count;
+          if (digitalTwinData[role]) {
+            digitalTwinData[role].current = count;
+            digitalTwinData[role].status = isClosed ? 'Cerrado / Limpieza' : 'Operativo';
+            digitalTwinData[role].statusClass = isClosed ? 'status-warning' : 'status-good';
+          }
+          spawnPeopleInRole(role, Math.min(count, capacityLimits[role]));
+        });
 
-  // Actualizar métricas del panel principal si está abierto
-  const activeLayerBtn = document.querySelector(".layer-btn.active");
-  if (activeLayerBtn) {
-    const mode = activeLayerBtn.dataset.layer;
-    if (mode && mode !== "all") showInfoCard(mode);
-  }
+        // Actualizar Monitoreo
+        const totalCap = 50 + 30 + 20;
+        const capPct = Math.min(100, Math.floor((totalPeople / totalCap) * 100));
+        const capColor = capPct < 50 ? 'var(--success-color)' : (capPct < 80 ? 'var(--warning-color)' : 'var(--danger-color)');
+        const el = document.getElementById('txt-capacity');
+        const elMob = document.getElementById('txt-capacity-mob');
+        if (el) { el.innerText = `${capPct}%`; el.style.color = capColor; }
+        if (elMob) { elMob.innerText = `${capPct}%`; elMob.style.color = capColor; }
 
-  // Actualizar Dashboard si está abierto
-  if (!document.getElementById("extended-dashboard").classList.contains("hidden")) {
-    updateDashboardData();
-  }
+        const totalEl = document.getElementById('txt-total-people');
+        if (totalEl) totalEl.innerText = totalPeople;
+        const gymEl     = document.getElementById('txt-pop-gym');
+        const poolEl    = document.getElementById('txt-pop-pool');
+        const canchasEl = document.getElementById('txt-pop-canchas');
+        if (gymEl)     gymEl.innerText     = totals.gym;
+        if (poolEl)    poolEl.innerText    = totals.pool;
+        if (canchasEl) canchasEl.innerText = totals.canchas;
+
+        addFeedItem(`🕐 Historial ${offsetMin >= 0 ? '+' : ''}${Math.round(offsetMin/60)}h → ${totalPeople} pax (${data.window?.from}–${data.window?.to})`, 'info');
+
+        // Actualizar info card si está abierta (sea cual sea el método de apertura)
+        if (currentSelectedRole && !infoCard.classList.contains('hidden')) {
+          showInfoCard(currentSelectedRole);
+        }
+
+        if (!document.getElementById('extended-dashboard').classList.contains('hidden')) {
+          updateDashboardData();
+        }
+      })
+      .catch((err) => {
+        console.error("History Fetch Error:", err);
+        // Fallback simulado si el API no responde
+        ['gym', 'pool', 'canchas'].forEach((role) => {
+          const count = isClosed ? 0 : Math.floor(Math.random() * 20);
+          if (digitalTwinData[role]) {
+            digitalTwinData[role].current = count;
+            digitalTwinData[role].status = 'Simulación (Sin Conexión)';
+          }
+          spawnPeopleInRole(role, count);
+        });
+        if (currentSelectedRole && !infoCard.classList.contains('hidden')) {
+            showInfoCard(currentSelectedRole);
+        }
+      });
+  }, 300);
 }
 
-// --- FIN VIAJE EN EL TIEMPO ---
 
 // Bucle de Animación
 function animate() {
@@ -2160,6 +2258,7 @@ function onMouseClick(event) {
 
 function showInfoCard(role) {
   if (!digitalTwinData[role]) return;
+  currentSelectedRole = role; // Guardar referencia para refrescos automáticos
   const data = digitalTwinData[role];
 
   // Elementos principales
@@ -2244,8 +2343,10 @@ function showInfoCard(role) {
     if (camScan) camScan.classList.remove("hidden");
     if (liveTag) liveTag.innerText = "LIVE FEED";
 
-    if (peopleEl)
-      peopleEl.innerText = data.current ? data.current.split(" ")[0] : "0";
+    if (peopleEl) {
+      // Usar data.current como fuente única de verdad para el UI
+      peopleEl.innerText = typeof data.current === 'number' ? data.current : (typeof data.current === 'string' ? data.current.split(" ")[0] : "...");
+    }
     if (expectedEl)
       expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
     if (tempEl) tempEl.innerText = data.temp;

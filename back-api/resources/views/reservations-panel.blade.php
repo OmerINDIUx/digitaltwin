@@ -7,9 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Outfit', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        body { font-family: 'Outfit', sans-serif; background-color: #f1f5f9; color: #1e293b; }
         .glass-dark { background: rgba(30, 41, 59, 0.03); border: 1px solid rgba(0,0,0,0.05); }
         .card-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
+        .zone-card:hover .zone-img { transform: scale(1.05); filter: contrast(110%) brightness(90%); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -19,204 +20,201 @@
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div>
                 <nav class="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">
-                    <span>Admin</span> <span>/</span> <span class="text-indigo-600">Dashboard</span>
+                    <span>Admin</span> <span>/</span> <span class="text-indigo-600">Explore</span>
                 </nav>
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Centro de <span class="text-indigo-600">Reservaciones</span></h1>
-                <p class="text-slate-500 mt-1">Control maestro de ocupación para Utopía Japón Digital Twin</p>
+                <h1 class="text-5xl font-extrabold text-slate-900 tracking-tight italic">Bienvenido al <span class="text-indigo-600">Complejo</span></h1>
+                <p class="text-slate-500 mt-2 text-lg">¿Qué área deseas utilizar hoy? Revisa disponibilidad en tiempo real.</p>
             </div>
             <div class="flex items-center gap-3">
-                <a href="http://localhost:5173" target="_blank" class="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all card-shadow flex items-center gap-2">
+                <a href="http://localhost:5173" target="_blank" class="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all card-shadow flex items-center gap-2">
                     🏙️ VOLVER AL MODELO 3D
                 </a>
-                <button onclick="document.getElementById('res-modal').classList.remove('hidden')" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20">
-                    + REGISTRAR RESERVA
-                </button>
             </div>
         </header>
 
-        <!-- STATS GRID -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 ring-1 ring-slate-900/5">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Reservas</p>
-                <h3 class="text-3xl font-extrabold text-slate-900">{{ $stats['total'] }}</h3>
-                <div class="mt-2 text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded inline-block">Histórico Global</div>
-                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-indigo-500" style="width: 70%"></div>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 ring-1 ring-slate-900/5">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Reservas para Hoy</p>
-                <h3 class="text-3xl font-extrabold text-slate-900">{{ $stats['today'] }}</h3>
-                <div class="mt-2 text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded inline-block">Sincronizado</div>
-                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-emerald-500" style="width: 45%"></div>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 ring-1 ring-slate-900/5">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Aforo Activo (Pax)</p>
-                <h3 class="text-3xl font-extrabold text-slate-900">{{ $stats['guests'] }}</h3>
-                <div class="mt-2 text-xs font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded inline-block">Capacidad Real</div>
-                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-amber-500" style="width: 60%"></div>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 ring-1 ring-slate-900/5">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Zonas Populares</p>
-                <div class="flex items-center gap-4 mt-1">
-                    <div class="flex-1">
-                        <span class="text-[10px] font-bold text-slate-400 block uppercase">GYM</span>
-                        <span class="text-lg font-bold text-slate-800">{{ $stats['gym'] }}</span>
-                    </div>
-                    <div class="flex-1">
-                        <span class="text-[10px] font-bold text-slate-400 block uppercase">POOL</span>
-                        <span class="text-lg font-bold text-slate-800">{{ $stats['pool'] }}</span>
-                    </div>
-                </div>
-                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                    <div class="h-full bg-indigo-500" style="width: 40%"></div>
-                    <div class="h-full bg-amber-500" style="width: 60%"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- FILTERS & TABLE -->
-        <div class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 ring-1 ring-slate-900/5 overflow-hidden">
+        <!-- ZONE EXPLORER (LAS CARDS QUE PIDIÓ EL USUARIO) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             
-            <!-- TOOLBAR / FILTERS -->
-            <div class="p-6 bg-slate-50/50 border-b border-slate-100">
-                <form action="{{ url('/panel') }}" method="GET" class="flex flex-col md:flex-row items-end gap-6">
-                    <div class="w-full md:w-64">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Zona del complejo</label>
-                        <select name="zone" onchange="this.form.submit()" class="w-full bg-white border border-slate-200 rounded-2xl py-2 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="all">Todas las zonas</option>
-                            <option value="gym" {{ request('zone') == 'gym' ? 'selected' : '' }}>GYM / Gimnasio</option>
-                            <option value="pool" {{ request('zone') == 'pool' ? 'selected' : '' }}>POOL / Natación</option>
-                            <option value="canchas" {{ request('zone') == 'canchas' ? 'selected' : '' }}>SPORTS / Canchas</option>
-                        </select>
+            <!-- GYM CARD -->
+            @php $gymPct = ($stats['gym']['count'] / $stats['gym']['limit']) * 100; @endphp
+            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
+                <div class="h-48 overflow-hidden relative">
+                    <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                    <div class="absolute bottom-4 left-6">
+                         <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-tighter">Fitness Center</span>
                     </div>
-                    <div class="w-full md:w-64">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Estado de reserva</label>
-                        <select name="status" onchange="this.form.submit()" class="w-full bg-white border border-slate-200 rounded-2xl py-2 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="all">Cualquier estado</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pendientes</option>
-                            <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Confirmadas</option>
-                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Canceladas</option>
-                        </select>
+                </div>
+                <div class="p-8">
+                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Gimnasio</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['gym']['schedule'] }}</p>
+                    
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-xs font-extrabold text-slate-500 uppercase">Disponibilidad</span>
+                        <span class="text-lg font-extrabold {{ $gymPct > 80 ? 'text-red-500' : 'text-indigo-600' }}">
+                            {{ max(0, $stats['gym']['limit'] - $stats['gym']['count']) }} lugares libres
+                        </span>
                     </div>
-                    <div class="ml-auto flex items-center gap-4 py-2">
-                        <span class="text-xs font-bold text-slate-400 italic">Mostrando {{ $reservations->count() }} resultados</span>
-                        <button type="submit" class="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all">
-                             🔄 Refrescar
-                        </button>
+                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
+                        <div class="h-full bg-indigo-600 transition-all duration-1000" style="width: {{ $gymPct }}%"></div>
                     </div>
-                </form>
-            </div>
 
-            <!-- TABLE -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-slate-50/30">
-                            <th class="px-8 py-5">Zona</th>
-                            <th class="px-8 py-5">Horario de Reserva</th>
-                            <th class="px-8 py-5">Invitados</th>
-                            <th class="px-8 py-5">Estado</th>
-                            <th class="px-8 py-5 text-right">Registro de Sistema</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($reservations as $res)
-                        <tr class="hover:bg-indigo-50/20 transition-all group">
-                            <td class="px-8 py-5">
-                                <div class="flex items-center gap-3">
-                                    <div class="h-10 w-10 flex items-center justify-center rounded-2xl bg-slate-100 font-bold text-xl group-hover:bg-white group-hover:card-shadow transition-all">
-                                        {{ $res->zone == 'gym' ? '🏃' : ($res->zone == 'pool' ? '🏊' : '⚽') }}
-                                    </div>
-                                    <span class="font-bold text-slate-800 uppercase text-sm tracking-tight">{{ $res->zone }}</span>
-                                </div>
-                            </td>
-                            <td class="px-8 py-5">
-                                <div class="flex flex-col">
-                                    <span class="font-bold text-slate-700">{{ $res->reservation_date->format('d M, Y') }}</span>
-                                    <span class="text-xs font-bold text-indigo-500">{{ $res->reservation_date->format('h:i A') }}</span>
-                                </div>
-                            </td>
-                            <td class="px-8 py-5">
-                                <span class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full border border-slate-200">
-                                    {{ $res->guests }} PAX
-                                </span>
-                            </td>
-                            <td class="px-8 py-5">
-                                @if($res->status == 'confirmed')
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-extrabold border border-emerald-100 uppercase">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Confirmado
-                                    </span>
-                                @elseif($res->status == 'pending')
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-600 text-[10px] font-extrabold border border-amber-100 uppercase">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span> Pendiente
-                                    </span>
-                                @else
-                                    <span class="px-3 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-extrabold border border-red-100">CANCELADA</span>
-                                @endif
-                            </td>
-                            <td class="px-8 py-5 text-right">
-                                <span class="text-[10px] font-bold text-slate-300">{{ $res->created_at->diffForHumans() }}</span>
-                                <div class="transition-opacity opacity-0 group-hover:opacity-100 mt-1">
-                                    <button class="text-indigo-600 text-[10px] font-bold hover:underline">Gestionar ticket</button>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="px-8 py-20 text-center text-slate-400 italic">No se encontraron reservaciones con los filtros seleccionados.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="p-6 bg-slate-50/30 border-t border-slate-100 text-center">
-                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Digital Twin Master Interface v2.5</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL RESERVA -->
-    <div id="res-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all">
-        <div class="bg-white w-full max-w-md p-10 rounded-[3rem] shadow-2xl relative border border-slate-200">
-            <button onclick="document.getElementById('res-modal').classList.add('hidden')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors bg-slate-100 p-2 rounded-full">✕</button>
-            
-            <div class="mb-8 text-center">
-                <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Agendar <span class="text-indigo-600">Espacio</span></h2>
-                <p class="text-slate-500 text-sm mt-1">Sincronización segura con Utopía Japón</p>
-            </div>
-
-            <form action="{{ url('/panel') }}" method="POST" class="space-y-6">
-                @csrf
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Zona a reservar</label>
-                    <select name="zone" class="w-full bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 py-4 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
-                        <option value="gym">🏃 Gimnasio Fitness</option>
-                        <option value="pool">🏊 Natación Olímpica</option>
-                        <option value="canchas">⚽ Canchas de Fútbol</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Horario programado</label>
-                    <input type="datetime-local" name="datetime" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 py-4 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad de Invitados</label>
-                    <input type="number" name="guests" min="1" max="50" value="1" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 py-4 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                </div>
-                <div class="pt-4">
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 rounded-[2rem] transition-all shadow-xl shadow-indigo-600/30 text-lg">
-                        CONFIRMAR RESERVA
+                    <button onclick="openReserveModal('gym')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95">
+                        RESERVAR AHORA 🏃
                     </button>
-                    <p class="text-[9px] text-slate-400 text-center mt-5 uppercase tracking-[0.2em] font-bold">Datos encriptados bajo protocolos Digital Twin</p>
+                </div>
+            </div>
+
+            <!-- POOL CARD -->
+            @php $poolPct = ($stats['pool']['count'] / $stats['pool']['limit']) * 100; @endphp
+            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
+                <div class="h-48 overflow-hidden relative">
+                    <img src="https://images.unsplash.com/photo-1519449556851-5720b33024e7?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                    <div class="absolute bottom-4 left-6">
+                         <span class="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter">Aquatic area</span>
+                    </div>
+                </div>
+                <div class="p-8">
+                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Natación</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['pool']['schedule'] }}</p>
+                    
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-xs font-extrabold text-slate-500 uppercase">Capacidad Hoy</span>
+                        <span class="text-lg font-extrabold text-blue-600">
+                            {{ max(0, $stats['pool']['limit'] - $stats['pool']['count']) }} disponibles
+                        </span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
+                        <div class="h-full bg-blue-600 transition-all duration-1000" style="width: {{ $poolPct }}%"></div>
+                    </div>
+
+                    <button onclick="openReserveModal('pool')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95">
+                        RESERVAR AHORA 🏊
+                    </button>
+                </div>
+            </div>
+
+            <!-- SPORTS CARD -->
+            @php $canchasPct = ($stats['canchas']['count'] / $stats['canchas']['limit']) * 100; @endphp
+            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
+                <div class="h-48 overflow-hidden relative">
+                    <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                    <div class="absolute bottom-4 left-6">
+                         <span class="text-xs font-bold text-white bg-emerald-600 px-3 py-1 rounded-full uppercase tracking-tighter">Court Arena</span>
+                    </div>
+                </div>
+                <div class="p-8">
+                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Canchas Deportivas</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['canchas']['schedule'] }}</p>
+                    
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-xs font-extrabold text-slate-500 uppercase">Cupos restantes</span>
+                        <span class="text-lg font-extrabold text-emerald-600">
+                            {{ max(0, $stats['canchas']['limit'] - $stats['canchas']['count']) }} libres
+                        </span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
+                        <div class="h-full bg-emerald-600 transition-all duration-1000" style="width: {{ $canchasPct }}%"></div>
+                    </div>
+
+                    <button onclick="openReserveModal('canchas')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
+                        RESERVAR AHORA ⚽
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANNER ADMIN (reemplaza al historial) -->
+        <div class="mt-10 bg-slate-900 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-5">
+                <div class="w-14 h-14 rounded-3xl bg-indigo-600/20 flex items-center justify-center text-2xl flex-shrink-0">🔒</div>
+                <div>
+                    <h3 class="text-white font-extrabold text-lg leading-tight">¿Eres administrador?</h3>
+                    <p class="text-slate-400 text-sm mt-0.5">Accede al panel de control para ver y gestionar todas las reservaciones del complejo.</p>
+                </div>
+            </div>
+            <a href="{{ route('admin.login') }}" class="flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-3 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-600/20 text-sm tracking-wide whitespace-nowrap">
+                INICIAR SESIÓN →
+            </a>
+        </div>
+
+        <div class="text-center mt-8 pb-8">
+            <a href="{{ route('admin.login') }}" class="text-slate-300 hover:text-slate-500 text-[10px] font-bold uppercase tracking-[0.25em] transition-colors">
+                🔒 Acceso administrativo
+            </a>
+        </div>
+    <div id="res-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="bg-white w-full max-w-lg p-10 rounded-[3rem] shadow-2xl relative border border-slate-200 max-h-screen overflow-y-auto">
+            <button onclick="document.getElementById('res-modal').classList.add('hidden')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors bg-slate-100 p-2 rounded-full w-9 h-9 flex items-center justify-center font-bold">✕</button>
+            
+            <div class="mb-8">
+                <p id="modal-zone-label" class="text-xs font-extrabold text-indigo-500 uppercase tracking-widest mb-1">Seleccionando zona...</p>
+                <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Agendar <span class="text-indigo-600">Reserva</span></h2>
+                <p class="text-slate-400 text-sm mt-1">Completa tus datos para confirmar el espacio</p>
+            </div>
+
+            <form action="{{ url('/panel') }}" method="POST" class="space-y-5">
+                @csrf
+                <input type="hidden" name="zone" id="modal-zone">
+
+                <!-- DATOS PERSONALES -->
+                <div class="bg-slate-50 rounded-3xl p-6 space-y-4">
+                    <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">👤 Datos del Titular</p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Nombre completo <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" required placeholder="Ej: Carlos Ramírez" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold placeholder:font-normal placeholder:text-slate-300">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Email</label>
+                            <input type="email" name="email" placeholder="correo@mail.com" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm placeholder:text-slate-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Teléfono</label>
+                            <input type="tel" name="phone" placeholder="+52 000 000 0000" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm placeholder:text-slate-300">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DETALLES DE RESERVA -->
+                <div class="bg-slate-50 rounded-3xl p-6 space-y-4">
+                    <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">📅 Detalles del Espacio</p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Zona del complejo</label>
+                        <div id="zone-display" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 font-bold text-sm">—</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Fecha y Hora <span class="text-red-500">*</span></label>
+                            <input type="datetime-local" name="datetime" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Pax (Invitados)</label>
+                            <input type="number" name="guests" min="1" max="50" value="1" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-center">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-extrabold py-5 rounded-3xl transition-all shadow-xl text-base tracking-wide">
+                        CONFIRMAR RESERVACIÓN ✓
+                    </button>
+                    <p class="text-[9px] text-slate-300 text-center mt-4 uppercase tracking-[0.2em] font-bold">Datos protegidos · Digital Twin Certified</p>
                 </div>
             </form>
         </div>
     </div>
+
+    <script>
+        const zoneLabels = { gym: '🏃 Gimnasio Fitness', pool: '🏊 Natación Olímpica', canchas: '⚽ Canchas Deportivas' };
+        function openReserveModal(zone) {
+            document.getElementById('modal-zone').value = zone;
+            document.getElementById('modal-zone-label').textContent = zoneLabels[zone] || zone;
+            document.getElementById('zone-display').textContent = zoneLabels[zone] || zone;
+            document.getElementById('res-modal').classList.remove('hidden');
+        }
+    </script>
 </body>
 </html>
