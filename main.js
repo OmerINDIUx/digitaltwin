@@ -272,6 +272,9 @@ scene.add(selectionRing);
 floatingLabel = document.createElement("div");
 floatingLabel.className = "floating-label hidden";
 floatingLabel.innerHTML = `
+            <div class="label-box">
+                <span id="label-name" class="label-title">Cargando...</span>
+            </div>
             <div class="slider-container">
                 <!-- min=-1440 (ayer) | 0 = AHORA | max=+1440 (mañana) -->
                 <input type="range" id="history-slider" min="-1440" max="1440" value="0" step="15" class="cyber-slider">
@@ -983,18 +986,27 @@ function focusCameraOnRole(role) {
 
     const maxDim = Math.max(size.x, size.y, size.z);
 
-    // Configuración de Cámara: Retroceder más en canchas para captar todo el complejo
-    const cameraOffset = role === "canchas" ? 1.8 : 1.5;
+    // --- MEJORA DE POSICIÓN PREMIUM DE CÁMARA ---
+    let cameraOffset = 1.35;
+    let yFactor = 0.7;
+    let lookAtOffset = new THREE.Vector3(0, 5, 0); 
+    
+    if (role === 'canchas') { cameraOffset = 1.1; yFactor = 0.45; } 
+    if (role === 'gym') { cameraOffset = 1.25; yFactor = 0.75; }
+    if (role === 'pool') { cameraOffset = 1.35; yFactor = 0.6; }
+    
+    // Si es un sensor, usamos una distancia fija para no colisionar con el modelo
+    const finalDist = role.includes('sensor') ? 85 : Math.max(120, maxDim * cameraOffset);
     cameraTargetPos
       .copy(center)
       .add(
         new THREE.Vector3(
-          maxDim * cameraOffset,
-          maxDim * (cameraOffset * 0.8),
-          maxDim * cameraOffset,
+          finalDist,
+          finalDist * yFactor,
+          finalDist,
         ),
       );
-    controlsTargetPos.copy(center);
+    controlsTargetPos.copy(center).add(lookAtOffset);
 
     // --- MEJORA VISUAL DE SELECCIÓN (EL ANILLO SE ADAPTA AL ESPACIO) ---
     if (selectionRing) {
@@ -1002,23 +1014,22 @@ function focusCameraOnRole(role) {
       selectionRing.position.y = 0.5; // Ras del suelo
 
       if (role === "canchas") {
-        // Cambiar a MARCO RECTANGULAR que ocupa todo el espacio de las canchas
         if (selectionRing.geometry.type !== "PlaneGeometry") {
           selectionRing.geometry.dispose();
           selectionRing.geometry = new THREE.PlaneGeometry(1, 1);
         }
-        // Escalar el plano para que coincida con el tamaño real de las canchas (con un pequeño margen del 10%)
         selectionRing.scale.set(size.x * 1.1, size.z * 1.1, 1);
-        selectionRing.material.color.setHex(0xfbbf24); // Oro Intenso para deportes
+        selectionRing.userData.baseScale = 1.0; 
+        selectionRing.material.color.setHex(0xfbbf24);
       } else {
-        // Círculo Clásico para edificios individuales (Gym/Pool)
         if (selectionRing.geometry.type !== "RingGeometry") {
           selectionRing.geometry.dispose();
           selectionRing.geometry = new THREE.RingGeometry(25, 28, 64);
         }
         const diskScale = (maxDim / 25) * 0.7;
         selectionRing.scale.set(diskScale, diskScale, 1);
-        selectionRing.material.color.setHex(0x3b82f6); // Azul Corporativo
+        selectionRing.userData.baseScale = diskScale; 
+        selectionRing.material.color.setHex(0x3b82f6);
       }
 
       selectionRing.material.opacity = 0.8;
@@ -1028,8 +1039,10 @@ function focusCameraOnRole(role) {
     // Actualizar Etiqueta Flotante
     if (floatingLabel) {
       floatingLabel.dataset.target3d = JSON.stringify(center);
-      floatingLabel.querySelector("#label-name").innerText =
-        digitalTwinData[role]?.title || role;
+      const nameTag = floatingLabel.querySelector("#label-name");
+      if (nameTag) {
+        nameTag.innerText = digitalTwinData[role]?.title || role;
+      }
       floatingLabel.classList.remove("hidden");
     }
 
@@ -2542,13 +2555,17 @@ window.addEventListener("mousemove", onMouseMove);
 if (controls) {
   // Solo la interacción HUMANA real interrumpe el movimiento automático
   // Usamos wheel y mousedown/pointerdown directos porque controls 'change' se disparaba solo
-  window.addEventListener("wheel", () => (isCameraMoving = false), {
-    passive: true,
-  });
+  const unlockCamera = () => {
+    isCameraMoving = false;
+  };
+
+  window.addEventListener("wheel", unlockCamera, { passive: true });
   window.addEventListener("pointerdown", (e) => {
-    // Si el usuario toca el canvas con intención, liberamos cámara
-    if (e.target.tagName === "CANVAS") isCameraMoving = false;
+    if (e.target.tagName === "CANVAS") unlockCamera();
   });
+  window.addEventListener("touchstart", (e) => {
+    if (e.target.tagName === "CANVAS") unlockCamera();
+  }, { passive: true });
 }
 function initPopulation() {
   // Generar población inicial basada en digitalTwinData
