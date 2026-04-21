@@ -15,9 +15,11 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 const isLocal =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1";
+
+// Ahora detectamos si estamos en una subcarpeta (PRODUCCIÓN) automáticamente
 const API_BASE_URL = isLocal
-  ? "http://127.0.0.1:8000"
-  : `${window.location.origin}/back-api/public`;
+  ? "http://localhost:8000"
+  : `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, "")}/back-api/public`;
 
 // NOTA: Si usas un subdominio separado (ej: api.tudominio.com),
 // cambia la línea de arriba por: 'https://api.tudominio.com'
@@ -103,7 +105,7 @@ const digitalTwinData = {
   gym: {
     title: "Gimnasio de Alto Rendimiento",
     current: null,
-    expected: "85 hoy",
+    expected: "50 hoy",
     status: "Operativo",
     statusClass: "status-good",
     temp: "22.5°C",
@@ -115,7 +117,7 @@ const digitalTwinData = {
   pool: {
     title: "Centro Acuático",
     current: null,
-    expected: "40 hoy",
+    expected: "30 hoy",
     status: "Limpieza en curso",
     statusClass: "status-warning",
     temp: "28.0°C",
@@ -127,7 +129,7 @@ const digitalTwinData = {
   canchas: {
     title: "Área de Canchas",
     current: null,
-    expected: "120 hoy",
+    expected: "20 hoy",
     status: "Activo",
     statusClass: "status-good",
     temp: "31.2°C",
@@ -1119,7 +1121,7 @@ function initLayoutControls() {
 
         addFeedItem("Enviando datos al servidor Laravel...", "info");
 
-        fetch(`${API_BASE_URL}/api/reservations/store`, {
+        fetch(`${API_BASE_URL}/api/reservations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -1341,12 +1343,14 @@ function updateDashboardData() {
 
     const bar = document.getElementById(`bar-${key}`);
     const valTxt = document.getElementById(`val-${key}`);
-    if (bar) bar.style.width = `${Math.min(val * 1.5, 100)}%`;
-    if (valTxt) valTxt.innerText = `${val} Pax`;
+    const limits = { gym: 50, pool: 30, canchas: 20 };
+    const limit = limits[key] || 100;
+    if (bar) bar.style.width = `${Math.min((val / limit) * 100, 100)}%`;
+    if (valTxt) valTxt.innerText = `${val} / ${limit} Pax`;
   });
 
   const avgTemp = (totalTemp / count).toFixed(1);
-  const capacity = Math.min(100, Math.floor((total / 300) * 100));
+  const capacity = Math.min(100, Math.floor((total / 100) * 100));
 
   // Animación de conteo simple (Dashboard)
   animateValue("dash-total-people", 0, total, 1000);
@@ -2400,8 +2404,12 @@ function showInfoCard(role) {
             ? data.current.split(" ")[0]
             : "...";
     }
-    if (expectedEl)
-      expectedEl.innerText = data.expected ? data.expected.split(" ")[0] : "0";
+    if (expectedEl) {
+      const limit = parseInt(data.expected) || 0;
+      const cur = typeof data.current === 'number' ? data.current : 0;
+      const free = Math.max(0, limit - cur);
+      expectedEl.innerText = `${free}/${limit}`;
+    }
     if (tempEl) tempEl.innerText = data.temp;
     if (humEl) humEl.innerText = data.hum;
     if (maintEl) maintEl.innerText = data.maint;

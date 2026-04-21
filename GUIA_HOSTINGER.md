@@ -1,63 +1,81 @@
-# 🚀 Guía de Despliegue en Hostinger (Digital Twin + Laravel)
+# 🚀 Guía de Despliegue: digitaltwin.diseñoygestion.com
 
-Esta guía detalla los pasos para subir tu proyecto a Hostinger para que el Modelo 3D y la base de datos Laravel funcionen correctamente en producción.
+Esta guía utiliza la configuración real de tu subdominio en Hostinger.
 
-## 1. Preparar el Backend (Laravel - `back-api`)
+## 📂 Estructura de Carpetas en el Servidor (Root del Subdominio)
 
-Hostinger suele usar el panel hPanel y el servidor corre Apache.
-
-1.  **Sube los archivos**:
-    - Crea una carpeta llamada `back-api` en el directorio raíz de tu hosting (fuera de `public_html` por seguridad).
-    - Copia todo el contenido de tu carpeta local `back-api` ahí (excepto `/vendor` y `/node_modules`).
-2.  **Configura el archivo `.env`**:
-    - Edita el archivo `.env` en el servidor con los datos de tu base de datos de Hostinger (DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD).
-    - Cambia `APP_ENV=production` y `APP_DEBUG=false`.
-    - Cambia `APP_URL=https://tudominio.com/back-api/public`.
-3.  **Instala Dependencias**:
-    - Entra por SSH a tu Hostinger.
-    - Navega a `back-api` y ejecuta: `composer install --no-dev --optimize-autoloader`.
-4.  **Base de Datos**:
-    - Ejecuta las migraciones: `php artisan migrate --force`.
-
-## 2. Preparar el Frontend (Modelo 3D - Vite)
-
-1.  **Compilar para Producción**:
-    - En tu máquina local, ejecuta: `npm run build`.
-    - Esto generará una carpeta llamada `dist`.
-2.  **Sube los archivos**:
-    - Sube el contenido de la carpeta `dist` directamente a la carpeta `public_html` de tu Hostinger.
-    - Esto hará que al entrar a `tudominio.com` se cargue el modelo 3D.
-
-## 3. Conexión de Datos (API)
-
-He actualizado `main.js` para que detecte automáticamente el entorno.
-
-- **Importante**: Antes de hacer el `npm run build`, verifica en `main.js` que la variable `API_BASE_URL` apunte a la ruta donde pondrás tu Laravel. Por defecto, he puesto que busque en `/back-api/public`.
-
-## 4. Archivo .htaccess (Estructura recomendada)
-
-Para que Laravel y Vite convivan sin problemas en el mismo dominio de Hostinger (Shared Hosting):
+Debes subir los archivos a la ruta `/public_html/digitaltwin` siguiendo este orden:
 
 ```text
-/
-├── back-api/              <-- El código de Laravel (Seguro)
-└── public_html/           <-- El contenido de la carpeta 'dist' (Frontend)
-    ├── index.html         <--- Tu Digital Twin
-    ├── assets/
-    └── models/
+public_html/
+└── digitaltwin/           <--- Raíz de tu subdominio (HOSTING)
+    ├── index.html         <--- (Contenido de la carpeta 'dist' de Vite)
+    ├── assets/            <--- (Contenido de la carpeta 'dist' de Vite)
+    └── back-api/          <--- (Tu carpeta de Laravel completa)
+        ├── public/        <--- Tu API vivirá aquí
+        ├── .env           <--- ¡Configurar después de subir!
+        └── ...
 ```
 
-### 5. ¿Cómo subirlo a un SUBDOMINIO? (Ej: digitaltwin.tudominio.com)
+---
 
-Si vas a usar un subdominio, los pasos son casi iguales pero con estas diferencias:
+## 💻 Paso 1. Preparar y Subir el Backend (`back-api`)
 
-1.  **Directorio en Hostinger**: Hostinger creará una carpeta con el nombre de tu subdominio dentro de `public_html` (ej: `public_html/digitaltwin`). Ahí es donde debes subir los archivos de la carpeta `dist`.
-2.  **Configuración de API**:
-    - Si tu backend también está en el subdominio (`digitaltwin.tudominio.com/back-api`), la variable `API_BASE_URL` en `main.js` seguirá funcionando tal cual está (usando `window.location.origin`).
-    - Si quieres un subdominio limpio para la API (ej: `api.tudominio.com`), deberás entrar a `main.js` y cambiar `API_BASE_URL` a esa URL exacta antes de hacer el `npm run build`.
-3.  **Laravel .env**: Recuerda cambiar `APP_URL` en el `.env` de producción para que coincida exactamente con la URL de tu subdominio.
+1.  **Subida**: Sube la carpeta `back-api` completa a `/public_html/digitaltwin/`.
+2.  **Configura el archivo `.env`**:
+    *   Crea una base de datos en el panel de Hostinger y anota los datos.
+    *   Edita el `.env` en el servidor:
+        *   `APP_URL=https://digitaltwin.diseñoygestion.com/back-api/public`
+        *   `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (los de Hostinger).
+3.  **Instala y Migra (SSH)**:
+    ```bash
+    cd public_html/digitaltwin/back-api
+    composer install --no-dev --optimize-autoloader
+    php artisan migrate --force
+    ```
 
-### Comandos Útiles (SSH Hostinger):
-- `php artisan config:cache`
-- `php artisan route:cache`
-- `php artisan migrate`
+---
+
+## 🎨 Paso 2. Preparar y Subir el Frontend (Vite)
+
+1.  **Compilar**: En tu PC, ejecuta `npm run build`.
+2.  **Subida**: Sube todo lo que esté **DENTRO** de la carpeta `dist` directamente a `/public_html/digitaltwin/`.
+
+---
+
+## 🔗 Paso 3. Conexión de Datos
+
+**¡No tienes que tocar el código!** He configurado `main.js` para que detecte automáticamente tu subdominio. 
+*   Cuando entres a `digitaltwin.diseñoygestion.com`, el sistema sabrá que debe buscar los datos en `/back-api/public`.
+
+---
+
+## 🔒 Paso 4. Protección .htaccess (Recomendado)
+
+Crea un archivo llamado `.htaccess` dentro de la carpeta `back-api` (`/public_html/digitaltwin/back-api/.htaccess`) para proteger tus archivos de configuración y redirigir el tráfico a la carpeta `public` de Laravel.
+
+**Crea este archivo en `/public_html/digitaltwin/back-api/.htaccess`**:
+
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Redirigir todas las peticiones a la carpeta public de Laravel
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Bloquear acceso a archivos sensibles
+<Files .env>
+    Order allow,deny
+    Deny from all
+</Files>
+```
+
+---
+
+### 🛡️ Nota sobre SSL:
+Asegúrate de que el certificado **SSL (HTTPS)** esté activo para el subdominio en el panel de Hostinger para que las peticiones a la API sean seguras y no se bloqueen por contenido mixto.
+
+### 📚 Comandos Útiles (SSH Hostinger):
+*   Ir a la carpeta: `cd public_html/digitaltwin/back-api`
+*   Refrescar caché: `php artisan config:cache` y `php artisan view:clear`
+*   Ver logs de error: `tail -f storage/logs/laravel.log`

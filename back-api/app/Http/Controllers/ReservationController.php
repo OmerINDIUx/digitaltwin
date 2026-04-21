@@ -111,16 +111,16 @@ class ReservationController extends Controller
      */
     public function live()
     {
-        $now        = now('America/Mexico_City');
-        $windowFrom = $now->copy()->subMinutes(90);
-        $windowTo   = $now->copy()->addMinutes(90);
+        $now   = now('America/Mexico_City');
+        $today = $now->toDateString();
 
-        $reservations = Reservation::where('status', 'confirmed')
-            ->whereBetween('reservation_date', [$windowFrom, $windowTo])
+        // Reservas confirmadas o pendientes para HOY (para que coincida con el panel)
+        $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+            ->whereDate('reservation_date', $today)
             ->orderBy('reservation_date', 'asc')
             ->get(['zone', 'guests', 'reservation_date', 'name', 'status']);
 
-        // Totales por zona — MISMA VENTANA que el panel admin "AHORA EN VIVO"
+        // Totales por zona — MISMA LÓGICA QUE EL PANEL WEB
         $totals = [
             'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
             'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
@@ -128,7 +128,7 @@ class ReservationController extends Controller
         ];
 
         return response()->json([
-            'window'       => ['from' => $windowFrom->format('H:i'), 'to' => $windowTo->format('H:i')],
+            'date'         => $today,
             'reservations' => $reservations,
             'totals'       => $totals,
             'grand_total'  => array_sum($totals),
@@ -146,7 +146,7 @@ class ReservationController extends Controller
         $windowFrom = $targetTime->copy()->subMinutes(90);
         $windowTo   = $targetTime->copy()->addMinutes(90);
 
-        $reservations = Reservation::where('status', 'confirmed')
+        $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
             ->whereBetween('reservation_date', [$windowFrom, $windowTo])
             ->get(['zone', 'guests', 'reservation_date', 'name']);
 
