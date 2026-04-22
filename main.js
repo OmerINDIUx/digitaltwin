@@ -469,15 +469,16 @@ const initModels = async () => {
     // Bajar ligeramente el terreno y canchas para evitar interferencia (z-fighting) con TODOS los edificios
     model.traverse((child) => {
       const name = child.name ? child.name.toLowerCase() : "";
-      if (
-        !child.userData.raisedFixed &&
-        (name.includes("terreno") || name.includes("cancha"))
-      ) {
-        // Al bajar la lona base, efectivamente todo lo demás (bloque 0, gym, alberca) se queda arriba
-        child.position.y -= 1.5;
-        child.updateMatrix();
-        // Marcar sub-hijos para que no se bajen en cascada
-        child.traverse((c) => (c.userData.raisedFixed = true));
+      if (!child.userData.raisedFixed) {
+        if (name.includes("terreno")) {
+          child.position.y -= 1.5;
+          child.updateMatrix();
+          child.traverse((c) => (c.userData.raisedFixed = true));
+        } else if (name.includes("cancha")) {
+          child.position.y -= 0.1; // Subimos las canchas (antes -1.5)
+          child.updateMatrix();
+          child.traverse((c) => (c.userData.raisedFixed = true));
+        }
       }
     });
 
@@ -614,8 +615,11 @@ const initModels = async () => {
       ) {
         child.userData.role = "canchas";
         child.userData.highlightColor = new THREE.Color(0xfbbf24); // Oro Pro
+      } else if (fullName.includes("administracion") || fullName.includes("admin")) {
+        child.userData.role = "admin";
+        child.userData.highlightColor = new THREE.Color(0x94a3b8);
       }
-      // Prioridad 3: Estructura general
+      // Prioridad 3: Estructura general (Rayos X)
       else if (
         fullName.includes("muro") ||
         fullName.includes("pared") ||
@@ -623,11 +627,11 @@ const initModels = async () => {
         fullName.includes("estructura") ||
         fullName.includes("acero") ||
         fullName.includes("viga") ||
-        fullName.includes("administracion")
+        fullName.includes("e_") // Prefijo del nuevo modelo
       ) {
         child.userData.role = "structure";
         child.userData.highlightColor = new THREE.Color(0x94a3b8);
-      } else if (fullName.includes("terreno")) {
+      } else if (fullName.includes("terreno") || fullName.includes("t_")) {
         child.userData.role = "terreno";
         child.userData.highlightColor = new THREE.Color(0x10b981);
       }
@@ -645,16 +649,13 @@ const initModels = async () => {
           // originalMat = treeGrassMaterial.clone();
         }
 
-        // OPTIMIZACIÓN: Solo clonamos material si es estrictamente necesario 
-        // (por ejemplo, si el objeto tiene un rol que cambiará su opacidad individualmente)
+        // Clonamos material si el objeto tiene un rol (Gym, Pool, Estructura, etc.)
+        // para que sus cambios de opacidad/brillo sean independientes.
         let workingMat = originalMat;
-        if (child.userData.role && child.userData.role !== "structure") {
+        if (child.userData.role) {
           workingMat = originalMat.clone();
         }
         
-        child.userData.originalMaterial = workingMat.clone();
-        child.material = workingMat;
-
         // --- EFECTO GHOST/X-RAY PARA TECHOS Y ESTRUCTURA ---
         if (
           child.userData.role === "roof" ||
@@ -662,12 +663,17 @@ const initModels = async () => {
         ) {
           workingMat.transparent = true;
           workingMat.opacity = 0.35;
-          workingMat.depthWrite = false; // Optimización de renderizado para transparencias
+          workingMat.depthWrite = false; 
         } else {
           workingMat.transparent = false;
           workingMat.opacity = 1.0;
           workingMat.depthWrite = true;
         }
+
+        // Guardamos el estado final (con o sin X-Ray) como el "original" para restauraciones
+        child.userData.originalMaterial = workingMat.clone();
+        child.material = workingMat;
+
 
         if (!child.userData.role) child.userData.role = "structure";
 
@@ -682,6 +688,38 @@ const initModels = async () => {
           child.userData.highlightColor = new THREE.Color(0xfbbf24);
       }
     });
+
+    // --- CREACIÓN DE HITBOX INVISIBLE PARA LAS CANCHAS ---
+    const canchaBox = new THREE.Box3();
+    let hasCanchas = false;
+    model.traverse((c) => {
+      if (c.isMesh && c.userData.role === "canchas") {
+        canchaBox.expandByObject(c);
+        hasCanchas = true;
+      }
+    });
+
+    if (hasCanchas) {
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      canchaBox.getSize(size);
+      canchaBox.getCenter(center);
+
+      // Creamos un cubo invisible un poco más alto para facilitar el clic
+      const hitBoxGeo = new THREE.BoxGeometry(size.x, size.y + 10, size.z);
+      const hitBoxMat = new THREE.MeshBasicMaterial({ 
+        visible: false, // Invisible pero detectable por Raycaster
+      });
+      const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
+      hitBox.position.copy(center);
+      hitBox.position.y += 5; // Centrar la altura extra
+      
+      // Le damos el rol para que dispare el evento
+      hitBox.userData.role = "canchas";
+      hitBox.userData.isHitBox = true; // Flag para ignorar en efectos visuales
+      
+      model.add(hitBox);
+    }
 
     scene.add(model);
 
@@ -899,6 +937,14 @@ function updateFocus(mode) {
 
     const role = child.userData.role;
     const isSelected = role === mode;
+    const isHitBox = child.userData.isHitBox;
+
+    // Si es un hitbox, nunca le aplicamos efectos visuales
+    if (isHitBox) {
+      child.visible = true; // Debe estar visible para Raycaster
+      return;
+    }
+
     const originalMaterial = child.userData.originalMaterial;
     const materials = Array.isArray(child.material)
       ? child.material
@@ -932,10 +978,10 @@ function updateFocus(mode) {
           child.visible = true;
           mat.emissive.setHex(0x000000);
         } else if (isSelected) {
-          // RESALTADO ACTIVO
-          mat.color.copy(child.userData.highlightColor);
+          // RESALTADO ACTIVO: Mantenemos la textura pero añadimos un brillo (glow)
+          if (originalMaterial) mat.color.copy(originalMaterial.color);
           mat.emissive.copy(child.userData.highlightColor);
-          mat.emissiveIntensity = 1.5;
+          mat.emissiveIntensity = 1.2; // Brillo neón elegante sobre la textura
           mat.opacity = 1.0;
           mat.transparent = false;
           child.visible = true;
@@ -2190,7 +2236,7 @@ function onMouseMove(event) {
 
     // Aplicar brillo de hover a todos los objetos del rol
     model.traverse((child) => {
-      if (child.isMesh && child.userData.role) {
+      if (child.isMesh && child.userData.role && !child.userData.isHitBox) {
         const materials = Array.isArray(child.material)
           ? child.material
           : [child.material];
@@ -2199,10 +2245,11 @@ function onMouseMove(event) {
             child.userData.role === hoveredRole &&
             !child.userData.isSelectedInFocus
           ) {
+            // Mantenemos la textura y solo añadimos emisión en el hover
             mat.emissive.copy(
               child.userData.highlightColor || new THREE.Color(0x3b82f6),
             );
-            mat.emissiveIntensity = 1.0;
+            mat.emissiveIntensity = 0.5; // Brillo sutil de pre-selección
           } else if (!child.userData.isSelectedInFocus) {
             mat.emissive.setHex(0x000000);
           }
