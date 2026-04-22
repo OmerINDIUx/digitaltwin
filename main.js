@@ -393,11 +393,11 @@ updateSun();
 // Helpers eliminados para un look más limpio (daylight)
 
 const renderScene = new RenderPass(scene, camera);
-// Eliminamos BloomPass incesario que causaba el efecto "incandescente"
-const composer = new EffectComposer(renderer);
-composer.addPass(renderScene);
-const outputPass = new OutputPass();
-composer.addPass(outputPass);
+// Eliminamos el Composer si no hay efectos activos para ganar FPS directos
+// const composer = new EffectComposer(renderer);
+// composer.addPass(renderScene);
+// const outputPass = new OutputPass();
+// composer.addPass(outputPass);
 
 // scene.background = new THREE.Color('red');
 
@@ -417,7 +417,7 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-      loadGLTF("/japonutopia_capasrenovadas.glb"),
+      loadGLTF("/japonutopia_texturas.glb"),
       loadGLTF("/tree_detailed_dark.glb"),
       loadGLTF("/tree_fat_darkh.glb"),
       loadGLTF("/tree_pineGroundA.glb"),
@@ -627,39 +627,47 @@ const initModels = async () => {
       ) {
         child.userData.role = "structure";
         child.userData.highlightColor = new THREE.Color(0x94a3b8);
+      } else if (fullName.includes("terreno")) {
+        child.userData.role = "terreno";
+        child.userData.highlightColor = new THREE.Color(0x10b981);
       }
 
       if (child.isMesh) {
         // Localizar si esta pieza es parte del "Terreno"
         let isGrass = fullName.includes("terreno");
 
-        let originalMat;
+        let originalMat = child.material;
+
+        // Si es el terreno y queremos usar el material del bosque (opcional), 
+        // pero por ahora priorizamos las texturas del nuevo modelo.
         if (isGrass && treeGrassMaterial) {
-          originalMat = treeGrassMaterial.clone();
-        } else {
-          originalMat =
-            child.material.clone() ||
-            new THREE.MeshStandardMaterial({ color: 0xeeeeee });
-          if (originalMat.color) {
-            originalMat.color.setHex(0xeeeeee);
-          }
-          originalMat.roughness = 1.0;
-          originalMat.metalness = 0.0;
+          // Si prefieres la textura del GLB, comenta estas líneas:
+          // originalMat = treeGrassMaterial.clone();
         }
+
+        // OPTIMIZACIÓN: Solo clonamos material si es estrictamente necesario 
+        // (por ejemplo, si el objeto tiene un rol que cambiará su opacidad individualmente)
+        let workingMat = originalMat;
+        if (child.userData.role && child.userData.role !== "structure") {
+          workingMat = originalMat.clone();
+        }
+        
+        child.userData.originalMaterial = workingMat.clone();
+        child.material = workingMat;
 
         // --- EFECTO GHOST/X-RAY PARA TECHOS Y ESTRUCTURA ---
         if (
           child.userData.role === "roof" ||
           child.userData.role === "structure"
         ) {
-          originalMat.transparent = true;
-          originalMat.opacity = 0.35;
+          workingMat.transparent = true;
+          workingMat.opacity = 0.35;
+          workingMat.depthWrite = false; // Optimización de renderizado para transparencias
         } else {
-          originalMat.transparent = false;
+          workingMat.transparent = false;
+          workingMat.opacity = 1.0;
+          workingMat.depthWrite = true;
         }
-
-        child.userData.originalMaterial = originalMat;
-        child.material = originalMat.clone();
 
         if (!child.userData.role) child.userData.role = "structure";
 
@@ -977,23 +985,28 @@ function focusCameraOnRole(role) {
     // --- MEJORA DE POSICIÓN PREMIUM DE CÁMARA ---
     let cameraOffset = 1.35;
     let yFactor = 0.7;
-    let lookAtOffset = new THREE.Vector3(0, 5, 0); 
-    
-    if (role === 'canchas') { cameraOffset = 1.1; yFactor = 0.45; } 
-    if (role === 'gym') { cameraOffset = 1.25; yFactor = 0.75; }
-    if (role === 'pool') { cameraOffset = 1.35; yFactor = 0.6; }
-    
+    let lookAtOffset = new THREE.Vector3(0, 5, 0);
+
+    if (role === "canchas") {
+      cameraOffset = 1.1;
+      yFactor = 0.45;
+    }
+    if (role === "gym") {
+      cameraOffset = 1.25;
+      yFactor = 0.75;
+    }
+    if (role === "pool") {
+      cameraOffset = 1.35;
+      yFactor = 0.6;
+    }
+
     // Si es un sensor, usamos una distancia fija para no colisionar con el modelo
-    const finalDist = role.includes('sensor') ? 85 : Math.max(120, maxDim * cameraOffset);
+    const finalDist = role.includes("sensor")
+      ? 85
+      : Math.max(120, maxDim * cameraOffset);
     cameraTargetPos
       .copy(center)
-      .add(
-        new THREE.Vector3(
-          finalDist,
-          finalDist * yFactor,
-          finalDist,
-        ),
-      );
+      .add(new THREE.Vector3(finalDist, finalDist * yFactor, finalDist));
     controlsTargetPos.copy(center).add(lookAtOffset);
 
     // --- ANILLO DE SELECCIÓN ELIMINADO ---
@@ -2082,7 +2095,7 @@ function animate() {
     }
   }
 
-  composer.render(); // Usar composer en lugar de renderer normal para el efecto Bloom
+  renderer.render(scene, camera); // Renderizado directo para máxima velocidad
 
   // --- ACTUALIZAR ETIQUETAS ESPACIALES (3D a 2D) ---
   spatialLabels.forEach((lbl) => {
@@ -2116,7 +2129,7 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
+  // composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // INTERACTIVIDAD: HOVER Y CLICK
@@ -2297,7 +2310,7 @@ function onMouseClick(event) {
 
 function deselectEverything() {
   updateFocus("all");
-  
+
   if (infoCard) infoCard.classList.add("hidden");
   if (floatingLabel) floatingLabel.classList.add("hidden");
 
@@ -2406,7 +2419,7 @@ function showInfoCard(role) {
     }
     if (expectedEl) {
       const limit = parseInt(data.expected) || 0;
-      const cur = typeof data.current === 'number' ? data.current : 0;
+      const cur = typeof data.current === "number" ? data.current : 0;
       const free = Math.max(0, limit - cur);
       expectedEl.innerText = `${free}/${limit}`;
     }
@@ -2533,9 +2546,13 @@ if (controls) {
   window.addEventListener("pointerdown", (e) => {
     if (e.target.tagName === "CANVAS") unlockCamera();
   });
-  window.addEventListener("touchstart", (e) => {
-    if (e.target.tagName === "CANVAS") unlockCamera();
-  }, { passive: true });
+  window.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.target.tagName === "CANVAS") unlockCamera();
+    },
+    { passive: true },
+  );
 }
 function initPopulation() {
   // Generar población inicial basada en digitalTwinData
