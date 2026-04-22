@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GAMI - Digital Twin</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   </head>
   <body>
     <div id="container"></div>
@@ -387,9 +388,59 @@
                   <div class="layer-status"></div>
                 </button>
               </div>
+
+              <!-- LABORATORIO DE SIMULACIONES -->
+              <div class="layer-group" style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); pt-4">
+                <h3 class="group-title" style="color: var(--warning-color); display: flex; align-items: center; gap: 6px;">
+                  <span class="pulse-dot-small"></span> LAB. DE SIMULACIONES
+                </h3>
+                <div class="sim-grid">
+                  <button class="sim-btn" onclick="runSimulation('peak')">HORA PICO</button>
+                  <button class="sim-btn" onclick="runSimulation('maintenance-gym')">MTTO. GYM</button>
+                  <button class="sim-btn" onclick="runSimulation('event')">EVENTO 100p</button>
+                  <button class="sim-btn reset" onclick="runSimulation('reset')">RESET REAL</button>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
+
+        <!-- 4. NAVEGACIÓN POR ZONAS REFINADA -->
+        <div class="zone-navigation-dock">
+          <div class="nav-dock-item active" onclick="updateFocus('all')" title="Vista General">
+            <span class="dock-icon">🌎</span>
+            <span class="dock-label">OVERVIEW</span>
+          </div>
+          
+          <div class="dock-group">
+            <div class="nav-dock-item" onclick="updateFocus('gym')" title="Volar a Gym">
+              <span class="dock-icon">🏋️</span>
+              <span class="dock-label">GYM</span>
+            </div>
+            <button class="mini-enter-btn" onclick="enterShowroom('gym')">ENTRAR</button>
+          </div>
+
+          <div class="dock-group">
+            <div class="nav-dock-item" onclick="updateFocus('pool')" title="Volar a Alberca">
+              <span class="dock-icon">🏊</span>
+              <span class="dock-label">POOL</span>
+            </div>
+            <button class="mini-enter-btn" onclick="enterShowroom('pool')">ENTRAR</button>
+          </div>
+
+          <div class="dock-group">
+            <div class="nav-dock-item" onclick="updateFocus('canchas')" title="Volar a Canchas">
+              <span class="dock-icon">⚽</span>
+              <span class="dock-label">COURTS</span>
+            </div>
+            <button class="mini-enter-btn" onclick="enterShowroom('canchas')">ENTRAR</button>
+          </div>
+        </div>
+
+        <!-- BOTÓN SALIR DE RECORRIDO (Oculto por defecto) -->
+        <button id="btn-exit-walk" class="exit-walk-btn hidden" onclick="exitShowroom()">
+          <span>ESC</span> SALIR DE RECORRIDO
+        </button>
 
         <!-- FEED DE ACTIVIDAD IA (SIDEBAR BOTTOM) -->
         <div id="status-box" class="status-box-premium">

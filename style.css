@@ -2998,3 +2998,205 @@ body {
   border-color: #3b82f6;
   color: #60a5fa;
 }
+
+/* --- SIMULATION LAB STYLES --- */
+.sim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.sim-btn {
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sim-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.sim-btn.reset {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.sim-btn.reset:hover {
+  background: #10b981;
+  color: white;
+}
+
+.pulse-dot-small {
+  width: 8px;
+  height: 8px;
+  background: #f59e0b;
+  border-radius: 50%;
+  animation: pulse-simple 1.5s infinite;
+}
+
+@keyframes pulse-simple {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- ZONE NAVIGATION DOCK --- */
+.zone-navigation-dock {
+  position: fixed;
+  bottom: 100px; /* Separado del fondo para flotar */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 24px;
+  display: flex;
+  gap: 8px;
+  z-index: 2000;
+  pointer-events: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.nav-dock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 65px;
+  height: 65px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-dock-item:hover {
+  background: var(--primary);
+  transform: translateY(-10px) scale(1.1);
+  box-shadow: 0 10px 20px var(--primary-glow);
+}
+
+.nav-dock-item.active {
+  background: var(--primary);
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.dock-icon {
+  font-size: 1.4rem;
+  margin-bottom: 2px;
+}
+
+.dock-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+
+.nav-dock-item:hover .dock-label {
+  opacity: 1;
+}
+
+@media screen and (max-width: 800px) {
+  .zone-navigation-dock {
+    bottom: 80px;
+    padding: 6px;
+    gap: 6px;
+    width: auto;
+    border-radius: 20px;
+  }
+  .nav-dock-item {
+    width: 55px;
+    height: 55px;
+  }
+  .dock-icon {
+    font-size: 1.2rem;
+  }
+}
+
+/* --- EXIT WALKTHROUGH BUTTON --- */
+.exit-walk-btn {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 100px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+  transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  pointer-events: auto;
+}
+
+.exit-walk-btn:hover {
+  transform: translateX(-50%) translateY(-5px);
+  background: #dc2626;
+  box-shadow: 0 15px 40px rgba(239, 68, 68, 0.6);
+}
+
+.exit-walk-btn span {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+.exit-walk-btn.hidden {
+  display: none;
+}
+
+/* --- DOCK GROUPS & MINI ENTER --- */
+.dock-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+
+.mini-enter-btn {
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #818cf8;
+  font-size: 7px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  pointer-events: auto;
+}
+
+.mini-enter-btn:hover {
+  background: #6366f1;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}

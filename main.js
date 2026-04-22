@@ -94,6 +94,7 @@ const txtHour = document.getElementById("txt-hour");
 // --- INTERACTIVIDAD DIGITAL TWIN ---
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+let lastTime = performance.now(); // Sistema de tiempo alternativo para evitar warnings
 const infoCard = document.getElementById("info-card");
 const cardTitle = document.getElementById("card-title");
 const currentPeople = document.getElementById("current-people");
@@ -101,6 +102,10 @@ const expectedPeople = document.getElementById("expected-people");
 const areaStatus = document.getElementById("area-status");
 const closeCardBtn = document.getElementById("close-card");
 
+// Variables para el giro de cámara manual (Showroom)
+let yaw = 0;
+let pitch = 0;
+const mouseSensitivity = 0.002;
 const digitalTwinData = {
   gym: {
     title: "Gimnasio de Alto Rendimiento",
@@ -137,6 +142,40 @@ const digitalTwinData = {
     maint: "Próximo: 05 May",
     hours: "08:00 - 23:00",
     trend: [30, 50, 60, 95, 80, 70],
+  },
+  // --- NUEVOS ACTIVOS (ASSET MANAGEMENT) ---
+  "asset-pump-1": {
+    isAsset: true,
+    title: "Bomba de Filtrado 01",
+    parentZone: "pool",
+    status: "Operativo",
+    health: 98,
+    hours: 1420,
+    nextService: "15 May 2026",
+    vibration: "0.2 mm/s",
+    temp: "42°C",
+  },
+  "asset-gym-1": {
+    isAsset: true,
+    title: "Rack de Cardio A",
+    parentZone: "gym",
+    status: "Mantenimiento Req.",
+    health: 65,
+    hours: 8500,
+    nextService: "¡INMEDIATO!",
+    vibration: "1.5 mm/s",
+    temp: "31°C",
+  },
+  "asset-light-1": {
+    isAsset: true,
+    title: "Control Lumínico Norte",
+    parentZone: "canchas",
+    status: "Operativo",
+    health: 100,
+    hours: 320,
+    nextService: "Oct 2026",
+    vibration: "N/A",
+    temp: "24°C",
   },
   sensor1: {
     title: "Módulo IoT 01 - Bosque",
@@ -1007,6 +1046,173 @@ function updateFocus(mode) {
   } else {
     focusCameraOnRole(mode);
   }
+
+  // Después de actualizar el foco, refrescamos los heatmaps globales
+  refreshHeatmaps();
+}
+
+// --- SISTEMA DE HEATMAPS (OCUPACIÓN VISUAL) ---
+function refreshHeatmaps() {
+  if (!model) return;
+
+  const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
+
+  model.traverse((child) => {
+    if (child.isMesh && child.userData.role && !child.userData.isHitBox) {
+      const role = child.userData.role;
+      if (capacityLimits[role]) {
+        const count = digitalTwinData[role]?.current || 0;
+        const limit = capacityLimits[role];
+        const ratio = Math.min(1.0, count / limit);
+
+        // Si la zona es el suelo (piso), aplicamos el color del Heatmap
+        const isFloor = child.name.toLowerCase().includes("suelo") || 
+                        child.name.toLowerCase().includes("pasto") ||
+                        child.name.toLowerCase().includes("piso");
+
+        if (isFloor) {
+          const mat = child.material;
+          // Gradiente: Verde (0.0) -> Amarillo (0.5) -> Rojo (1.0)
+          const heatColor = new THREE.Color();
+          if (ratio < 0.5) {
+            heatColor.lerpColors(new THREE.Color(0x22c55e), new THREE.Color(0xeab308), ratio * 2);
+          } else {
+            heatColor.lerpColors(new THREE.Color(0xeab308), new THREE.Color(0xef4444), (ratio - 0.5) * 2);
+          }
+
+          // Aplicamos una emisión suave que represente el calor de ocupación
+          mat.emissive.copy(heatColor);
+          mat.emissiveIntensity = 0.3 + ratio * 0.7; // Más brillante si hay más gente
+        }
+      }
+    }
+  });
+}
+
+// --- MODO SHOWROOM (FIRST PERSON WALK) ---
+let isWalkMode = false;
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+const walkSpeed = 50.0;
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+
+function enterShowroom(role) {
+  if (!model) return;
+  
+  // --- BUSCADOR DE SUELO INTELIGENTE ---
+  let targetObj = null;
+  let floorMesh = null;
+  
+  model.traverse(c => {
+    if (c.isMesh && c.userData.role === role && !c.userData.isHitBox) {
+      // Priorizamos mallas que parezcan suelos por su nombre
+      const name = c.name.toLowerCase();
+      if (name.includes('piso') || name.includes('suelo') || name.includes('pasto') || name.includes('floor')) {
+          floorMesh = c;
+      }
+      if (!targetObj) targetObj = c; // Backup
+    }
+  });
+
+  const finalTarget = floorMesh || targetObj;
+
+  if (!finalTarget) {
+    addFeedItem("⚠️ No se encontró el área para el Showroom", "warning");
+    return;
+  }
+
+  addFeedItem(`🛰️ Teletransportando a zona ${role.toUpperCase()}...`, "info");
+  
+  const box = new THREE.Box3().setFromObject(finalTarget);
+  const floorLevel = box.min.y;
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  
+  // Posición de inicio despejada
+  const startPos = { 
+    x: center.x + 2, 
+    y: floorLevel + 1.7, 
+    z: center.z + 2 
+  };
+
+  // Reset total de flags antes de mover
+  moveForward = moveBackward = moveLeft = moveRight = false;
+  velocity.set(0,0,0);
+
+  window.gsap.to(camera.position, {
+    x: startPos.x, y: startPos.y, z: startPos.z,
+    duration: 1.5,
+    ease: "power3.inOut",
+    onStart: () => {
+        controls.enabled = false;
+    },
+    onComplete: () => {
+        isWalkMode = true;
+        
+        // Reset absoluto de rotación para evitar mirar al piso
+        pitch = 0;
+        yaw = Math.atan2(center.x - startPos.x, center.z - startPos.z);
+        
+        camera.rotation.order = 'YXZ';
+        camera.rotation.set(pitch, yaw, 0);
+        
+        document.getElementById('btn-exit-walk').classList.remove('hidden');
+        document.querySelector('.zone-navigation-dock').classList.add('hidden');
+        
+        renderer.domElement.requestPointerLock();
+        addFeedItem("🎮 MODO SHOWROOM: Mouse para mirar, WASD para caminar", "success");
+    }
+  });
+}
+
+function exitShowroom() {
+  isWalkMode = false;
+  controls.enabled = true;
+  controls.minDistance = 100;
+  controls.maxDistance = 2000;
+  controls.enablePan = true;
+  document.getElementById('btn-exit-walk').classList.add('hidden');
+  document.querySelector('.zone-navigation-dock').classList.remove('hidden');
+  updateFocus('all');
+}
+
+// Event Listeners para WASD
+window.addEventListener('keydown', (e) => {
+    switch (e.code) {
+        case 'KeyW': moveForward = true; break;
+        case 'KeyS': moveBackward = true; break;
+        case 'KeyA': moveLeft = true; break;
+        case 'KeyD': moveRight = true; break;
+        case 'Escape': if(isWalkMode) exitShowroom(); break;
+    }
+});
+window.addEventListener('keyup', (e) => {
+    switch (e.code) {
+        case 'KeyW': moveForward = false; break;
+        case 'KeyS': moveBackward = false; break;
+        case 'KeyA': moveLeft = false; break;
+        case 'KeyD': moveRight = false; break;
+    }
+});
+
+function updateWalkMode(delta) {
+    if (!isWalkMode) return;
+
+    const speed = 15.0; // Velocidad de caminata humana
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+
+    const sideDir = new THREE.Vector3().crossVectors(camDir, camera.up);
+
+    if (moveForward) camera.position.addScaledVector(camDir, speed * delta);
+    if (moveBackward) camera.position.addScaledVector(camDir, -speed * delta);
+    if (moveLeft) camera.position.addScaledVector(sideDir, -speed * delta);
+    if (moveRight) camera.position.addScaledVector(sideDir, speed * delta);
 }
 
 function focusCameraOnRole(role) {
@@ -1253,6 +1459,9 @@ function applyDBCountsToWorld() {
     const scaled = Math.min(count, limit); // no exceder el límite visual
     spawnPeopleInRole(role, scaled);
   });
+
+  // Refrescar heatmaps visuales en los suelos
+  refreshHeatmaps();
 
   // --- Actualizar panel Monitoreo (barra CAPACIDAD y TOTAL) ---
   const capacityEl = document.getElementById("txt-capacity");
@@ -2098,7 +2307,10 @@ function animate() {
     }
   }
 
-  controls.update();
+  // Solo actualizar OrbitControls si NO estamos caminando
+  if (!isWalkMode) {
+    controls.update();
+  }
 
   updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
 
@@ -2141,9 +2353,59 @@ function animate() {
     }
   }
 
+  const currentTime = performance.now();
+  const delta = (currentTime - lastTime) / 1000;
+  lastTime = currentTime;
+  
+  updateWalkMode(delta);
+
   renderer.render(scene, camera); // Renderizado directo para máxima velocidad
 
-  // --- ACTUALIZAR ETIQUETAS ESPACIALES (3D a 2D) ---
+  // --- LABORATORIO DE SIMULACIONES (WHAT-IF ANALYSIS) ---
+function runSimulation(type) {
+  if (!model) return;
+
+  addFeedItem(`🧪 Iniciando Simulación: ${type.toUpperCase()}`, "info");
+
+  if (type === "peak") {
+    // Simulamos capacidad máxima en todo el complejo
+    dbCounts.gym = 50;
+    dbCounts.pool = 30;
+    dbCounts.canchas = 20;
+    applyDBCountsToWorld();
+    addFeedItem("⚠️ Alerta: Capacidad máxima alcanzada en todas las áreas", "danger");
+  } 
+  else if (type === "maintenance-gym") {
+    // Cerramos el gimnasio por mantenimiento
+    dbCounts.gym = 0;
+    digitalTwinData.gym.status = "CERRADO POR MANTENIMIENTO";
+    digitalTwinData.gym.statusClass = "status-warning";
+    
+    // Cambiamos el color de la zona para indicar cierre
+    model.traverse(c => {
+        if (c.isMesh && c.userData.role === "gym") {
+            c.material.emissive.setHex(0x333333);
+            c.material.emissiveIntensity = 0.5;
+        }
+    });
+
+    applyDBCountsToWorld();
+    addFeedItem("🔧 Simulación: Gimnasio fuera de servicio", "warning");
+  }
+  else if (type === "event") {
+    // Simulamos un evento de 100 personas repartidas
+    dbCounts.gym = 40;
+    dbCounts.pool = 40; // Sobrepasa límite
+    dbCounts.canchas = 20;
+    applyDBCountsToWorld();
+    addFeedItem("📢 Simulación: Evento Corporativo en curso", "success");
+  }
+  else if (type === "reset") {
+    // Volvemos a los datos reales (o 0 si no hay DB)
+    location.reload(); // Forma más limpia de resetear el estado del modelo
+  }
+}
+window.runSimulation = runSimulation;
   spatialLabels.forEach((lbl) => {
     const vector = lbl.pos.clone();
     vector.project(camera);
@@ -2182,6 +2444,20 @@ window.addEventListener("resize", () => {
 let hoveredRole = null;
 
 function onMouseMove(event) {
+  // 1. Giro de cámara en Modo Showroom (Manual)
+  if (isWalkMode) {
+    // Validar contra el elemento que tiene el foco (Vite puede inyectar el canvas)
+    if (document.pointerLockElement) {
+        yaw -= event.movementX * mouseSensitivity;
+        pitch -= event.movementY * mouseSensitivity;
+        pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, pitch));
+        
+        camera.rotation.order = 'YXZ';
+        camera.rotation.set(pitch, yaw, 0);
+    }
+    return; 
+  }
+
   if (event.target.tagName !== "CANVAS") return;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -2368,6 +2644,13 @@ function deselectEverything() {
   });
 }
 
+// Re-activar Pointer Lock al hacer clic si estamos en Showroom
+container.addEventListener('click', () => {
+    if (isWalkMode && document.pointerLockElement !== container) {
+        container.requestPointerLock();
+    }
+});
+
 function showInfoCard(role) {
   if (!digitalTwinData[role]) return;
   currentSelectedRole = role; // Guardar referencia para refrescos automáticos
@@ -2409,6 +2692,32 @@ function showInfoCard(role) {
   const diagV2 = document.getElementById("diag-val-2");
   const diagL3 = document.getElementById("diag-label-3");
   const diagBar = document.getElementById("diag-bar-fill");
+
+  if (data.isAsset) {
+    // Modo Diagnóstico de Activo
+    if (standardMetrics) standardMetrics.classList.add("hidden");
+    if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
+    if (standardTrend) standardTrend.classList.add("hidden");
+    if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
+    
+    if (lidarCont) lidarCont.classList.remove("hidden");
+    if (liveTag) liveTag.innerText = "DIAGNOSTIC MODE";
+    
+    if (diagL1) diagL1.innerText = "SALUD DEL SISTEMA";
+    if (diagV1) diagV1.innerText = (data.health || 98) + "%";
+    if (diagL2) diagL2.innerText = "VIBRACIÓN";
+    if (diagV2) diagV2.innerText = data.vibration || "0.4mm/s";
+    if (diagL3) diagL3.innerText = "ESTADO DE SEÑAL";
+    if (diagBar) diagBar.style.width = (data.health || 98) + "%";
+    
+    if (tempEl) tempEl.innerText = data.temp || "38°C";
+    if (humEl) humEl.innerText = (data.hours || 1200) + " hrs";
+    if (maintEl) maintEl.innerText = data.nextService || "Pendiente";
+    if (hoursEl) hoursEl.innerText = data.status || "OPERATIVO";
+
+    infoCard.classList.remove("hidden");
+    return;
+  }
 
   if (data.isSensor) {
     if (standardMetrics) standardMetrics.classList.add("hidden");
@@ -2549,6 +2858,7 @@ function addFeedItem(text, type = "info") {
 
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
+
   const now = new Date();
   const timeStr = now.toLocaleTimeString([], {
     hour: "2-digit",
@@ -2915,6 +3225,59 @@ function initSpatialLabels() {
   });
 }
 
-// Inicializar sensores y etiquetas con delays escalonados
+// Inicializar sensores, etiquetas y activos
 setTimeout(initSensors, 2500);
 setTimeout(initSpatialLabels, 4500);
+setTimeout(initAssets, 5500);
+
+function initAssets() {
+  const assets = [
+    { id: "asset-pump-1", pos: { x: -80, y: 5, z: 280 }, color: 0x00f2ff },
+    { id: "asset-gym-1", pos: { x: 320, y: 15, z: -180 }, color: 0xff3300 },
+    { id: "asset-light-1", pos: { x: -350, y: 10, z: -150 }, color: 0xffff00 }
+  ];
+
+  assets.forEach(a => {
+    const geo = new THREE.SphereGeometry(4, 16, 16);
+    const mat = new THREE.MeshStandardMaterial({ 
+      color: a.color,
+      emissive: a.color,
+      emissiveIntensity: 2,
+      transparent: true,
+      opacity: 0.8
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(a.pos.x, a.pos.y, a.pos.z);
+    mesh.userData.role = a.id;
+    mesh.userData.isAsset = true;
+    
+    // Animación de pulso inteligente
+    const pulse = () => {
+      // Simulamos un chequeo de salud (puedes conectar esto a tu DB después)
+      const isCritical = a.id === "asset-pump-1"; // Ejemplo: forzamos alerta en la bomba 1
+      const color = isCritical ? 0xffa500 : a.color;
+      mesh.material.color.setHex(color);
+      mesh.material.emissive.setHex(color);
+
+      const speed = isCritical ? 0.015 : 0.005;
+      const scaleBase = isCritical ? 1.5 : 1.2;
+      const s = 1 + Math.sin(performance.now() * speed) * (scaleBase - 1);
+      
+      mesh.scale.set(s, s, s);
+      requestAnimationFrame(pulse);
+    };
+    pulse();
+
+    if (model) {
+      model.add(mesh);
+    } else {
+      scene.add(mesh); // Backup si el grupo model no existe
+    }
+  });
+}
+
+// --- EXPORTACIÓN GLOBAL (Al final para evitar errores de referencia) ---
+window.updateFocus = updateFocus;
+window.enterShowroom = enterShowroom;
+window.exitShowroom = exitShowroom;
+window.runSimulation = runSimulation;

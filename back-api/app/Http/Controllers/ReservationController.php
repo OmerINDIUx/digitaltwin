@@ -111,28 +111,30 @@ class ReservationController extends Controller
      */
     public function live()
     {
-        $now   = now('America/Mexico_City');
-        $today = $now->toDateString();
+        try {
+            $today = now()->toDateString();
 
-        // Reservas confirmadas o pendientes para HOY (para que coincida con el panel)
-        $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
-            ->whereDate('reservation_date', $today)
-            ->orderBy('reservation_date', 'asc')
-            ->get(['zone', 'guests', 'reservation_date', 'name', 'status']);
+            // Reservas confirmadas o pendientes para HOY
+            $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+                ->whereDate('reservation_date', $today)
+                ->orderBy('reservation_date', 'asc')
+                ->get(['zone', 'guests', 'reservation_date', 'name', 'status']);
 
-        // Totales por zona — MISMA LÓGICA QUE EL PANEL WEB
-        $totals = [
-            'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
-            'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
-            'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
-        ];
+            $totals = [
+                'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
+                'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
+                'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
+            ];
 
-        return response()->json([
-            'date'         => $today,
-            'reservations' => $reservations,
-            'totals'       => $totals,
-            'grand_total'  => array_sum($totals),
-        ]);
+            return response()->json([
+                'date'         => $today,
+                'reservations' => $reservations,
+                'totals'       => $totals,
+                'grand_total'  => array_sum($totals),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -141,28 +143,32 @@ class ReservationController extends Controller
      */
     public function history(Request $request)
     {
-        $offsetMin  = (int) $request->get('offset', 0);
-        $targetTime = now('America/Mexico_City')->addMinutes($offsetMin);
-        $windowFrom = $targetTime->copy()->subMinutes(90);
-        $windowTo   = $targetTime->copy()->addMinutes(90);
+        try {
+            $offsetMin  = (int) $request->get('offset', 0);
+            $targetTime = now()->addMinutes($offsetMin);
+            $windowFrom = $targetTime->copy()->subMinutes(90);
+            $windowTo   = $targetTime->copy()->addMinutes(90);
 
-        $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
-            ->whereBetween('reservation_date', [$windowFrom, $windowTo])
-            ->get(['zone', 'guests', 'reservation_date', 'name']);
+            $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+                ->whereBetween('reservation_date', [$windowFrom, $windowTo])
+                ->get(['zone', 'guests', 'reservation_date', 'name']);
 
-        $totals = [
-            'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
-            'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
-            'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
-        ];
+            $totals = [
+                'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
+                'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
+                'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
+            ];
 
-        return response()->json([
-            'offset'      => $offsetMin,
-            'target_time' => $targetTime->format('Y-m-d H:i'),
-            'window'      => ['from' => $windowFrom->format('H:i'), 'to' => $windowTo->format('H:i')],
-            'totals'      => $totals,
-            'grand_total' => array_sum($totals),
-            'people'      => $reservations->values(),
-        ]);
+            return response()->json([
+                'offset'      => $offsetMin,
+                'target_time' => $targetTime->format('Y-m-d H:i'),
+                'window'      => ['from' => $windowFrom->format('H:i'), 'to' => $windowTo->format('H:i')],
+                'totals'      => $totals,
+                'grand_total' => array_sum($totals),
+                'people'      => $reservations->values(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }
