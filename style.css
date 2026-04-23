@@ -1677,6 +1677,20 @@ body {
   border-color: #fbbf24;
 }
 
+.holo-label.closed {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  animation: pulse-danger 1.5s infinite !important;
+}
+
+@keyframes pulse-danger {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .hidden {
   display: none !important;
 }

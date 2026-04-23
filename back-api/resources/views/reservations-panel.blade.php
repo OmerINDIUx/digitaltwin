@@ -32,98 +32,54 @@
             </div>
         </header>
 
-        <!-- ZONE EXPLORER (LAS CARDS QUE PIDIÓ EL USUARIO) -->
+        <!-- ZONE EXPLORER (DINÁMICO) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            
-            <!-- GYM CARD -->
-            @php $gymPct = ($stats['gym']['count'] / $stats['gym']['limit']) * 100; @endphp
-            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
-                <div class="h-48 overflow-hidden relative">
-                    <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
-                    <div class="absolute bottom-4 left-6">
-                         <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-tighter">Fitness Center</span>
-                    </div>
-                </div>
-                <div class="p-8">
-                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Gimnasio</h3>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['gym']['schedule'] }}</p>
+            @foreach($zones as $zone)
+                @php 
+                    $zoneStat = $stats[$zone->slug] ?? ['count' => 0, 'limit' => 0, 'schedule' => 'N/A'];
                     
-                    <div class="flex justify-between items-end mb-2">
-                        <span class="text-xs font-extrabold text-slate-500 uppercase">Disponibilidad</span>
-                        <span class="text-lg font-extrabold {{ $gymPct > 80 ? 'text-red-500' : 'text-indigo-600' }}">
-                            {{ max(0, $stats['gym']['limit'] - $stats['gym']['count']) }} lugares libres
-                        </span>
-                    </div>
-                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
-                        <div class="h-full bg-indigo-600 transition-all duration-1000" style="width: {{ $gymPct }}%"></div>
-                    </div>
-
-                    <button onclick="openReserveModal('gym')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95">
-                        RESERVAR AHORA 🏃
-                    </button>
-                </div>
-            </div>
-
-            <!-- POOL CARD -->
-            @php $poolPct = ($stats['pool']['count'] / $stats['pool']['limit']) * 100; @endphp
-            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
-                <div class="h-48 overflow-hidden relative">
-                    <img src="{{ asset('Natación.JPG') }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
-                    <div class="absolute bottom-4 left-6">
-                         <span class="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter">Aquatic area</span>
-                    </div>
-                </div>
-                <div class="p-8">
-                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Natación</h3>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['pool']['schedule'] }}</p>
+                    // Calcular horas que ya pasaron para descontar esos lugares "vencidos"
+                    $nowH = (int)now()->format('H');
+                    $startH = (int)explode(':', explode(' - ', $zoneStat['schedule'])[0])[0];
+                    $hoursPassed = max(0, $nowH - $startH);
+                    $capacityPerHour = $zone->capacity;
+                    $expiredSpots = $hoursPassed * $capacityPerHour;
                     
-                    <div class="flex justify-between items-end mb-2">
-                        <span class="text-xs font-extrabold text-slate-500 uppercase">Capacidad Hoy</span>
-                        <span class="text-lg font-extrabold text-blue-600">
-                            {{ max(0, $stats['pool']['limit'] - $stats['pool']['count']) }} disponibles
-                        </span>
-                    </div>
-                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
-                        <div class="h-full bg-blue-600 transition-all duration-1000" style="width: {{ $poolPct }}%"></div>
-                    </div>
-
-                    <button onclick="openReserveModal('pool')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95">
-                        RESERVAR AHORA 🏊
-                    </button>
-                </div>
-            </div>
-
-            <!-- SPORTS CARD -->
-            @php $canchasPct = ($stats['canchas']['count'] / $stats['canchas']['limit']) * 100; @endphp
-            <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
-                <div class="h-48 overflow-hidden relative">
-                    <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=400" class="zone-img w-full h-full object-cover transition-transform duration-500">
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
-                    <div class="absolute bottom-4 left-6">
-                         <span class="text-xs font-bold text-white bg-emerald-600 px-3 py-1 rounded-full uppercase tracking-tighter">Court Arena</span>
-                    </div>
-                </div>
-                <div class="p-8">
-                    <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Canchas Deportivas</h3>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $stats['canchas']['schedule'] }}</p>
+                    $totalTaken = $zoneStat['count'] + $expiredSpots;
+                    $dailyLimit = $zoneStat['limit'];
                     
-                    <div class="flex justify-between items-end mb-2">
-                        <span class="text-xs font-extrabold text-slate-500 uppercase">Cupos restantes</span>
-                        <span class="text-lg font-extrabold text-emerald-600">
-                            {{ max(0, $stats['canchas']['limit'] - $stats['canchas']['count']) }} libres
-                        </span>
+                    $pct = ($dailyLimit > 0) ? ($totalTaken / $dailyLimit) * 100 : 0; 
+                    $free = max(0, $dailyLimit - $totalTaken);
+                @endphp
+                <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
+                    <div class="h-48 overflow-hidden relative">
+                        <img src="{{ (str_contains($zone->image, 'http') || str_contains($zone->image, '/')) ? $zone->image : asset($zone->image) }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                        <div class="absolute bottom-4 left-6">
+                            <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-tighter">{{ $zone->name }}</span>
+                        </div>
                     </div>
-                    <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
-                        <div class="h-full bg-emerald-600 transition-all duration-1000" style="width: {{ $canchasPct }}%"></div>
-                    </div>
+                    <div class="p-8">
+                        <h3 class="text-2xl font-extrabold text-slate-900 mb-1">{{ $zone->name }}</h3>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6 italic">Horario: {{ $zoneStat['schedule'] }}</p>
+                        
+                        <div class="flex justify-between items-end mb-2">
+                            <span class="text-xs font-extrabold text-slate-500 uppercase">Disponibilidad</span>
+                            <span class="text-lg font-extrabold {{ $pct > 80 ? 'text-red-500' : 'text-indigo-600' }}">
+                                {{ $free }} lugares libres
+                            </span>
+                        </div>
+                        <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-8">
+                            <div class="h-full bg-indigo-600 transition-all duration-1000" style="width: {{ $pct }}%"></div>
+                        </div>
 
-                    <button onclick="openReserveModal('canchas')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
-                        RESERVAR AHORA ⚽
-                    </button>
+                        <button onclick="openReserveModal('{{ $zone->slug }}')" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95">
+                            RESERVAR AHORA 
+                            @if($zone->slug == 'gym') 🏃 @elseif($zone->slug == 'pool') 🏊 @elseif($zone->slug == 'canchas') ⚽ @else ✨ @endif
+                        </button>
+                    </div>
                 </div>
-            </div>
+            @endforeach
         </div>
 
         <!-- BANNER ADMIN (reemplaza al historial) -->
@@ -216,9 +172,15 @@
                              <input type="hidden" name="datetime" id="res-datetime" required>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Pax (Invitados)</label>
-                            <input type="number" name="guests" min="1" max="50" value="1" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-center">
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Duración (Horas)</label>
+                            <select name="duration" id="res-duration" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold appearance-none">
+                                <!-- Opciones generadas por JS -->
+                            </select>
                         </div>
+                    </div>
+                    <div class="pt-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Pax (Invitados)</label>
+                        <input type="number" name="guests" min="1" max="50" value="1" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-center">
                     </div>
                 </div>
 
@@ -234,9 +196,16 @@
 
     <script>
         const zoneConfig = {
-            gym: { label: 'Gimnasio', start: 7, end: 22, limit: 50 },
-            pool: { label: 'Natación', start: 8, end: 20, limit: 30 },
-            canchas: { label: 'Canchas', start: 9, end: 21, limit: 20 }
+            @foreach($zones as $zone)
+                "{{ $zone->slug }}": { 
+                    label: "{{ $zone->name }}", 
+                    start: {{ (int)substr($zone->opening_hour, 0, 2) }}, 
+                    end: {{ (int)substr($zone->closing_hour, 0, 2) }}, 
+                    limit: {{ $zone->capacity }},
+                    maxHours: {{ $zone->max_reservation_hours ?: 1 }},
+                    schedules: @json($zone->schedules ?? [])
+                },
+            @endforeach
         };
         const availabilityData = @json($availability);
         
@@ -264,9 +233,18 @@
             for(let i=0; i < 7; i++) {
                 const date = new Date();
                 date.setDate(today.getDate() + i);
-                const dateStr = date.toISOString().split('T')[0];
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
                 const dayName = days[date.getDay()];
                 const dayNum = date.getDate();
+                const dayOfWeek = date.getDay(); // 0-6
+                
+                const config = zoneConfig[zone];
+                const daySched = config.schedules[dayOfWeek] || null;
+                const isRestDay = daySched ? parseInt(daySched.is_closed) : false;
                 
                 // Ocupación diaria TOTAL (suma de horas)
                 let zoneDayTotal = 0;
@@ -274,13 +252,15 @@
                     Object.values(availabilityData[dateStr][zone]).forEach(count => zoneDayTotal += parseInt(count));
                 }
                 
-                let dayIntensity = 'bg-emerald-50 text-emerald-600 border-emerald-100';
-                let dayLabel = 'LIBRE';
-                if(zoneDayTotal > (zoneConfig[zone].limit * 3)) { dayIntensity = 'bg-amber-50 text-amber-600 border-amber-100'; dayLabel = 'ALGO LLENO'; }
-                if(zoneDayTotal > (zoneConfig[zone].limit * 8)) { dayIntensity = 'bg-rose-50 text-rose-600 border-rose-100'; dayLabel = 'MUY LLENO'; }
+                let dayIntensity = isRestDay ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                let dayLabel = isRestDay ? 'CERRADO' : 'LIBRE';
+                
+                const currentLimit = daySched ? parseInt(daySched.capacity) : config.limit;
+                if(!isRestDay && zoneDayTotal > (currentLimit * 3)) { dayIntensity = 'bg-amber-50 text-amber-600 border-amber-100'; dayLabel = 'ALGO LLENO'; }
+                if(!isRestDay && zoneDayTotal > (currentLimit * 8)) { dayIntensity = 'bg-rose-50 text-rose-600 border-rose-100'; dayLabel = 'MUY LLENO'; }
 
                 const div = document.createElement('div');
-                div.className = `flex-1 min-w-[55px] p-2 rounded-2xl border text-center transition-all cursor-pointer hover:scale-105 day-card ${dayIntensity}`;
+                div.className = `flex-1 min-w-[55px] p-2 rounded-2xl border text-center transition-all day-card ${dayIntensity} ${!isRestDay ? 'cursor-pointer hover:scale-105' : ''}`;
                 div.id = `day-${dateStr}`;
                 div.innerHTML = `
                     <p class="text-[9px] font-bold uppercase mb-0.5">${dayName}</p>
@@ -288,18 +268,42 @@
                     <p class="text-[7px] font-black mt-1 uppercase opacity-60">${dayLabel}</p>
                 `;
                 
-                div.onclick = () => selectDay(dateStr, date);
+                if(!isRestDay) {
+                    div.onclick = () => selectDay(dateStr, date);
+                }
                 grid.appendChild(div);
             }
 
             document.getElementById('hour-selection-container').classList.add('hidden');
             document.getElementById('res-modal').classList.remove('hidden');
+
+            // Poblar selector de duración basado en maxHours de la zona
+            const durationSelect = document.getElementById('res-duration');
+            durationSelect.innerHTML = '';
+            const max = zoneConfig[zone].maxHours || 1;
+            for (let i = 1; i <= max; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i + (i === 1 ? ' hora' : ' horas');
+                durationSelect.appendChild(opt);
+            }
         }
 
         function selectDay(dateStr, dateObj) {
             selectedDate = dateStr;
             selectedHour = null;
+            const dayOfWeek = dateObj.getDay();
             
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            
+            const isToday = (dateStr === todayStr);
+            const currentH = now.getHours();
+            const currentM = now.getMinutes();
+
             // Highlight card
             document.querySelectorAll('.day-card').forEach(c => c.classList.remove('ring-2', 'ring-indigo-600', 'ring-offset-2', 'bg-indigo-600', 'text-white'));
             const card = document.getElementById(`day-${dateStr}`);
@@ -312,21 +316,58 @@
             hourGrid.innerHTML = '';
             
             const config = zoneConfig[selectedZone];
-            for(let h = config.start; h < config.end; h++) {
+            const daySched = config.schedules[dayOfWeek] || {};
+            
+            const hStart = daySched.open ? parseInt(daySched.open.split(':')[0]) : config.start;
+            const hEnd = daySched.close ? parseInt(daySched.close.split(':')[0]) : config.end;
+            const hCap = daySched.capacity ? parseInt(daySched.capacity) : config.limit;
+            const bStart = daySched.break_start ? parseInt(daySched.break_start.split(':')[0]) : null;
+            const bEnd = daySched.break_end ? parseInt(daySched.break_end.split(':')[0]) : null;
+
+            for(let h = hStart; h < hEnd; h++) {
+                // Filtro para el día de hoy: no mostrar horas pasadas
+                if (isToday) {
+                    if (h < currentH) continue;
+                    if (h === currentH && currentM > 15) continue; // Margen de 15 minutos
+                }
+
+                // Verificar si es hora de descanso
+                if(bStart !== null && bEnd !== null && h >= bStart && h < bEnd) continue;
+
                 const hourStr = h < 10 ? `0${h}:00` : `${h}:00`;
                 const occupancy = (availabilityData[dateStr] && availabilityData[dateStr][selectedZone] && availabilityData[dateStr][selectedZone][h]) ? parseInt(availabilityData[dateStr][selectedZone][h]) : 0;
                 
-                let hColor = 'bg-slate-50 text-slate-700 border-slate-200';
-                if(occupancy >= config.limit) hColor = 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed opacity-50';
-                else if(occupancy > config.limit * 0.7) hColor = 'bg-amber-50 text-amber-600 border-amber-200';
+                let hColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                let hDot = 'bg-emerald-500';
+                let hStatus = 'LIBRE';
+
+                if(occupancy >= hCap) {
+                    hColor = 'bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed opacity-60';
+                    hDot = 'bg-rose-400';
+                    hStatus = 'LLENO';
+                } else if(occupancy >= hCap * 0.5) {
+                    hColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                    hDot = 'bg-amber-500';
+                    hStatus = 'CONCURRIDO';
+                }
 
                 const hDiv = document.createElement('div');
-                hDiv.className = `p-2.5 rounded-xl border text-center text-xs font-bold cursor-pointer hover:bg-indigo-50 transition-colors hour-pill ${hColor}`;
-                hDiv.textContent = hourStr;
+                hDiv.className = `group relative p-3 rounded-2xl border text-center transition-all duration-300 hour-pill ${hColor} ${occupancy < hCap ? 'cursor-pointer hover:scale-105 hover:shadow-md' : ''}`;
                 hDiv.id = `hour-${h}`;
                 
-                if(occupancy < config.limit) {
-                    hDiv.onclick = () => selectHour(h, hourStr);
+                hDiv.innerHTML = `
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-[10px] font-black tracking-tighter">${hourStr}</span>
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full ${hDot} animate-pulse"></span>
+                            <span class="text-[7px] font-bold uppercase opacity-70">${hStatus}</span>
+                        </div>
+                    </div>
+                `;
+                
+                if(occupancy < hCap) {
+                    const free = hCap - occupancy;
+                    hDiv.onclick = () => selectHour(h, hourStr, free);
                 }
                 
                 hourGrid.appendChild(hDiv);
@@ -336,18 +377,25 @@
             updateUI();
         }
 
-        function selectHour(h, hourStr) {
+        function selectHour(h, hourStr, freeSpots) {
             selectedHour = h;
-            document.querySelectorAll('.hour-pill').forEach(p => p.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600'));
+            document.querySelectorAll('.hour-pill').forEach(p => p.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-indigo-500/50'));
             const pill = document.getElementById(`hour-${h}`);
-            pill.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+            pill.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-lg', 'shadow-indigo-500/50');
             
             const dtFinal = `${selectedDate}T${h < 10 ? '0'+h : h}:00`;
             document.getElementById('res-datetime').value = dtFinal;
-            document.getElementById('final-datetime-display').textContent = `${selectedDate} a las ${hourStr}`;
+            document.getElementById('final-datetime-display').textContent = `${selectedDate} a las ${hourStr} (${freeSpots} libres)`;
             document.getElementById('final-datetime-display').classList.remove('text-slate-400', 'bg-slate-100');
             document.getElementById('final-datetime-display').classList.add('text-indigo-600', 'bg-indigo-50');
             
+            // Ajustar el máximo de invitados según lugares libres
+            const guestsInput = document.querySelector('input[name="guests"]');
+            guestsInput.max = freeSpots;
+            if(parseInt(guestsInput.value) > freeSpots) {
+                guestsInput.value = freeSpots;
+            }
+
             updateUI();
         }
 

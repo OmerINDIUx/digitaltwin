@@ -59,6 +59,7 @@ const peopleInstances = {
   pool: null,
   canchas: null,
 };
+let lastZoneStatuses = {}; // <--- PERSISTENCIA GLOBAL DE ESTADOS
 const peopleGeometry = new THREE.CapsuleGeometry(2.5, 6.0, 4, 8); // Gigante Digital para visibilidad
 const peopleMaterial = new THREE.MeshStandardMaterial({
   color: 0x22d3ee,
@@ -1417,24 +1418,26 @@ function syncDBCounts() {
   fetch(`${API_BASE_URL}/api/reservations/live`)
     .then((res) => res.json())
     .then((data) => {
-      const totals = data.totals || null;
-      if (totals) {
-        dbCounts.gym = totals.gym ?? 0;
-        dbCounts.pool = totals.pool ?? 0;
-        dbCounts.canchas = totals.canchas ?? 0;
-        const total = dbCounts.gym + dbCounts.pool + dbCounts.canchas;
-        addFeedItem(
-          `📊 DB SYNC (±90´) — ${total} pax: GYM ${dbCounts.gym} · POOL ${dbCounts.pool} · CANCHAS ${dbCounts.canchas}`,
-          "info",
-        );
-        applyDBCountsToWorld();
-      }
+      const totals = data.totals || { gym: 0, pool: 0, canchas: 0 };
+      const statuses = data.zone_status || {};
+      
+      dbCounts.gym = totals.gym ?? 0;
+      dbCounts.pool = totals.pool ?? 0;
+      dbCounts.canchas = totals.canchas ?? 0;
+      
+      applyDBCountsToWorld(statuses);
     })
-    .catch(() => console.warn("[DB Sync] API no disponible"));
+    .catch((err) => {
+        console.error("[DB Sync Error]", err);
+        addFeedItem("⚠️ Error de sincronización con la base de datos", "danger");
+    });
 }
 
 // Aplica dbCounts al mundo 3D: actualiza capacidad, spawns y panel de monitoreo
-function applyDBCountsToWorld() {
+function applyDBCountsToWorld(zoneStatuses = null) {
+  if (zoneStatuses) lastZoneStatuses = zoneStatuses;
+  const statuses = lastZoneStatuses;
+  
   const capacityLimits = { gym: 50, pool: 30, canchas: 20 };
   let totalPeople = 0;
   let totalTemp = 0;
@@ -1448,20 +1451,70 @@ function applyDBCountsToWorld() {
     const data = digitalTwinData[role];
     if (data) {
       data.current = count;
-      data.status = "Operativo";
-      data.statusClass = "status-good";
+      
+      const isClosed = statuses[role] === 'closed';
+      if (isClosed) {
+        data.status = "CERRADO POR HORARIO";
+        data.statusClass = "status-danger";
+      } else {
+        data.status = "Operativo";
+        data.statusClass = "status-good";
+      }
+
       totalTemp += parseFloat(data.temp) || 22;
       zoneCount++;
-    }
 
-    // Spawn personas en el modelo 3D proporcional al aforo
+      // Refrescar UI si la zona está abierta en el panel de detalles
+      if (currentSelectedRole === role) {
+          const statusEl = document.getElementById("area-status");
+          const statusBox = document.getElementById("status-box");
+          if (statusEl) statusEl.innerText = data.status;
+          if (statusBox) {
+              statusBox.className = "status-box-premium " + (data.statusClass || "status-good");
+          }
+      }
+    }
+  });
+
+  if (!model) return; // <--- El resto requiere el modelo 3D cargado
+
+  ["gym", "pool", "canchas"].forEach((role) => {
+    const isClosed = statuses[role] === 'closed';
+    const count = dbCounts[role] ?? 0;
+
+    // --- EFECTO VISUAL DE ÁREA CERRADA (ROJO HOLOGRÁFICO) ---
+    model.traverse((child) => {
+        if (child.isMesh && child.userData.role === role && !child.userData.isHitBox) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach(mat => {
+                if (isClosed) {
+                    mat.emissive.setHex(0xff0000);
+                    mat.emissiveIntensity = 2.0 + Math.sin(Date.now() * 0.008) * 1.0; // Pulso más fuerte y rápido
+                    mat.transparent = true;
+                    mat.opacity = 0.45; // Más fantasmal
+                } else {
+                    // Restaurar material original si se abre
+                    if (!child.userData.isSelectedInFocus) {
+                        mat.emissive.setHex(0x000000);
+                        mat.opacity = child.userData.originalMaterial ? child.userData.originalMaterial.opacity : 1.0;
+                    }
+                }
+            });
+        }
+    });
+
+    // Spawn personas en el modelo 3D proporcional al aforo (0 si está cerrado)
     const limit = capacityLimits[role] || 50;
-    const scaled = Math.min(count, limit); // no exceder el límite visual
+    const isClosedRole = statuses[role] === 'closed';
+    const scaled = isClosedRole ? 0 : Math.min(count, limit);
     spawnPeopleInRole(role, scaled);
   });
 
-  // Refrescar heatmaps visuales en los suelos
+  // Refrescar heatmaps visuales en los suelos (solo si no están cerrados)
   refreshHeatmaps();
+  
+  // Actualizar etiquetas espaciales
+  updateSpatialLabelsStatus(statuses);
 
   // --- Actualizar panel Monitoreo (barra CAPACIDAD y TOTAL) ---
   const capacityEl = document.getElementById("txt-capacity");
@@ -1582,7 +1635,7 @@ function loadReservationsFromDB() {
           `🏟️ DB SYNC — Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`,
           "info",
         );
-        applyDBCountsToWorld(); // ← actualiza capacidad + spawns 3D
+        applyDBCountsToWorld(data.zone_status || null); // ← actualiza capacidad + spawns 3D + estados
         updateDashboardData();
       } else {
         historyList.innerHTML =
@@ -3206,6 +3259,7 @@ function initSpatialLabels() {
       const el = document.createElement("div");
       el.className = `holo-label ${t.color}`;
       el.innerHTML = `<span>${t.label}</span>`;
+      el.dataset.role = t.role; // Identificador para actualizaciones de estado
 
       // Etiquetas ahora son grandes en todos los tamaños (Petición usuario)
       if (window.innerWidth < 800) {
@@ -3221,6 +3275,29 @@ function initSpatialLabels() {
 
       labelsContainer.appendChild(el);
       spatialLabels.push({ el, pos: center });
+    }
+  });
+
+  // Una vez creadas las etiquetas, forzamos una sincronización para aplicar estados (Abierto/Cerrado)
+  syncDBCounts();
+}
+
+function updateSpatialLabelsStatus(zoneStatuses) {
+  spatialLabels.forEach(labelObj => {
+    const role = labelObj.el.dataset.role;
+    if (role && zoneStatuses[role]) {
+      const isClosed = zoneStatuses[role] === 'closed';
+      if (isClosed) {
+        labelObj.el.classList.add('closed');
+        const span = labelObj.el.querySelector('span');
+        if (span && !span.innerText.includes('🚫')) {
+            span.innerText = '🚫 ' + span.innerText;
+        }
+      } else {
+        labelObj.el.classList.remove('closed');
+        const span = labelObj.el.querySelector('span');
+        if (span) span.innerText = span.innerText.replace('🚫 ', '');
+      }
     }
   });
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 // ──────────────────────────────────────────────
@@ -28,3 +29,9 @@ Route::get('/admin',  [AdminController::class, 'dashboard'])->name('admin.dashbo
 // Gestión de reservas (desde el admin)
 Route::patch('/admin/reservations/{reservation}/status', [AdminController::class, 'updateStatus'])->name('admin.status');
 Route::delete('/admin/reservations/{reservation}',        [AdminController::class, 'destroy'])->name('admin.destroy');
+Route::post('/admin/reservations/bulk',                   [AdminController::class, 'bulkAction'])->name('admin.bulk');
+
+// Gestión de zonas
+Route::get('/admin/zones',             [ZoneController::class, 'index'])->name('admin.zones.index');
+Route::post('/admin/zones',            [ZoneController::class, 'store'])->name('admin.zones.store');
+Route::patch('/admin/zones/{zone}',    [ZoneController::class, 'update'])->name('admin.zones.update');

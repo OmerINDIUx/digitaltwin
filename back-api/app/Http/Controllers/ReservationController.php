@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reservation;
+use App\Models\Zone;
 use Illuminate\Http\Request;
 
 class ReservationController extends Controller
@@ -25,6 +26,9 @@ class ReservationController extends Controller
         // Historial total
         $reservations = $query->get();
 
+        // Obtener zonas activas
+        $zones = Zone::where('status', 'active')->get();
+
         // Si es API para el motor 3D, devolvemos solo lo necesario (JSON)
         if ($request->wantsJson() || $request->is('api/*')) {
             return response()->json($reservations->take(10));
@@ -37,22 +41,28 @@ class ReservationController extends Controller
             'total' => Reservation::count(),
             'today' => Reservation::whereDate('reservation_date', $today)->count(),
             'guests' => Reservation::sum('guests'),
-            'gym' => [
-                'count' => Reservation::where('zone', 'gym')->whereDate('reservation_date', $today)->sum('guests'),
-                'limit' => 50,
-                'schedule' => '07:00 - 22:00'
-            ],
-            'pool' => [
-                'count' => Reservation::where('zone', 'pool')->whereDate('reservation_date', $today)->sum('guests'),
-                'limit' => 30,
-                'schedule' => '08:00 - 20:00'
-            ],
-            'canchas' => [
-                'count' => Reservation::where('zone', 'canchas')->whereDate('reservation_date', $today)->sum('guests'),
-                'limit' => 20,
-                'schedule' => '09:00 - 21:00'
-            ],
         ];
+
+        foreach($zones as $z) {
+            $currentDay = now()->dayOfWeek;
+            $sched = $z->schedules ?? [];
+            $daySched = $sched[$currentDay] ?? null;
+
+            $hStart = $daySched['open'] ?? $z->opening_hour;
+            $hEnd = $daySched['close'] ?? $z->closing_hour;
+            
+            $startHour = (int)explode(':', $hStart)[0];
+            $endHour = (int)explode(':', $hEnd)[0];
+            $totalHours = max(0, $endHour - $startHour);
+            
+            $dailyCapacity = $z->capacity * $totalHours;
+
+            $stats[$z->slug] = [
+                'count' => Reservation::where('zone', $z->slug)->whereDate('reservation_date', $today)->sum('guests'),
+                'limit' => $dailyCapacity,
+                'schedule' => substr($hStart, 0, 5) . ' - ' . substr($hEnd, 0, 5)
+            ];
+        }
 
         // Disponibilidad por día, zona y HORA (Próximos 7 días)
         $availability = Reservation::selectRaw('DATE(reservation_date) as date, HOUR(reservation_date) as hour, zone, SUM(guests) as total_guests')
@@ -67,7 +77,7 @@ class ReservationController extends Controller
                 });
             });
 
-        return view('reservations-panel', compact('reservations', 'stats', 'availability'));
+        return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones'));
     }
 
     /**
@@ -83,7 +93,30 @@ class ReservationController extends Controller
             'zone'     => 'required|string',
             'datetime' => 'required|date',
             'guests'   => 'required|integer|min:1',
+            'duration' => 'required|integer|min:1|max:24',
         ]);
+
+        // VALIDACIÓN DE CAPACIDAD REAL
+        $zone = Zone::where('slug', $data['zone'])->firstOrFail();
+        $date = date('Y-m-d', strtotime($data['datetime']));
+        $hour = (int)date('H', strtotime($data['datetime']));
+        $dayOfWeek = date('w', strtotime($data['datetime']));
+        
+        // Obtener capacidad para este día/hora desde la matriz
+        $sched = $zone->schedules ?? [];
+        $daySched = $sched[$dayOfWeek] ?? null;
+        $limit = $daySched['capacity'] ?? $zone->capacity;
+        
+        // Sumar ocupación actual (incluyendo reservas que traslapan por duración)
+        $currentOccupancy = \App\Models\Reservation::where('zone', $data['zone'])
+            ->whereIn('status', ['confirmed', 'pending'])
+            ->where('reservation_date', '<=', $data['datetime'])
+            ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$data['datetime']])
+            ->sum('guests');
+
+        if (($currentOccupancy + $data['guests']) > $limit) {
+            return back()->withErrors(['guests' => "Lo sentimos, solo quedan " . ($limit - $currentOccupancy) . " lugares disponibles para este horario."]);
+        }
 
         $reservation = Reservation::create([
             'name'             => $data['name'],
@@ -91,6 +124,7 @@ class ReservationController extends Controller
             'phone'            => $data['phone'] ?? null,
             'zone'             => $data['zone'],
             'reservation_date' => $data['datetime'],
+            'duration'         => $data['duration'],
             'guests'           => $data['guests'],
             'status'           => 'pending',
         ]);
@@ -113,23 +147,41 @@ class ReservationController extends Controller
     {
         try {
             $today = now()->toDateString();
+            $currentDay = now()->dayOfWeek; // 0 (Sun) - 6 (Sat)
 
-            // Reservas confirmadas o pendientes para HOY
+            // Reservas que están ACTIVAS en este momento exacto
+            $now = now();
+            $activeReservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+                ->where('reservation_date', '<=', $now)
+                ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) >= ?', [$now])
+                ->get();
+
+            $totals = [
+                'gym'     => (int) $activeReservations->where('zone', 'gym')->sum('guests'),
+                'pool'    => (int) $activeReservations->where('zone', 'pool')->sum('guests'),
+                'canchas' => (int) $activeReservations->where('zone', 'canchas')->sum('guests'),
+            ];
+
+            // Lista completa para el Feed (opcionalmente mostrar todas las de hoy o solo activas)
             $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
                 ->whereDate('reservation_date', $today)
                 ->orderBy('reservation_date', 'asc')
-                ->get(['zone', 'guests', 'reservation_date', 'name', 'status']);
+                ->get(['zone', 'guests', 'reservation_date', 'name', 'status', 'duration']);
 
-            $totals = [
-                'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
-                'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
-                'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
-            ];
+            // Obtener estado real de apertura/cierre hoy
+            $zones = Zone::all();
+            $zoneStatus = [];
+            foreach ($zones as $z) {
+                $sched = $z->schedules ?? [];
+                $isClosed = $sched[$currentDay]['is_closed'] ?? false;
+                $zoneStatus[$z->slug] = $isClosed ? 'closed' : 'open';
+            }
 
             return response()->json([
                 'date'         => $today,
                 'reservations' => $reservations,
                 'totals'       => $totals,
+                'zone_status'  => $zoneStatus,
                 'grand_total'  => array_sum($totals),
             ]);
         } catch (\Exception $e) {
@@ -149,14 +201,15 @@ class ReservationController extends Controller
             $windowFrom = $targetTime->copy()->subMinutes(90);
             $windowTo   = $targetTime->copy()->addMinutes(90);
 
-            $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
-                ->whereBetween('reservation_date', [$windowFrom, $windowTo])
-                ->get(['zone', 'guests', 'reservation_date', 'name']);
+            $activeReservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+                ->where('reservation_date', '<=', $targetTime)
+                ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) >= ?', [$targetTime])
+                ->get();
 
             $totals = [
-                'gym'     => (int) $reservations->where('zone', 'gym')->sum('guests'),
-                'pool'    => (int) $reservations->where('zone', 'pool')->sum('guests'),
-                'canchas' => (int) $reservations->where('zone', 'canchas')->sum('guests'),
+                'gym'     => (int) $activeReservations->where('zone', 'gym')->sum('guests'),
+                'pool'    => (int) $activeReservations->where('zone', 'pool')->sum('guests'),
+                'canchas' => (int) $activeReservations->where('zone', 'canchas')->sum('guests'),
             ];
 
             return response()->json([
