@@ -58,11 +58,22 @@ class ReservationController extends Controller
             $limitPerHour = (int)($daySched['capacity'] ?? $z->capacity);
             $dailyCapacity = $limitPerHour * $totalHours;
 
-            // Restar aforo ocupado por eventos hoy en esta zona
-            $eventBlock = \App\Models\Event::where('zone', $z->slug)
+            // Restar aforo ocupado por eventos hoy
+            $activeEvents = \App\Models\Event::where('zone', $z->slug)
                 ->whereDate('event_date', $today)
                 ->where('is_active', true)
-                ->sum('capacity');
+                ->get();
+
+            $eventBlock = 0;
+            foreach($activeEvents as $ev) {
+                if ($ev->type === 'private_event' || $ev->type === 'maintenance') {
+                    // Bloquea TODA la capacidad de la zona por su duración
+                    $eventBlock += $limitPerHour * $ev->duration;
+                } else {
+                    // Solo bloquea su cupo específico
+                    $eventBlock += $ev->capacity * $ev->duration;
+                }
+            }
 
             $stats[$z->slug] = [
                 'count' => Reservation::where('zone', $z->slug)->whereDate('reservation_date', $today)->sum('guests'),
@@ -84,8 +95,9 @@ class ReservationController extends Controller
                 });
             });
 
-        // Obtener eventos activos
+        // Obtener eventos activos (Excluyendo mantenimiento para residentes)
         $events = \App\Models\Event::where('is_active', true)
+            ->where('type', '!=', 'maintenance')
             ->where('event_date', '>=', now())
             ->withCount('registrations')
             ->orderBy('event_date', 'asc')
@@ -129,8 +141,26 @@ class ReservationController extends Controller
             ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$data['datetime']])
             ->sum('guests');
 
-        if (($currentOccupancy + $data['guests']) > $limit) {
-            return back()->withErrors(['guests' => "Lo sentimos, solo quedan " . ($limit - $currentOccupancy) . " lugares disponibles para este horario."]);
+        // Sumar ocupación de eventos/clases
+        $activeEvents = \App\Models\Event::where('zone', $data['zone'])
+            ->where('is_active', true)
+            ->where('event_date', '<=', $data['datetime'])
+            ->whereRaw('DATE_ADD(event_date, INTERVAL duration HOUR) > ?', [$data['datetime']])
+            ->get();
+
+        $eventOccupancy = 0;
+        foreach($activeEvents as $ev) {
+            if ($ev->type === 'private_event' || $ev->type === 'maintenance') {
+                $eventOccupancy = $limit; 
+                break;
+            } else {
+                $eventOccupancy += $ev->capacity;
+            }
+        }
+
+        if (($currentOccupancy + $eventOccupancy + $data['guests']) > $limit) {
+            $avail = max(0, $limit - $currentOccupancy - $eventOccupancy);
+            return back()->withErrors(['guests' => "Lo sentimos, el aforo está limitado. Quedan {$avail} lugares disponibles para este horario."]);
         }
 
         $reservation = Reservation::create([
@@ -313,10 +343,21 @@ class ReservationController extends Controller
             ->sum('guests');
 
         // DESCONTAR AFORO DE EVENTOS/CLASES
-        $eventOccupancy = \App\Models\Event::where('zone', $zoneSlug)
+        $activeEvents = \App\Models\Event::where('zone', $zoneSlug)
+            ->where('is_active', true)
             ->where('event_date', '<=', $datetime)
             ->whereRaw('DATE_ADD(event_date, INTERVAL duration HOUR) > ?', [$datetime])
-            ->sum('capacity');
+            ->get();
+
+        $eventOccupancy = 0;
+        foreach($activeEvents as $ev) {
+            if ($ev->type === 'private_event' || $ev->type === 'maintenance') {
+                $eventOccupancy = $limit; // Bloqueo total
+                break;
+            } else {
+                $eventOccupancy += $ev->capacity;
+            }
+        }
 
         return response()->json([
             'capacity' => $limit,
