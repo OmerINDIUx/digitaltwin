@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Command Center | Digital Twin</title>
+    <title>Admin Dashboard | Digital Twin</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     
     <!-- Scripts & Styles -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -169,6 +169,10 @@
                 <i data-lucide="qr-code" class="w-5 h-5 text-indigo-400"></i>
                 Scanner de Accesos
             </a>
+            <a href="{{ route('admin.events.index') }}" class="nav-link">
+                <i data-lucide="calendar-heart" class="w-5 h-5 text-rose-400"></i>
+                Eventos y Clases
+            </a>
             <a href="{{ url('/panel') }}" target="_blank" class="nav-link">
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 Panel Público
@@ -237,6 +241,32 @@
                 </div>
             </div>
         </header>
+
+        @if($errors->any())
+        <div class="mb-8 p-6 bg-rose-50 border border-rose-100 rounded-3xl animate-in slide-in-from-top-4 duration-500">
+            <div class="flex items-center gap-3 mb-2 text-rose-600">
+                <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                <h4 class="font-black text-sm uppercase tracking-widest">Error en el Registro</h4>
+            </div>
+            <ul class="space-y-1">
+                @foreach($errors->all() as $error)
+                    <li class="text-rose-500 text-xs font-bold">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
+        @if(session('success'))
+        <div class="mb-8 p-6 bg-emerald-50 border border-emerald-100 rounded-3xl animate-in slide-in-from-top-4 duration-500 flex items-center gap-4">
+            <div class="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i data-lucide="check-circle" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h4 class="font-black text-sm uppercase tracking-widest text-emerald-700">Operación Exitosa</h4>
+                <p class="text-emerald-600 text-xs font-bold">{{ session('success') }}</p>
+            </div>
+        </div>
+        @endif
 
         <!-- STATS GRID -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
@@ -507,7 +537,29 @@
                         </select>
                     </div>
 
-                    <div class="w-48">
+                    <div class="w-44">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Fecha Inicio</label>
+                        <input type="date" name="date_start" value="{{ request('date_start') }}" 
+                            class="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div class="w-44">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Fecha Fin</label>
+                        <input type="date" name="date_end" value="{{ request('date_end') }}" 
+                            class="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div class="w-40">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Periodo</label>
+                        <select name="period" class="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
+                            <option value="all">Todo el tiempo</option>
+                            <option value="today" {{ request('period')=='today' ? 'selected' : '' }}>Hoy</option>
+                            <option value="week" {{ request('period')=='week' ? 'selected' : '' }}>Esta Semana</option>
+                            <option value="month" {{ request('period')=='month' ? 'selected' : '' }}>Este Mes</option>
+                        </select>
+                    </div>
+
+                    <div class="w-40">
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Estado</label>
                         <select name="status" class="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
                             <option value="all">Cualquier estado</option>
@@ -700,7 +752,39 @@
             
             <form action="{{ route('admin.reservations.store') }}" method="POST" class="p-8">
                 @csrf
+                
+                <!-- MONITOR DE DISPONIBILIDAD EN TIEMPO REAL -->
+                <div id="availability-monitor" class="mb-8 p-6 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 hidden animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                <i data-lucide="info" class="text-indigo-600 w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-indigo-900 font-black text-xs uppercase tracking-widest">Estado del Horario</h4>
+                                <p id="avail-schedule" class="text-indigo-600/60 text-[10px] font-bold uppercase tracking-widest">Cargando...</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span id="avail-pax" class="text-2xl font-black text-indigo-900 leading-none">0/0</span>
+                            <p class="text-indigo-600/60 text-[10px] font-bold uppercase tracking-widest mt-1">Lugares Libres</p>
+                        </div>
+                    </div>
+                    <div class="w-full h-2 bg-indigo-100 rounded-full overflow-hidden">
+                        <div id="avail-bar" class="h-full bg-indigo-600 transition-all duration-700" style="width: 0%"></div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Área / Zona del Complejo</label>
+                        <select name="zone" id="admin-zone-select" required class="w-full bg-indigo-50 border border-indigo-100 rounded-2xl py-4 px-5 text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
+                            @foreach($zones as $z)
+                                <option value="{{ $z->slug }}">{{ $z->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div class="col-span-2 md:col-span-1">
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nombre Completo</label>
                         <input type="text" name="name" required placeholder="Ej: Juan Pérez" 
@@ -712,29 +796,43 @@
                             class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
                     </div>
                     
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Área / Zona</label>
-                        <select name="zone" required class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
-                            @foreach($zones as $z)
-                                <option value="{{ $z->slug }}">{{ $z->name }}</option>
-                            @endforeach
-                        </select>
+                    <!-- SELECCIÓN DE DÍA (GRID) -->
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">1. Seleccionar Día</label>
+                        <div id="admin-availability-grid" class="flex flex-wrap gap-2">
+                            <!-- JS populate -->
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="reservation_date" required 
-                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+
+                    <!-- SELECCIÓN DE HORA (GRID) -->
+                    <div id="admin-hour-container" class="col-span-2 hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">2. Horarios Disponibles</label>
+                        <div id="admin-hour-grid" class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            <!-- JS populate -->
+                        </div>
+                    </div>
+
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Resumen de Fecha Seleccionada</label>
+                        <div id="admin-final-datetime-display" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-black text-slate-400">
+                            — Selecciona día y hora arriba —
+                        </div>
+                        <input type="hidden" name="reservation_date" id="admin-res-datetime" required>
                     </div>
 
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nº Personas</label>
-                        <input type="number" name="guests" value="1" min="1" required 
+                        <input type="number" name="guests" id="admin-guests" value="1" min="1" required 
                             class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                        <p id="guests-warning" class="hidden text-[10px] font-bold text-rose-500 mt-2 px-1 uppercase tracking-wider animate-pulse">
+                            ⚠️ Excede el aforo disponible
+                        </p>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Duración (Horas)</label>
-                        <input type="number" name="duration" value="1" min="1" required 
-                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                        <select name="duration" id="admin-duration" required class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
+                            <!-- JS populate -->
+                        </select>
                     </div>
                 </div>
 
@@ -755,6 +853,204 @@
     <script>
         // Initialize Lucide Icons
         lucide.createIcons();
+
+        // CONFIGURACIÓN DE ZONAS Y DISPONIBILIDAD
+        const zonesData = @json($zones->keyBy('slug'));
+        const availabilityData = @json($availability);
+        
+        let adminSelectedZone = null;
+        let adminSelectedDate = null;
+        let adminSelectedHour = null;
+
+        function initAdminCalendar() {
+            const zoneSelect = document.getElementById('admin-zone-select');
+            if (!zoneSelect) return;
+            
+            adminSelectedZone = zoneSelect.value;
+            
+            // Re-poblar calendario cada vez que cambia la zona
+            const grid = document.getElementById('admin-availability-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const today = new Date();
+            
+            for(let i=0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(today.getDate() + i);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                const dayName = days[date.getDay()];
+                const dayNum = date.getDate();
+                const dayOfWeek = date.getDay();
+                
+                const config = zonesData[adminSelectedZone];
+                const sched = config.schedules || [];
+                const daySched = sched[dayOfWeek] || null;
+                const isRestDay = daySched ? parseInt(daySched.is_closed) : false;
+                
+                let zoneDayTotal = 0;
+                if(availabilityData[dateStr] && availabilityData[dateStr][adminSelectedZone]) {
+                    Object.values(availabilityData[dateStr][adminSelectedZone]).forEach(count => zoneDayTotal += parseInt(count));
+                }
+                
+                let intensity = isRestDay ? 'bg-slate-50 text-slate-300 border-slate-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                let label = isRestDay ? 'CERRADO' : 'LIBRE';
+                
+                const currentLimit = daySched ? parseInt(daySched.capacity) : config.capacity;
+                if(!isRestDay && zoneDayTotal > (currentLimit * 2)) { intensity = 'bg-amber-50 text-amber-600 border-amber-100'; label = 'ALGO LLENO'; }
+
+                const div = document.createElement('div');
+                div.className = `flex-1 min-w-[60px] p-3 rounded-2xl border text-center transition-all admin-day-card ${intensity} ${!isRestDay ? 'cursor-pointer hover:bg-indigo-50 hover:border-indigo-200' : 'cursor-not-allowed'}`;
+                div.id = `admin-day-${dateStr}`;
+                div.innerHTML = `<p class="text-[8px] font-black uppercase mb-1">${dayName}</p><p class="text-lg font-black">${dayNum}</p>`;
+                
+                if(!isRestDay) {
+                    div.onclick = () => selectAdminDay(dateStr, date);
+                }
+                grid.appendChild(div);
+            }
+
+            // Duración máxima
+            const durSelect = document.getElementById('admin-duration');
+            if (durSelect) {
+                durSelect.innerHTML = '';
+                const max = zonesData[adminSelectedZone].max_reservation_hours || 1;
+                for(let i=1; i<=max; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i; opt.textContent = `${i} ${i==1?'hora':'horas'}`;
+                    durSelect.appendChild(opt);
+                }
+            }
+
+            // Ocultar horas hasta elegir día
+            document.getElementById('admin-hour-container').classList.add('hidden');
+        }
+
+        function selectAdminDay(dateStr, dateObj) {
+            adminSelectedDate = dateStr;
+            adminSelectedHour = null;
+            document.querySelectorAll('.admin-day-card').forEach(c => c.classList.remove('ring-2', 'ring-indigo-600', 'bg-indigo-600', 'text-white'));
+            document.getElementById(`admin-day-${dateStr}`).classList.add('ring-2', 'ring-indigo-600');
+            
+            renderAdminHours(dateObj);
+        }
+
+        function renderAdminHours(dateObj) {
+            const container = document.getElementById('admin-hour-container');
+            const grid = document.getElementById('admin-hour-grid');
+            container.classList.remove('hidden');
+            grid.innerHTML = '';
+            
+            const config = zonesData[adminSelectedZone];
+            const dayOfWeek = dateObj.getDay();
+            const daySched = (config.schedules || [])[dayOfWeek] || {};
+            
+            const start = parseInt((daySched.open || config.opening_hour || '08:00').split(':')[0]);
+            const end = parseInt((daySched.close || config.closing_hour || '20:00').split(':')[0]);
+            const limit = parseInt(daySched.capacity || config.capacity);
+            
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const isToday = (adminSelectedDate === todayStr);
+
+            for(let h=start; h < end; h++) {
+                if (isToday && h <= now.getHours()) continue;
+
+                let occupied = 0;
+                if(availabilityData[adminSelectedDate] && availabilityData[adminSelectedDate][adminSelectedZone]) {
+                    occupied = parseInt(availabilityData[adminSelectedDate][adminSelectedZone][h] || 0);
+                }
+                
+                let color = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                if(occupied >= limit) color = 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed';
+                else if(occupied >= limit * 0.8) color = 'bg-rose-50 text-rose-600 border-rose-100';
+                else if(occupied >= limit * 0.5) color = 'bg-amber-50 text-amber-600 border-amber-100';
+
+                const btn = document.createElement('div');
+                btn.className = `p-2 rounded-xl border text-center text-[10px] font-black transition-all admin-hour-btn ${color} ${occupied < limit ? 'cursor-pointer hover:scale-105' : ''}`;
+                btn.id = `admin-hour-${h}`;
+                btn.textContent = `${h}:00`;
+                
+                if(occupied < limit) {
+                    btn.onclick = () => selectAdminHour(h);
+                }
+                grid.appendChild(btn);
+            }
+        }
+
+        let currentAvailableCap = 0;
+
+        function selectAdminHour(h) {
+            adminSelectedHour = h;
+            document.querySelectorAll('.admin-hour-btn').forEach(b => b.classList.remove('bg-indigo-600', 'text-white', 'ring-2', 'ring-indigo-600'));
+            const target = document.getElementById(`admin-hour-${h}`);
+            if (target) {
+                target.classList.add('bg-indigo-600', 'text-white');
+                
+                // Extraer disponibilidad del botón (puedes guardarla en un data-attribute)
+                // O recalcularla aquí:
+                const config = zonesData[adminSelectedZone];
+                const dateObj = new Date(adminSelectedDate + 'T12:00:00'); // evitar líos de zona horaria
+                const dayOfWeek = dateObj.getDay();
+                const daySched = (config.schedules || [])[dayOfWeek] || {};
+                const limit = parseInt(daySched.capacity || config.capacity);
+                
+                let occupied = 0;
+                if(availabilityData[adminSelectedDate] && availabilityData[adminSelectedDate][adminSelectedZone]) {
+                    occupied = parseInt(availabilityData[adminSelectedDate][adminSelectedZone][h] || 0);
+                }
+                
+                currentAvailableCap = Math.max(0, limit - occupied);
+                document.getElementById('admin-guests').max = currentAvailableCap;
+                validateGuests();
+            }
+            
+            const finalDT = `${adminSelectedDate} ${String(h).padStart(2, '0')}:00:00`;
+            document.getElementById('admin-res-datetime').value = finalDT;
+            document.getElementById('admin-final-datetime-display').textContent = `📅 ${adminSelectedDate} a las ${h}:00 hrs`;
+            document.getElementById('admin-final-datetime-display').classList.remove('text-slate-400');
+            document.getElementById('admin-final-datetime-display').classList.add('text-indigo-600');
+        }
+
+        function validateGuests() {
+            const input = document.getElementById('admin-guests');
+            const warning = document.getElementById('guests-warning');
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const val = parseInt(input.value) || 0;
+
+            if (adminSelectedHour === null) {
+                warning.classList.add('hidden');
+                return;
+            }
+
+            if (val > currentAvailableCap) {
+                warning.classList.remove('hidden');
+                input.classList.add('border-rose-500', 'bg-rose-50');
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                warning.classList.add('hidden');
+                input.classList.remove('border-rose-500', 'bg-rose-50');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        document.getElementById('admin-guests').addEventListener('input', validateGuests);
+        document.getElementById('admin-zone-select').addEventListener('change', initAdminCalendar);
+        
+        // Inicializar al abrir el modal
+        const openModalButtons = document.querySelectorAll('[onclick*="manual-res-modal"]');
+        openModalButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                setTimeout(initAdminCalendar, 100);
+            });
+        });
 
         // Chart.js Configuration
         const ctx = document.getElementById('weeklyChart').getContext('2d');

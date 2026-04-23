@@ -55,11 +55,18 @@ class ReservationController extends Controller
             $endHour = (int)explode(':', $hEnd)[0];
             $totalHours = max(0, $endHour - $startHour);
             
-            $dailyCapacity = $z->capacity * $totalHours;
+            $limitPerHour = (int)($daySched['capacity'] ?? $z->capacity);
+            $dailyCapacity = $limitPerHour * $totalHours;
+
+            // Restar aforo ocupado por eventos hoy en esta zona
+            $eventBlock = \App\Models\Event::where('zone', $z->slug)
+                ->whereDate('event_date', $today)
+                ->where('is_active', true)
+                ->sum('capacity');
 
             $stats[$z->slug] = [
                 'count' => Reservation::where('zone', $z->slug)->whereDate('reservation_date', $today)->sum('guests'),
-                'limit' => $dailyCapacity,
+                'limit' => max(0, $dailyCapacity - $eventBlock),
                 'schedule' => substr($hStart, 0, 5) . ' - ' . substr($hEnd, 0, 5)
             ];
         }
@@ -77,7 +84,15 @@ class ReservationController extends Controller
                 });
             });
 
-        return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones'));
+        // Obtener eventos activos
+        $events = \App\Models\Event::where('is_active', true)
+            ->where('event_date', '>=', now())
+            ->withCount('registrations')
+            ->orderBy('event_date', 'asc')
+            ->take(6)
+            ->get();
+
+        return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones', 'events'));
     }
 
     /**
@@ -261,10 +276,72 @@ class ReservationController extends Controller
                 'window'      => ['from' => $windowFrom->format('H:i'), 'to' => $windowTo->format('H:i')],
                 'totals'      => $totals,
                 'grand_total' => array_sum($totals),
-                'people'      => $reservations->values(),
+                'people'      => $activeReservations->values(),
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * API: Consultar disponibilidad para un slot específico
+     */
+    public function checkAvailability(Request $request)
+    {
+        $zoneSlug = $request->get('zone');
+        $datetime = $request->get('datetime');
+
+        if (!$zoneSlug || !$datetime) {
+            return response()->json(['error' => 'Parámetros incompletos'], 400);
+        }
+
+        $zone = Zone::where('slug', $zoneSlug)->first();
+        if (!$zone) return response()->json(['error' => 'Zona no encontrada'], 404);
+
+        $dayOfWeek = date('w', strtotime($datetime));
+        $sched = $zone->schedules ?? [];
+        $daySched = $sched[$dayOfWeek] ?? null;
+        
+        $limit = (int)($daySched['capacity'] ?? $zone->capacity);
+        $open = $daySched['open'] ?? $zone->opening_hour;
+        $close = $daySched['close'] ?? $zone->closing_hour;
+
+        $currentOccupancy = Reservation::where('zone', $zoneSlug)
+            ->whereIn('status', ['confirmed', 'pending'])
+            ->where('reservation_date', '<=', $datetime)
+            ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$datetime])
+            ->sum('guests');
+
+        // DESCONTAR AFORO DE EVENTOS/CLASES
+        $eventOccupancy = \App\Models\Event::where('zone', $zoneSlug)
+            ->where('event_date', '<=', $datetime)
+            ->whereRaw('DATE_ADD(event_date, INTERVAL duration HOUR) > ?', [$datetime])
+            ->sum('capacity');
+
+        return response()->json([
+            'capacity' => $limit,
+            'occupied' => (int)$currentOccupancy + (int)$eventOccupancy,
+            'available' => max(0, $limit - $currentOccupancy - $eventOccupancy),
+            'schedule' => substr($open, 0, 5) . ' - ' . substr($close, 0, 5)
+        ]);
+    }
+
+    public function registerEvent(Request $request, \App\Models\Event $event)
+    {
+        $data = $request->validate([
+            'name' => 'required|string',
+            'email' => 'required|email'
+        ]);
+
+        if ($event->registrations()->count() >= $event->capacity) {
+            return response()->json(['error' => 'El evento ya está lleno.'], 422);
+        }
+
+        $event->registrations()->create($data);
+        
+        // Actualizar contador
+        $event->increment('current_attendees');
+
+        return response()->json(['success' => true]);
     }
 }

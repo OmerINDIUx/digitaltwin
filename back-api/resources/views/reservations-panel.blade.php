@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SISTEMA DE RESERVACIONES | Digital Twin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #f1f5f9; color: #1e293b; }
@@ -80,6 +80,67 @@
                     </div>
                 </div>
             @endforeach
+        </div>
+
+        <!-- EVENTS & CLASSES SECTION -->
+        <div class="mb-16">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Próximas <span class="text-rose-500">Clases y Eventos</span></h2>
+                    <p class="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Participa en las actividades de la comunidad</p>
+                </div>
+                <div class="hidden md:block">
+                    <span class="text-xs font-bold text-slate-400">Actualizado hace un momento</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                @forelse($events as $ev)
+                <div class="bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 group">
+                    <div class="h-40 relative overflow-hidden">
+                        <img src="{{ $ev->image ?: 'https://images.unsplash.com/photo-1571902251103-d71b46244bc0?auto=format&fit=crop&q=80&w=400' }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent"></div>
+                        <div class="absolute top-4 left-6">
+                            <span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
+                                {{ $ev->type }}
+                            </span>
+                        </div>
+                        <div class="absolute bottom-4 left-6">
+                            <div class="flex items-center gap-2 text-white text-[10px] font-bold uppercase">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                {{ $ev->zone }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-8">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-black text-slate-900">{{ $ev->name }}</h3>
+                            <span class="text-indigo-600 font-black text-sm">
+                                {{ $ev->price > 0 ? '$' . number_format($ev->price, 2) : 'GRATIS' }}
+                            </span>
+                        </div>
+                        <p class="text-slate-400 text-xs line-clamp-2 mb-6">{{ $ev->description ?: 'Sin descripción disponible.' }}</p>
+                        
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="text-xs font-bold text-slate-500 flex items-center gap-2">
+                                📅 {{ $ev->event_date->format('d M') }} | ⏰ {{ $ev->event_date->format('H:i') }}
+                            </div>
+                            <div class="text-[10px] font-black {{ ($ev->capacity - $ev->registrations_count) < 5 ? 'text-rose-500' : 'text-emerald-500' }} uppercase tracking-widest">
+                                {{ $ev->capacity - $ev->registrations_count }} cupos
+                            </div>
+                        </div>
+                        <button onclick="openEventEnrollModal({{ $ev->id }}, '{{ $ev->name }}')" 
+                            class="w-full py-4 bg-rose-500 text-white font-black rounded-2xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 active:scale-95 text-xs uppercase tracking-widest">
+                            Inscribirme Ahora
+                        </button>
+                    </div>
+                </div>
+                @empty
+                <div class="col-span-full py-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                    <p class="text-slate-400 font-bold uppercase text-xs tracking-widest">No hay eventos programados para esta semana</p>
+                </div>
+                @endforelse
+            </div>
         </div>
 
         <!-- BANNER ADMIN (reemplaza al historial) -->

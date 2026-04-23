@@ -62,6 +62,23 @@ class AdminController extends Controller
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
+        if ($request->filled('period') && $request->period !== 'all') {
+            if ($request->period == 'today') {
+                $query->whereDate('reservation_date', now()->toDateString());
+            } elseif ($request->period == 'week') {
+                $query->whereBetween('reservation_date', [now()->startOfWeek(), now()->endOfWeek()]);
+            } elseif ($request->period == 'month') {
+                $query->whereMonth('reservation_date', now()->month)
+                      ->whereYear('reservation_date', now()->year);
+            }
+        }
+        
+        if ($request->filled('date_start')) {
+            $query->whereDate('reservation_date', '>=', $request->date_start);
+        }
+        if ($request->filled('date_end')) {
+            $query->whereDate('reservation_date', '<=', $request->date_end);
+        }
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
@@ -121,6 +138,20 @@ class AdminController extends Controller
             ];
         }
 
+        // Disponibilidad por día, zona y HORA (Próximos 7 días) - Replicado de ReservationController
+        $availability = Reservation::selectRaw('DATE(reservation_date) as date, HOUR(reservation_date) as hour, zone, SUM(guests) as total_guests')
+            ->where('reservation_date', '>=', now()->toDateString())
+            ->where('reservation_date', '<=', now()->addDays(7)->toDateString())
+            ->whereIn('status', ['confirmed', 'pending'])
+            ->groupBy('date', 'hour', 'zone')
+            ->get()
+            ->groupBy('date')
+            ->map(function ($dateItems) {
+                return $dateItems->groupBy('zone')->map(function ($zoneItems) {
+                    return $zoneItems->pluck('total_guests', 'hour');
+                });
+            });
+
         return view('admin.dashboard', compact(
             'reservations', 
             'stats', 
@@ -129,10 +160,11 @@ class AdminController extends Controller
             'liveNow', 
             'liveCounts', 
             'liveTotal',
-            'weeklyStats',
             'sensors',
             'assets',
-            'zones'
+            'weeklyStats',
+            'zones',
+            'availability'
         ));
     }
 
@@ -147,7 +179,7 @@ class AdminController extends Controller
         return back()->with('success', "Reserva actualizada a: {$request->status}");
     }
 
-    // Registro manual desde Admin
+    // Registro manual desde Admin con validación de capacidad estricta
     public function adminStore(Request $request)
     {
         if (!session('admin_logged_in')) abort(403);
@@ -161,8 +193,40 @@ class AdminController extends Controller
             'duration'         => 'required|integer|min:1',
         ]);
 
+        $zone = Zone::where('slug', $validated['zone'])->first();
+        $dateStr = $validated['reservation_date'];
+        $dayOfWeek = date('w', strtotime($dateStr));
+        $hour = (int)date('H', strtotime($dateStr));
+
+        // 1. Validar horarios y capacidad del día
+        $sched = $zone->schedules ?? [];
+        $daySched = $sched[$dayOfWeek] ?? null;
+        $open = (int)explode(':', $daySched['open'] ?? $zone->opening_hour)[0];
+        $close = (int)explode(':', $daySched['close'] ?? $zone->closing_hour)[0];
+        $limit = (int)($daySched['capacity'] ?? $zone->capacity);
+
+        if ($hour < $open || $hour >= $close) {
+            return back()->withErrors(['reservation_date' => "Horario inválido. {$zone->name} abre de $open:00 a $close:00."])->withInput();
+        }
+
+        // 2. Validar duración máxima
+        if ($validated['duration'] > $zone->max_reservation_hours) {
+            return back()->withErrors(['duration' => "La duración máxima para {$zone->name} es de {$zone->max_reservation_hours} horas."])->withInput();
+        }
+
+        // 3. Validar aforo por hora
+        $currentOccupancy = Reservation::where('zone', $validated['zone'])
+            ->whereIn('status', ['confirmed', 'pending'])
+            ->where('reservation_date', '<=', $dateStr)
+            ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$dateStr])
+            ->sum('guests');
+
+        if (($currentOccupancy + $validated['guests']) > $limit) {
+            return back()->withErrors(['guests' => "Aforo excedido. Espacios disponibles: " . ($limit - $currentOccupancy) . " / Límite: $limit."])->withInput();
+        }
+
         $reservation = Reservation::create(array_merge($validated, [
-            'status' => 'confirmed' // Por defecto confirmada si la hace el admin
+            'status' => 'confirmed'
         ]));
 
         return back()->with('success', "Reserva para {$reservation->name} creada con éxito.");
@@ -211,5 +275,11 @@ class AdminController extends Controller
         }
 
         return back()->with('success', $msg);
+    }
+
+    public function scanner()
+    {
+        if (!session('admin_logged_in')) abort(403);
+        return view('admin.scanner');
     }
 }
