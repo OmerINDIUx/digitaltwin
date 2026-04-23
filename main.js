@@ -52,6 +52,7 @@ const labelsContainer = document.getElementById("labels-container");
 
 // Valores reales de la DB (se actualizan al abrir el Dashboard)
 let dbCounts = { gym: null, pool: null, canchas: null };
+let lastActiveReservations = []; // <--- DATOS PARA COLOREADO DE PERSONAS
 let currentSelectedRole = null; // Para refrescar la card abierta durante el historial
 
 const peopleInstances = {
@@ -1425,6 +1426,9 @@ function syncDBCounts() {
       dbCounts.pool = totals.pool ?? 0;
       dbCounts.canchas = totals.canchas ?? 0;
       
+      // Guardar reservaciones para el coloreado del motor 3D
+      lastActiveReservations = data.reservations || [];
+      
       applyDBCountsToWorld(statuses);
     })
     .catch((err) => {
@@ -1507,7 +1511,11 @@ function applyDBCountsToWorld(zoneStatuses = null) {
     const limit = capacityLimits[role] || 50;
     const isClosedRole = statuses[role] === 'closed';
     const scaled = isClosedRole ? 0 : Math.min(count, limit);
-    spawnPeopleInRole(role, scaled);
+    
+    // Filtrar reservaciones específicas de este rol para el coloreado
+    const roleRes = (lastActiveReservations || []).filter(r => r.zone === role);
+    
+    spawnPeopleInRole(role, scaled, roleRes);
   });
 
   // Refrescar heatmaps visuales en los suelos (solo si no están cerrados)
@@ -2973,7 +2981,7 @@ function initPopulation() {
   });
 }
 
-function spawnPeopleInRole(role, count) {
+function spawnPeopleInRole(role, count, reservations = []) {
   if (!model) return;
 
   // Limpiar instancias previas si existen (Para que desaparezcan en horas de cierre)
@@ -2985,7 +2993,7 @@ function spawnPeopleInRole(role, count) {
 
   if (count <= 0) return;
 
-  // Recolectar superficies de tránsito (Menos techumbres y estructuras elevadas)
+  // Recolectar superficies de tránsito...
   let roleMeshes = [];
   model.traverse((c) => {
     if (c.isMesh && c.userData.role === role) {
@@ -2998,41 +3006,26 @@ function spawnPeopleInRole(role, count) {
         name.includes("lamina") ||
         name.includes("columna");
 
-      // Si no parece un techo elevado, lo tomamos como posible suelo
       if (!isStructural) {
         roleMeshes.push(c);
       }
     }
   });
 
-  // SISTEMA DE EMERGENCIA: Si no encontramos 'suelos' obvios, tomamos cualquier malla del rol
   if (roleMeshes.length === 0) {
     model.traverse((c) => {
       if (c.isMesh && c.userData.role === role) roleMeshes.push(c);
     });
   }
 
-  // --- CORRECCIÓN ESPECÍFICA PARA ALBERCA: SOLO AGUA ---
   if (role === "pool") {
-    const waterNames = [
-      "agua",
-      "water",
-      "piscina",
-      "bowl",
-      "piscine",
-      "fluid",
-      "ocean",
-      "surface",
-    ];
+    const waterNames = ["agua","water","piscina","bowl","piscine","fluid","ocean","surface"];
     const waterOnly = roleMeshes.filter((m) => {
       const n = (m.name || "").toLowerCase();
       return waterNames.some((w) => n.includes(w));
     });
-    // Si encontramos la malla del agua, ignoramos todo lo demás (muros, pasillos)
-    if (waterOnly.length > 0) {
-      roleMeshes = waterOnly;
-    } else {
-      // Si no hay mallas de agua nominativas, intentar por la de mayor superficie plana
+    if (waterOnly.length > 0) roleMeshes = waterOnly;
+    else {
       roleMeshes.sort((a, b) => {
         const aBox = new THREE.Box3().setFromObject(a);
         const bBox = new THREE.Box3().setFromObject(b);
@@ -3040,7 +3033,7 @@ function spawnPeopleInRole(role, count) {
         const bArea = (bBox.max.x - bBox.min.x) * (bBox.max.z - bBox.min.z);
         return bArea - aArea;
       });
-      roleMeshes = [roleMeshes[0]]; // Tomamos la plataforma más grande del área
+      roleMeshes = [roleMeshes[0]];
     }
   }
 
@@ -3051,48 +3044,44 @@ function spawnPeopleInRole(role, count) {
     peopleMaterial.clone(),
     count,
   );
+  instMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
   instMesh.userData.role = role;
 
-  const color =
-    role === "canchas" ? new THREE.Color(0xfbbf24) : new THREE.Color(0x22d3ee);
-  instMesh.material.color.copy(color);
-  instMesh.material.emissive.copy(color);
+  // --- LÓGICA DE COLOREADO POR ASISTENCIA ---
+  // Expandir invitados por reserva para asignar colores individuales
+  let peopleColors = [];
+  reservations.forEach(res => {
+      const isAttended = res.checked_in_at !== null;
+      const color = isAttended ? new THREE.Color(0x10b981) : new THREE.Color(0xfacc15); // Verde vs Amarillo
+      for(let g=0; g < res.guests; g++) {
+          if (peopleColors.length < count) peopleColors.push(color);
+      }
+  });
+
+  // Rellenar si faltan (por si hay inconsistencia)
+  while(peopleColors.length < count) {
+      peopleColors.push(new THREE.Color(0xfacc15)); // Default Amarillo
+  }
 
   const dummy = new THREE.Object3D();
   peopleStates[role] = [];
 
   for (let i = 0; i < count; i++) {
-    // Seleccionar una pieza de suelo al azar de ese rol (Ejs: Cancha 1, Cancha 2, Piso Gym)
-    const targetMesh =
-      roleMeshes[Math.floor(Math.random() * roleMeshes.length)];
+    const targetMesh = roleMeshes[Math.floor(Math.random() * roleMeshes.length)];
     const meshBox = new THREE.Box3().setFromObject(targetMesh);
     const size = meshBox.getSize(new THREE.Vector3());
     const center = meshBox.getCenter(new THREE.Vector3());
 
-    // Generar posición con margen de seguridad del 20% para NO tocar paredes
     const rx = (Math.random() - 0.5) * (size.x * 0.8);
     const rz = (Math.random() - 0.5) * (size.z * 0.8);
-
-    // Altura corregida: Sumergidos para pool (nado) vs sobre el piso para otros
     const yOffset = role === "pool" ? 0.3 : 4.0;
-    const pos = new THREE.Vector3(
-      center.x + rx,
-      meshBox.min.y + yOffset,
-      center.z + rz,
-    );
-    const dir = new THREE.Vector3(
-      Math.random() - 0.5,
-      0,
-      Math.random() - 0.5,
-    ).normalize();
+    const pos = new THREE.Vector3(center.x + rx, meshBox.min.y + yOffset, center.z + rz);
+    const dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
     const speed = 0.05 + Math.random() * 0.08;
     const scale = 1.0 + Math.random() * 0.5;
 
     peopleStates[role].push({
-      pos,
-      dir,
-      speed,
-      scale,
+      pos, dir, speed, scale,
       bounds: {
         min: { x: center.x - size.x * 0.38, z: center.z - size.z * 0.38 },
         max: { x: center.x + size.x * 0.38, z: center.z + size.z * 0.38 },
@@ -3100,14 +3089,14 @@ function spawnPeopleInRole(role, count) {
     });
 
     dummy.position.copy(pos);
-    if (role === "pool") {
-      dummy.rotation.set(Math.PI / 2, Math.atan2(dir.x, dir.z), 0);
-    } else {
-      dummy.rotation.y = Math.atan2(dir.x, dir.z);
-    }
+    if (role === "pool") dummy.rotation.set(Math.PI / 2, Math.atan2(dir.x, dir.z), 0);
+    else dummy.rotation.y = Math.atan2(dir.x, dir.z);
     dummy.scale.set(scale, scale, scale);
     dummy.updateMatrix();
     instMesh.setMatrixAt(i, dummy.matrix);
+    
+    // Aplicar color de asistencia
+    instMesh.setColorAt(i, peopleColors[i]);
   }
 
   instMesh.instanceMatrix.needsUpdate = true;

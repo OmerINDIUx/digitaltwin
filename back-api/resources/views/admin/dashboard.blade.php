@@ -165,6 +165,10 @@
                 <i data-lucide="map" class="w-5 h-5"></i>
                 Gestión de Áreas
             </a>
+            <a href="{{ route('admin.scanner') }}" class="nav-link">
+                <i data-lucide="qr-code" class="w-5 h-5 text-indigo-400"></i>
+                Scanner de Accesos
+            </a>
             <a href="{{ url('/panel') }}" target="_blank" class="nav-link">
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 Panel Público

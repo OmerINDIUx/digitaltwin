@@ -101,6 +101,136 @@
                 🔒 Acceso administrativo
             </a>
         </div>
+    </div>
+
+    <!-- MODAL DE ÉXITO Y QR -->
+    @if(session('new_reservation_id'))
+    <div id="qr-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-2xl animate-in fade-in zoom-in duration-300">
+        <div class="w-full max-w-md relative">
+            <!-- TARJETA PARA DESCARGAR -->
+            <div id="access-card" class="bg-white p-10 rounded-[3.5rem] shadow-2xl relative border border-white/20 overflow-hidden mb-6">
+                <!-- Decoración -->
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+                <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
+                
+                <div class="flex justify-between items-start mb-8 relative z-10">
+                    <div class="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-xl shadow-emerald-500/30">✓</div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">Digital Twin</p>
+                        <p class="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Access Pass</p>
+                    </div>
+                </div>
+                
+                <div class="mb-8 relative z-10">
+                    <h2 class="text-3xl font-black text-slate-900 tracking-tight mb-4">Pase de <span class="text-emerald-500">Acceso</span></h2>
+                    <div class="space-y-4">
+                        <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                            <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Titular de Reserva</p>
+                            <p class="text-base font-black text-slate-800">{{ session('new_reservation_name') }}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Fecha</p>
+                                <p class="text-sm font-black text-slate-800">{{ date('d M, Y', strtotime(session('new_reservation_date'))) }}</p>
+                            </div>
+                            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Horario</p>
+                                <p class="text-sm font-black text-slate-800">{{ date('H:i', strtotime(session('new_reservation_date'))) }} hrs</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center py-6 bg-slate-900 rounded-[2.5rem] shadow-2xl">
+                    <div id="qrcode" class="p-3 bg-white rounded-2xl shadow-inner border-4 border-slate-800"></div>
+                    <p class="text-[8px] text-slate-500 font-bold mt-4 tracking-[0.4em] uppercase">Validación Biométrica Requerida</p>
+                </div>
+            </div>
+
+            <!-- CONTROLES -->
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <button onclick="downloadFullCard()" id="dl-btn" class="py-5 bg-white text-slate-900 font-black rounded-3xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm shadow-xl border border-slate-200">
+                    💾 DESCARGAR PASE
+                </button>
+                <button onclick="shareCard()" id="share-btn" class="py-5 bg-[#25D366] text-white font-black rounded-3xl hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 text-sm shadow-xl">
+                    📱 ENVIAR WA
+                </button>
+            </div>
+
+            <button onclick="document.getElementById('qr-modal').remove()" class="w-full py-5 bg-slate-900/50 text-white/50 font-bold rounded-3xl hover:bg-slate-900 hover:text-white transition-all text-sm tracking-widest backdrop-blur-md">
+                CERRAR VENTANA
+            </button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script>
+        const qr = new QRCode(document.getElementById("qrcode"), {
+            text: "{{ route('reservations.checkin', session('new_reservation_id')) }}",
+            width: 160,
+            height: 160,
+            colorDark : "#0f172a",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        async function getCardCanvas() {
+            const card = document.getElementById("access-card");
+            return html2canvas(card, {
+                scale: 2,
+                backgroundColor: "#ffffff",
+                logging: false,
+                useCORS: true
+            });
+        }
+
+        async function downloadFullCard() {
+            const btn = document.getElementById('dl-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⌛...';
+            
+            const canvas = await getCardCanvas();
+            const link = document.createElement("a");
+            link.href = canvas.toDataURL("image/png");
+            link.download = "Pase_Acceso_{{ session('new_reservation_name') }}.png";
+            link.click();
+            
+            btn.innerHTML = originalText;
+        }
+
+        async function shareCard() {
+            const btn = document.getElementById('share-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⌛...';
+
+            try {
+                const canvas = await getCardCanvas();
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], "Pase_Digital_Twin.png", { type: 'image/png' });
+                    
+                    // Si el navegador soporta compartir archivos (Móviles modernos)
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Mi Pase de Acceso',
+                            text: 'Hola! Aquí está mi pase para el complejo.'
+                        });
+                    } else {
+                        // Si es PC o no soporta archivos, enviamos solo el texto/link
+                        const waUrl = "https://wa.me/?text=Hola! Ya tengo mi pase para el Digital Twin. Aquí puedes ver mi reserva: {{ route('reservations.checkin', session('new_reservation_id')) }}";
+                        window.open(waUrl, "_blank");
+                        alert("En PC la imagen no se adjunta automáticamente. Por favor, descarga la tarjeta y adjúntala manualmente.");
+                    }
+                    btn.innerHTML = originalText;
+                }, 'image/png');
+            } catch (err) {
+                console.error(err);
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
+    @endif
+
     <div id="res-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
         <div class="bg-white w-full max-w-lg p-10 rounded-[3rem] shadow-2xl relative border border-slate-200 max-h-screen overflow-y-auto">
             <button onclick="document.getElementById('res-modal').classList.add('hidden')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors bg-slate-100 p-2 rounded-full w-9 h-9 flex items-center justify-center font-bold">✕</button>

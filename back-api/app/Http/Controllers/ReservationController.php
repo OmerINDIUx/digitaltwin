@@ -137,8 +137,51 @@ class ReservationController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Nueva reserva registrada correctamente.');
+        return redirect()->back()->with([
+            'success' => 'Nueva reserva registrada correctamente.',
+            'new_reservation_id' => $reservation->id,
+            'new_reservation_name' => $reservation->name,
+            'new_reservation_date' => $reservation->reservation_date
+        ]);
     }
+    /**
+     * Marcar asistencia mediante QR.
+     */
+    public function checkIn(Reservation $reservation)
+    {
+        $now = now();
+        $startTime = \Carbon\Carbon::parse($reservation->reservation_date);
+        $endTime = $startTime->copy()->addHours($reservation->duration);
+
+        // 1. Validar ventana de tiempo (Margen de 10 min antes y 10 min después del inicio)
+        if ($now->lt($startTime->copy()->subMinutes(10))) {
+            $msg = "Demasiado pronto. Solo puedes entrar desde las " . $startTime->copy()->subMinutes(10)->format('H:i') . " hrs.";
+            return request()->ajax() ? response()->json(['status' => 'error_time', 'message' => $msg]) : "<h1>❌ $msg</h1>";
+        }
+
+        if ($now->gt($startTime->copy()->addMinutes(10))) {
+            $msg = "Pase expirado. Tu tolerancia de 10 minutos terminó a las " . $startTime->copy()->addMinutes(10)->format('H:i') . " hrs.";
+            return request()->ajax() ? response()->json(['status' => 'error_expired', 'message' => $msg]) : "<h1>❌ $msg</h1>";
+        }
+
+        // 2. Validar si ya asistió
+        if ($reservation->checked_in_at) {
+            $msg = "Este pase ya fue validado el " . $reservation->checked_in_at->format('d/m H:i') . " hrs.";
+            return request()->ajax() ? response()->json(['status' => 'error_duplicate', 'message' => $msg]) : "<h1>⚠️ $msg</h1>";
+        }
+
+        // 3. Confirmar asistencia
+        $reservation->update([
+            'checked_in_at' => now(),
+            'status' => 'confirmed'
+        ]);
+
+        $msg = "¡Bienvenido, {$reservation->name}! Acceso autorizado.";
+        return request()->ajax() 
+            ? response()->json(['status' => 'success', 'message' => $msg, 'name' => $reservation->name]) 
+            : "<h1>✅ $msg</h1><p>Zona: {$reservation->zone}</p><script>setTimeout(() => window.close(), 3000);</script>";
+    }
+
     /**
      * API: Endpoint dedicado para el motor 3D.
      * Devuelve reservas activas en ventana ±90 min (igual que panel admin).
@@ -166,7 +209,7 @@ class ReservationController extends Controller
             $reservations = Reservation::whereIn('status', ['confirmed', 'pending'])
                 ->whereDate('reservation_date', $today)
                 ->orderBy('reservation_date', 'asc')
-                ->get(['zone', 'guests', 'reservation_date', 'name', 'status', 'duration']);
+                ->get(['id', 'zone', 'guests', 'reservation_date', 'name', 'status', 'duration', 'checked_in_at']);
 
             // Obtener estado real de apertura/cierre hoy
             $zones = Zone::all();

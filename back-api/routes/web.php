@@ -35,3 +35,11 @@ Route::post('/admin/reservations/bulk',                   [AdminController::clas
 Route::get('/admin/zones',             [ZoneController::class, 'index'])->name('admin.zones.index');
 Route::post('/admin/zones',            [ZoneController::class, 'store'])->name('admin.zones.store');
 Route::patch('/admin/zones/{zone}',    [ZoneController::class, 'update'])->name('admin.zones.update');
+
+// Scanner de QR para administración
+Route::get('/admin/scanner', function() {
+    return view('admin.scanner');
+})->name('admin.scanner');
+
+// Check-in de asistencia via QR (Endpoint de validación)
+Route::get('/reservations/check-in/{reservation}', [ReservationController::class, 'checkIn'])->name('reservations.checkin');
