@@ -41,5 +41,8 @@ Route::get('/admin/scanner', function() {
     return view('admin.scanner');
 })->name('admin.scanner');
 
+Route::post('/admin/reservations', [AdminController::class, 'adminStore'])->name('admin.reservations.store');
+Route::post('/admin/reservations/{reservation}/check-in', [AdminController::class, 'adminCheckIn'])->name('admin.reservations.checkin');
+
 // Check-in de asistencia via QR (Endpoint de validación)
 Route::get('/reservations/check-in/{reservation}', [ReservationController::class, 'checkIn'])->name('reservations.checkin');

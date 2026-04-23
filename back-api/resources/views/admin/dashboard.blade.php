@@ -215,26 +215,26 @@
     <main class="ml-72 flex-1 p-8 min-h-screen">
         
         <!-- HEADER -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
             <div>
-                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Monitor de <span class="text-indigo-600">Operaciones</span></h2>
-                <div class="flex items-center gap-2 text-slate-400 text-sm mt-1">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight">MONITOR <span class="text-indigo-600">CENTRAL</span></h2>
+                <div class="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                    <i data-lucide="calendar" class="w-3 h-3"></i>
                     <span>{{ now()->locale('es')->format('l, d \d\e F Y') }}</span>
                 </div>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+                <button onclick="document.getElementById('manual-res-modal').classList.remove('hidden')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-2xl transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-sm">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> NUEVA RESERVA
+                </button>
                 <div class="glass-card px-5 py-3 rounded-2xl flex items-center gap-3">
                     <div class="relative">
-                        <span class="w-3 h-3 bg-emerald-500 rounded-full block animate-ping absolute"></span>
-                        <span class="w-3 h-3 bg-emerald-500 rounded-full block relative"></span>
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full block animate-ping absolute"></span>
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full block relative"></span>
                     </div>
-                    <span class="text-slate-700 font-bold text-sm tracking-wide">SISTEMA EN LÍNEA</span>
+                    <span class="text-slate-500 font-bold text-[10px] tracking-widest uppercase">Sistema Online</span>
                 </div>
-                <button onclick="window.location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-indigo-600/20">
-                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                </button>
             </div>
         </header>
 
@@ -394,13 +394,13 @@
                     @if($liveTotal > 0)
                     <div class="grid grid-cols-3 gap-4 mb-8">
                         @php
-                            $zones = [
+                            $zoneUI = [
                                 'gym' => ['icon' => 'activity', 'label' => 'Gym', 'color' => 'indigo'],
                                 'pool' => ['icon' => 'waves', 'label' => 'Pool', 'color' => 'blue'],
                                 'canchas' => ['icon' => 'target', 'label' => 'Canchas', 'color' => 'emerald']
                             ];
                         @endphp
-                        @foreach($zones as $key => $z)
+                        @foreach($zoneUI as $key => $z)
                         <div class="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all cursor-pointer group">
                             <div class="flex justify-between items-start mb-3">
                                 <i data-lucide="{{ $z['icon'] }}" class="text-{{ $z['color'] }}-400 w-5 h-5 group-hover:scale-110 transition-transform"></i>
@@ -528,13 +528,15 @@
                 </form>
             </div>
 
-            <!-- BULK ACTIONS FORM -->
+            <!-- BULK ACTIONS FORM (Moved outside table to avoid nested forms) -->
             <form id="bulk-form" action="{{ route('admin.bulk') }}" method="POST">
                 @csrf
                 <input type="hidden" name="action" id="bulk-action-input">
-                
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
+                <div id="bulk-ids-container"></div>
+            </form>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
                         <thead>
                             <tr class="bg-slate-50/50">
                                 <th class="px-8 py-5 w-10">
@@ -601,6 +603,21 @@
                             </td>
                             <td class="px-8 py-6 text-right">
                                 <div class="flex items-center justify-end gap-3">
+                                    @if($res->checked_in_at)
+                                        <div class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border border-emerald-100">
+                                            <i data-lucide="check" class="w-3 h-3"></i> {{ $res->checked_in_at->format('H:i') }}
+                                        </div>
+                                    @else
+                                        <form action="{{ route('admin.reservations.checkin', $res->id) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-indigo-100">
+                                                <i data-lucide="scan-line" class="w-3 h-3"></i> Asistió
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    <div class="w-px h-6 bg-slate-100 mx-2"></div>
+
                                     @if($res->phone)
                                     <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $res->phone) }}" target="_blank" 
                                         class="w-10 h-10 rounded-xl flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all" title="Contactar por WhatsApp">
@@ -638,7 +655,6 @@
                 {{ $reservations->links() }}
             </div>
             @endif
-            </form>
         </div>
 
         <!-- FLOATING BULK TOOLBAR -->
@@ -669,11 +685,72 @@
             </button>
         </div>
 
-        <!-- FOOTER TEXT -->
-        <footer class="mt-12 text-center text-slate-400 text-xs font-bold uppercase tracking-[0.2em] pb-8">
-            Digital Twin &copy; {{ date('Y') }} &bull; Command Center v2.0
-        </footer>
-    </main>
+    <!-- MODAL REGISTRO MANUAL -->
+    <div id="manual-res-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-8 duration-500">
+            <div class="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-900 tracking-tight">NUEVA RESERVA</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Registro Manual Administrativo</p>
+                </div>
+                <button onclick="document.getElementById('manual-res-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <form action="{{ route('admin.reservations.store') }}" method="POST" class="p-8">
+                @csrf
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nombre Completo</label>
+                        <input type="text" name="name" required placeholder="Ej: Juan Pérez" 
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+                    <div class="col-span-2 md:col-span-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Correo Electrónico</label>
+                        <input type="email" name="email" required placeholder="juan@ejemplo.com" 
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Área / Zona</label>
+                        <select name="zone" required class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all">
+                            @foreach($zones as $z)
+                                <option value="{{ $z->slug }}">{{ $z->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Fecha y Hora</label>
+                        <input type="datetime-local" name="reservation_date" required 
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nº Personas</label>
+                        <input type="number" name="guests" value="1" min="1" required 
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Duración (Horas)</label>
+                        <input type="number" name="duration" value="1" min="1" required 
+                            class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="button" onclick="document.getElementById('manual-res-modal').classList.add('hidden')" 
+                        class="flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs tracking-widest">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                        class="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 uppercase text-xs tracking-widest">
+                        Crear Reservación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         // Initialize Lucide Icons
@@ -751,6 +828,22 @@
 
         function submitBulk(action) {
             if (action === 'delete' && !confirm('¿Estás seguro de eliminar las reservas seleccionadas?')) return;
+            
+            const checked = document.querySelectorAll('.res-checkbox:checked');
+            const idsContainer = document.getElementById('bulk-ids-container');
+            
+            // Limpiar IDs anteriores
+            idsContainer.innerHTML = '';
+            
+            // Agregar nuevos IDs
+            checked.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = cb.value;
+                idsContainer.appendChild(input);
+            });
+
             bulkActionInput.value = action;
             bulkForm.submit();
         }

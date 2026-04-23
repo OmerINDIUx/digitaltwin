@@ -147,6 +147,40 @@ class AdminController extends Controller
         return back()->with('success', "Reserva actualizada a: {$request->status}");
     }
 
+    // Registro manual desde Admin
+    public function adminStore(Request $request)
+    {
+        if (!session('admin_logged_in')) abort(403);
+
+        $validated = $request->validate([
+            'name'             => 'required|string|max:255',
+            'email'            => 'required|email',
+            'zone'             => 'required|exists:zones,slug',
+            'reservation_date' => 'required|date',
+            'guests'           => 'required|integer|min:1',
+            'duration'         => 'required|integer|min:1',
+        ]);
+
+        $reservation = Reservation::create(array_merge($validated, [
+            'status' => 'confirmed' // Por defecto confirmada si la hace el admin
+        ]));
+
+        return back()->with('success', "Reserva para {$reservation->name} creada con éxito.");
+    }
+
+    // Check-in manual (Asistió)
+    public function adminCheckIn(Reservation $reservation)
+    {
+        if (!session('admin_logged_in')) abort(403);
+
+        $reservation->update([
+            'checked_in_at' => now(),
+            'status' => 'confirmed'
+        ]);
+
+        return back()->with('success', "Asistencia de {$reservation->name} registrada manualmente.");
+    }
+
     // Eliminar reserva
     public function destroy(Reservation $reservation)
     {
