@@ -2395,7 +2395,7 @@ function animate() {
 
   // Pulsación suave y Vista Explosionada Sincronizada
   const delta = clock.getDelta();
-  const elapsed = clock.getElapsedTime();
+  const time = clock.getElapsedTime(); // Cambiamos elapsed por time para mantener compatibilidad
 
   if (model) {
     // Actualizar factor de explosión global (Lerp dinámico)
@@ -2432,9 +2432,7 @@ function animate() {
     }
   }
 
-  const currentTime = performance.now();
-  const delta = (currentTime - lastTime) / 1000;
-  lastTime = currentTime;
+  // (Cálculo manual de delta eliminado para usar el del reloj)
   
   updateWalkMode(delta);
 
