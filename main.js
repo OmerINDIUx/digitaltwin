@@ -458,11 +458,7 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-<<<<<<< HEAD
       loadGLTF("public/japonutopia_texturas.glb"),
-=======
-      loadGLTF("public/japonutopia_capasrenovadas.glb"),
->>>>>>> a80ebca4ad6de43a18489601ab63593f73023bc1
       loadGLTF("public/tree_detailed_dark.glb"),
       loadGLTF("public/tree_fat_darkh.glb"),
       loadGLTF("public/tree_pineGroundA.glb"),
@@ -2401,13 +2397,10 @@ function animate() {
   // Pulsación suave y Vista Explosionada Sincronizada
   if (model) {
     const time = clock.getElapsedTime();
-<<<<<<< HEAD
 
     // Actualizar factor de explosión global (Lerp dinámico)
     const targetExp = isModelExploded ? 1.0 : 0.0;
     explodeFactor += (targetExp - explodeFactor) * 0.08;
-=======
->>>>>>> a80ebca4ad6de43a18489601ab63593f73023bc1
 
     model.traverse((child) => {
       // 1. Resplandor pulsante
