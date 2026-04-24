@@ -1,14 +1,14 @@
-// import "./style.css"; // Desactivado para producción (cargado vía <link> en HTML)
+import "./style.css";
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
-import { Sky } from "three/addons/objects/Sky.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
 // Detectar si estamos en local o producción para la API
@@ -31,7 +31,8 @@ let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const LATITUDE = 19.4326; // Ciudad de México
 const LONGITUDE = -99.1332;
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
+timer.update();
 
 // Posiciones de Control de Cámara
 let floatingLabel;
@@ -457,10 +458,10 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-      loadGLTF("japonutopia_capasrenovadas.glb"),
-      loadGLTF("tree_detailed_dark.glb"),
-      loadGLTF("tree_fat_darkh.glb"),
-      loadGLTF("tree_pineGroundA.glb"),
+      loadGLTF("/japonutopia_texturas.glb"),
+      loadGLTF("/tree_detailed_dark.glb"),
+      loadGLTF("/tree_fat_darkh.glb"),
+      loadGLTF("/tree_pineGroundA.glb"),
     ]);
 
     // Extraer mágicamente el material (hojas verdes) de los árboles
@@ -2394,18 +2395,14 @@ function animate() {
   updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
 
   // Pulsación suave y Vista Explosionada Sincronizada
-  const delta = clock.getDelta();
-  const elapsedTime = clock.getElapsedTime();
-
   if (model) {
-    // Actualizar factor de explosión global (Lerp dinámico)
-    const targetExp = isModelExploded ? 1.0 : 0.0;
-    explodeFactor += (targetExp - explodeFactor) * 0.08;
+    timer.update();
+    const time = timer.getElapsed();
 
     model.traverse((child) => {
       // 1. Resplandor pulsante
       if (child.isMesh && child.material.emissiveIntensity > 20.0) {
-        const pulse = 25.0 + Math.sin(elapsedTime * 3) * 3.0;
+        const pulse = 25.0 + Math.sin(time * 3) * 3.0;
         child.material.emissiveIntensity = pulse;
       }
 
@@ -2419,7 +2416,7 @@ function animate() {
     });
 
     // Actualizar nubes procedurales
-    if (clouds) clouds.material.uniforms.uTime.value = elapsedTime;
+    if (clouds) clouds.material.uniforms.uTime.value = time;
 
     // Actualizar lluvia si está activa
     if (rain && rain.material.opacity > 0) {
@@ -2432,7 +2429,9 @@ function animate() {
     }
   }
 
-  // (Cálculo manual de delta eliminado para usar el del reloj)
+  const currentTime = performance.now();
+  const delta = (currentTime - lastTime) / 1000;
+  lastTime = currentTime;
   
   updateWalkMode(delta);
 
