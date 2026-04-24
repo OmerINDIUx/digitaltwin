@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MI PASE DIGITAL | Digital Twin</title>
+    <title>MI PASE DIGITAL | Utopía Japón</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
@@ -15,8 +15,11 @@
     <div class="absolute -top-20 -right-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px]"></div>
     <div class="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px]"></div>
 
-    <div class="max-w-md w-full relative z-10">
-        
+        <div class="text-center mb-8">
+            <h1 class="text-indigo-400 font-black tracking-widest text-xs uppercase">Utopía Japón Experience</h1>
+            <p class="text-white text-3xl font-black mt-2 tracking-tight italic">Acceso <span class="text-indigo-500">Digital</span></p>
+        </div>
+
         <!-- PASE CARD (CLON DE LA IMAGEN) -->
         <div class="bg-white rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden mb-8">
             
@@ -25,7 +28,7 @@
                     @if($reservation->checked_in_at) 🔒 @else ✓ @endif
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] text-slate-300 font-black uppercase tracking-widest">Digital Twin</p>
+                    <p class="text-[10px] text-slate-300 font-black uppercase tracking-widest">Utopía Japón</p>
                     <p class="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Access Pass</p>
                 </div>
             </div>

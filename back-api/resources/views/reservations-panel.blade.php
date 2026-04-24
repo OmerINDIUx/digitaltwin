@@ -22,7 +22,7 @@
                 <nav class="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">
                     <span>Admin</span> <span>/</span> <span class="text-indigo-600">Explore</span>
                 </nav>
-                <h1 class="text-5xl font-extrabold text-slate-900 tracking-tight italic">Bienvenido al <span class="text-indigo-600">Complejo</span></h1>
+                <h1 class="text-5xl font-extrabold text-slate-900 tracking-tight italic">Bienvenido a <span class="text-indigo-600">Utopía Japón</span></h1>
                 <p class="text-slate-500 mt-2 text-lg">¿Qué área deseas utilizar hoy? Revisa disponibilidad en tiempo real.</p>
             </div>
             <div class="flex items-center gap-3">
