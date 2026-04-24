@@ -3401,8 +3401,91 @@ function initAssets() {
   });
 }
 
-// --- EXPORTACIÓN GLOBAL (Al final para evitar errores de referencia) ---
+// --- SINCRONIZACIÓN CON BASE DE DATOS (Laravel) ---
+async function syncDBCounts() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reservations/counts`);
+    const data = await response.json();
+    
+    if (data.counts) {
+      dbCounts = data.counts;
+      lastActiveReservations = data.reservations || [];
+      
+      // Actualizar estados de etiquetas (Abierto/Cerrado)
+      if (data.zone_statuses) {
+        updateSpatialLabelsStatus(data.zone_statuses);
+      }
+      
+      applyDBCountsToWorld();
+    }
+  } catch (error) {
+    console.error("❌ Error sincronizando con DB:", error);
+  }
+}
+
+function applyDBCountsToWorld() {
+  if (!model) return;
+  
+  // Limpiar personas previas
+  Object.values(peopleInstances).forEach(group => {
+    if (group) model.remove(group);
+  });
+
+  // Crear nuevas personas para cada área
+  Object.entries(dbCounts).forEach(([role, count]) => {
+    if (count > 0) {
+      peopleInstances[role] = spawnPeopleInRole(role, count);
+    }
+  });
+}
+
+function spawnPeopleInRole(role, count) {
+  const group = new THREE.Group();
+  const box = new THREE.Box3();
+  let found = false;
+
+  model.traverse((child) => {
+    if (child.isMesh && child.userData.role === role && !child.userData.isHitBox) {
+      box.expandByObject(child);
+      found = true;
+    }
+  });
+
+  if (!found) return null;
+
+  const min = box.min;
+  const max = box.max;
+  
+  // Geometría simplificada para las personas (Cápsulas de colores)
+  const colors = { gym: 0xff3300, pool: 0x22d3ee, canchas: 0xfbbf24 };
+  const personGeo = new THREE.CapsuleGeometry(1.5, 3, 4, 8);
+  const personMat = new THREE.MeshStandardMaterial({ color: colors[role] || 0xffffff });
+
+  for (let i = 0; i < count; i++) {
+    const person = new THREE.Mesh(personGeo, personMat);
+    
+    // Posicionamiento aleatorio dentro del área
+    person.position.x = min.x + Math.random() * (max.x - min.x);
+    person.position.z = min.z + Math.random() * (max.z - min.z);
+    person.position.y = min.y + 2;
+    
+    // Pequeña variación de escala
+    const s = 0.8 + Math.random() * 0.4;
+    person.scale.set(s, s, s);
+    
+    group.add(person);
+  }
+
+  model.add(group);
+  return group;
+}
+
+// Programar sincronización periódica (cada 60s)
+setInterval(syncDBCounts, 60000);
+
+// --- EXPORTACIÓN GLOBAL ---
 window.updateFocus = updateFocus;
 window.enterShowroom = enterShowroom;
 window.exitShowroom = exitShowroom;
 window.runSimulation = runSimulation;
+window.syncDBCounts = syncDBCounts;
