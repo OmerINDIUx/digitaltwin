@@ -1,4 +1,4 @@
-// import "./style.css"; // Desactivado para producción (cargado vía <link> en HTML)
+// import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -458,7 +458,11 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
+<<<<<<< HEAD
       loadGLTF("public/japonutopia_texturas.glb"),
+=======
+      loadGLTF("public/japonutopia_capasrenovadas.glb"),
+>>>>>>> a80ebca4ad6de43a18489601ab63593f73023bc1
       loadGLTF("public/tree_detailed_dark.glb"),
       loadGLTF("public/tree_fat_darkh.glb"),
       loadGLTF("public/tree_pineGroundA.glb"),
@@ -2397,10 +2401,13 @@ function animate() {
   // Pulsación suave y Vista Explosionada Sincronizada
   if (model) {
     const time = clock.getElapsedTime();
+<<<<<<< HEAD
 
     // Actualizar factor de explosión global (Lerp dinámico)
     const targetExp = isModelExploded ? 1.0 : 0.0;
     explodeFactor += (targetExp - explodeFactor) * 0.08;
+=======
+>>>>>>> a80ebca4ad6de43a18489601ab63593f73023bc1
 
     model.traverse((child) => {
       // 1. Resplandor pulsante
@@ -3187,7 +3194,6 @@ function initSensors() {
   };
 
   // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
-  // El terreno suele estar en Y=0 o cerca.
   const pos2 = new THREE.Vector3();
   const pos3 = new THREE.Vector3();
   let has2 = false;
@@ -3407,8 +3413,9 @@ function initAssets() {
   });
 }
 
-// --- EXPORTACIÓN GLOBAL (Al final para evitar errores de referencia) ---
+// --- EXPORTACIÓN GLOBAL ---
 window.updateFocus = updateFocus;
 window.enterShowroom = enterShowroom;
 window.exitShowroom = exitShowroom;
 window.runSimulation = runSimulation;
+window.syncDBCounts = syncDBCounts;

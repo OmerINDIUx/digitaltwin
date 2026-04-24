@@ -1,0 +1,8 @@
+AddType model/gltf-binary .glb
+AddType model/gltf+json .gltf
+AddType image/vnd.microsoft.icon .ico
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Si necesitas redirecciones adicionales, se pueden poner aquí
+</IfModule>
