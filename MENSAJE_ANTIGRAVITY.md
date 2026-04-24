@@ -1,12 +1,13 @@
-# Éxito en la subida
+# PRUEBA DEFINITIVA DE CONEXIÓN
 
-Hola, parece que tienes un problema visual en el chat y no puedes leer mis respuestas.
+He creado un archivo llamado `prueba_conexion.html` en tu computadora.
 
-**Lo que sucedió:**
-Los comandos de `scp` funcionaron perfectamente. Tu proyecto ya debería estar disponible en el servidor en la carpeta `public_html/digitaltwin/`.
+### 1. Súbelo con este comando:
+`scp -P 65002 prueba_conexion.html u776699452@195.35.10.75:~/public_html/digitaltwin/`
 
-**Estado actual:**
-- `index.html` subido.
-- Carpeta `assets/` subida.
+---
+### 2. Visita esta URL:
+`https://digitaltwin.xn--diseoygestion-lkb.com/prueba_conexion.html`
 
-Si necesitas ayuda con algo más y el chat sigue fallando, puedes escribirme aquí mismo en este archivo y lo leeré.
+*   **Si ves "CONEXIÓN EXITOSA":** ¡Estamos en el lugar correcto! El problema es tu navegador (Caché).
+*   **Si ves un 404:** El dominio apunta a otra carpeta. Avísame y lo buscamos.
