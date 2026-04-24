@@ -1,4 +1,4 @@
-import "./style.css";
+﻿// import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -10,31 +10,30 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
 import { Sky } from "three/addons/objects/Sky.js";
 
-// --- CONFIGURACIÓN GLOBAL ---
-// Detectar si estamos en local o producción para la API
+// --- CONFIGURACI├ôN GLOBAL ---
+// Detectar si estamos en local o producci├│n para la API
 const isLocal =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1";
 
-// Ahora detectamos si estamos en una subcarpeta (PRODUCCIÓN) automáticamente
+// Ahora detectamos si estamos en una subcarpeta (PRODUCCI├ôN) autom├íticamente
 const API_BASE_URL = isLocal
   ? "http://localhost:8000"
   : `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, "")}/back-api/public`;
 
 // NOTA: Si usas un subdominio separado (ej: api.tudominio.com),
-// cambia la línea de arriba por: 'https://api.tudominio.com'
+// cambia la l├¡nea de arriba por: 'https://api.tudominio.com'
 
 let model;
 let rain;
 let clouds;
 let currentWeatherType = "normal";
-let weatherSyncEnabled = true; // Permite alternar la sincronización real
-const LATITUDE = 19.4326; // Ciudad de México
+let weatherSyncEnabled = true; // Permite alternar la sincronizaci├│n real
+const LATITUDE = 19.4326; // Ciudad de M├®xico
 const LONGITUDE = -99.1332;
 const clock = new THREE.Clock();
 
-
-// Posiciones de Control de Cámara
+// Posiciones de Control de C├ímara
 let floatingLabel;
 const cameraTargetPos = new THREE.Vector3();
 const controlsTargetPos = new THREE.Vector3();
@@ -42,7 +41,7 @@ const overviewCameraPos = new THREE.Vector3(525, -67.5, 525);
 const overviewCameraTarget = new THREE.Vector3(0, -30, 0);
 let isCameraMoving = false;
 let explodeFactor = 0; // Control global de la vista explosionada
-let isPanoActive = false; // Control del giro panorámico
+let isPanoActive = false; // Control del giro panor├ímico
 let panoAngle = 0;
 const feedLimit = 5;
 
@@ -65,7 +64,7 @@ const peopleGeometry = new THREE.CapsuleGeometry(2.5, 6.0, 4, 8); // Gigante Dig
 const peopleMaterial = new THREE.MeshStandardMaterial({
   color: 0x22d3ee,
   emissive: 0x22d3ee,
-  emissiveIntensity: 4.0, // Brillo neón intenso
+  emissiveIntensity: 4.0, // Brillo ne├│n intenso
   transparent: true,
   opacity: 1.0,
   metalness: 0,
@@ -79,7 +78,7 @@ const peopleStates = {
   canchas: [],
 };
 
-// Detección de Arrastre para evitar Auto-Reset al Navegar
+// Detecci├│n de Arrastre para evitar Auto-Reset al Navegar
 let clickStartTime = 0;
 let clickStartX = 0;
 let clickStartY = 0;
@@ -104,7 +103,7 @@ const expectedPeople = document.getElementById("expected-people");
 const areaStatus = document.getElementById("area-status");
 const closeCardBtn = document.getElementById("close-card");
 
-// Variables para el giro de cámara manual (Showroom)
+// Variables para el giro de c├ímara manual (Showroom)
 let yaw = 0;
 let pitch = 0;
 const mouseSensitivity = 0.002;
@@ -115,33 +114,33 @@ const digitalTwinData = {
     expected: "50 hoy",
     status: "Operativo",
     statusClass: "status-good",
-    temp: "22.5°C",
+    temp: "22.5┬░C",
     hum: "45%",
-    maint: "Próximo: 12 Abr",
+    maint: "Pr├│ximo: 12 Abr",
     hours: "06:00 - 22:00",
     trend: [40, 60, 85, 70, 50, 30],
   },
   pool: {
-    title: "Centro Acuático",
+    title: "Centro Acu├ítico",
     current: null,
     expected: "30 hoy",
     status: "Limpieza en curso",
     statusClass: "status-warning",
-    temp: "28.0°C",
+    temp: "28.0┬░C",
     hum: "85%",
     maint: "En progreso",
     hours: "07:00 - 21:00",
     trend: [20, 30, 45, 90, 80, 60],
   },
   canchas: {
-    title: "Área de Canchas",
+    title: "├ürea de Canchas",
     current: null,
     expected: "20 hoy",
     status: "Activo",
     statusClass: "status-good",
-    temp: "31.2°C",
+    temp: "31.2┬░C",
     hum: "40%",
-    maint: "Próximo: 05 May",
+    maint: "Pr├│ximo: 05 May",
     hours: "08:00 - 23:00",
     trend: [30, 50, 60, 95, 80, 70],
   },
@@ -155,7 +154,7 @@ const digitalTwinData = {
     hours: 1420,
     nextService: "15 May 2026",
     vibration: "0.2 mm/s",
-    temp: "42°C",
+    temp: "42┬░C",
   },
   "asset-gym-1": {
     isAsset: true,
@@ -164,52 +163,52 @@ const digitalTwinData = {
     status: "Mantenimiento Req.",
     health: 65,
     hours: 8500,
-    nextService: "¡INMEDIATO!",
+    nextService: "┬íINMEDIATO!",
     vibration: "1.5 mm/s",
-    temp: "31°C",
+    temp: "31┬░C",
   },
   "asset-light-1": {
     isAsset: true,
-    title: "Control Lumínico Norte",
+    title: "Control Lum├¡nico Norte",
     parentZone: "canchas",
     status: "Operativo",
     health: 100,
     hours: 320,
     nextService: "Oct 2026",
     vibration: "N/A",
-    temp: "24°C",
+    temp: "24┬░C",
   },
   sensor1: {
-    title: "Módulo IoT 01 - Bosque",
+    title: "M├│dulo IoT 01 - Bosque",
     isSensor: true,
     sensorType: "lidar",
     bat: "92%",
     specialLabel: "HUM. SUELO",
     specialVal: "48.2%",
-    temp: "21.2°C",
+    temp: "21.2┬░C",
     hum: "65%",
-    status: "Transmisión LoRaWAN",
+    status: "Transmisi├│n LoRaWAN",
     statusClass: "status-good",
     diag1_label: "TIPO DE SUELO",
     diag1_val: "Arcilloso / Suelo 01",
-    diag2_label: "ÍNDICE FOTOSÍNTESIS",
-    diag2_val: "98.2% (Óptimo)",
+    diag2_label: "├ìNDICE FOTOS├ìNTESIS",
+    diag2_val: "98.2% (├ôptimo)",
     diag3_label: "RIESGO DE INCENDIO",
     diag3_val: "Bajo (5%)",
     diag_bar: 5,
   },
   sensor2: {
-    title: "Módulo IoT 02 - Canchas",
+    title: "M├│dulo IoT 02 - Canchas",
     isSensor: true,
     sensorType: "lidar",
     bat: "85%",
     specialLabel: "SONIDO (dB)",
     specialVal: "72.4 dB",
-    temp: "32.5°C",
+    temp: "32.5┬░C",
     hum: "38%",
     status: "Malla Zigbee v3",
     statusClass: "status-good",
-    diag1_label: "VIBRACIÓN DE IMPACTO",
+    diag1_label: "VIBRACI├ôN DE IMPACTO",
     diag1_val: "Detectado (Red Activa)",
     diag2_label: "FRECUENCIA PICO",
     diag2_val: "440Hz / Peak",
@@ -218,22 +217,22 @@ const digitalTwinData = {
     diag_bar: 72,
   },
   sensor3: {
-    title: "Módulo IoT 03 - Alberca",
+    title: "M├│dulo IoT 03 - Alberca",
     isSensor: true,
     sensorType: "uv",
     bat: "100%",
     specialLabel: "RAD. UV-EXT",
     specialVal: "9.2 Index",
-    temp: "27.8°C",
+    temp: "27.8┬░C",
     hum: "82%",
     status: "Canal 15 (MQTT)",
     statusClass: "status-good",
     diag1_label: "TRASLUCIDEZ AGUA",
-    diag1_val: "94% (Óptimo)",
-    diag2_label: "pH QUÍMICO / Cl",
+    diag1_val: "94% (├ôptimo)",
+    diag2_label: "pH QU├ìMICO / Cl",
     diag2_val: "pH: 7.2 | Cl: 1.5ppm",
-    diag3_label: "EXPOSICIÓN UV",
-    diag3_val: "Crítico (92%)",
+    diag3_label: "EXPOSICI├ôN UV",
+    diag3_val: "Cr├¡tico (92%)",
     diag_bar: 92,
   },
 };
@@ -252,7 +251,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimizado
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.8; // Restauramos exposición original
+renderer.toneMappingExposure = 0.8; // Restauramos exposici├│n original
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
@@ -264,20 +263,20 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  100000, // <--- Incrementado a 100,000 para que jamás recorte nuestro cielo gigante
+  100000, // <--- Incrementado a 100,000 para que jam├ís recorte nuestro cielo gigante
 );
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.1; // Más ágil (anterior 0.05)
-controls.rotateSpeed = 1.2; // Rotación más rápida
-controls.zoomSpeed = 1.5; // Zoom más potente
-controls.maxDistance = 5000; // Más espacio para alejarse
+controls.dampingFactor = 0.1; // M├ís ├ígil (anterior 0.05)
+controls.rotateSpeed = 1.2; // Rotaci├│n m├ís r├ípida
+controls.zoomSpeed = 1.5; // Zoom m├ís potente
+controls.maxDistance = 5000; // M├ís espacio para alejarse
 controls.minDistance = 30; // Poder entrar hasta el detalle
-// Restringimos la cámara para que nunca baje del horizonte y se vea el abismo
+// Restringimos la c├ímara para que nunca baje del horizonte y se vea el abismo
 controls.maxPolarAngle = Math.PI / 2.05;
 
-// Iluminación
+// Iluminaci├│n
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
@@ -296,7 +295,7 @@ gridHelper.material.transparent = true;
 gridHelper.material.opacity = 0.2;
 scene.add(gridHelper);
 
-// --- ANILLO DE SELECCIÓN (ELIMINADO SEGÚN SOLICITUD DEL USUARIO) ---
+// --- ANILLO DE SELECCI├ôN (ELIMINADO SEG├ÜN SOLICITUD DEL USUARIO) ---
 
 // --- ETIQUETA FLOTANTE (HTML Overlay) ---
 floatingLabel = document.createElement("div");
@@ -306,7 +305,7 @@ floatingLabel.innerHTML = `
                 <span id="label-name" class="label-title">Cargando...</span>
             </div>
             <div class="slider-container">
-                <!-- min=-1440 (ayer) | 0 = AHORA | max=+1440 (mañana) -->
+                <!-- min=-1440 (ayer) | 0 = AHORA | max=+1440 (ma├▒ana) -->
                 <input type="range" id="history-slider" min="-1440" max="1440" value="0" step="15" class="cyber-slider">
             </div>
   `;
@@ -314,7 +313,7 @@ document.body.appendChild(floatingLabel);
 
 // --- CIELO PROCEDURAL 360 ---
 const sky = new Sky();
-// Esfera super gigante para que el espacio jamás se acabe usando el estandar de Three.js (escalar en vez de cambiar geometría)
+// Esfera super gigante para que el espacio jam├ís se acabe usando el estandar de Three.js (escalar en vez de cambiar geometr├¡a)
 sky.scale.setScalar(90000);
 sky.position.y = 0; // Centramos todo
 
@@ -329,7 +328,7 @@ sky.material.onBeforeCompile = (shader) => {
 };
 scene.add(sky);
 
-// --- SISTEMA DE NUBES CINEMÁTICAS ---
+// --- SISTEMA DE NUBES CINEM├üTICAS ---
 const cloudGeometry = new THREE.SphereGeometry(75000, 64, 64);
 const cloudMaterial = new THREE.ShaderMaterial({
   transparent: true,
@@ -380,7 +379,7 @@ const cloudMaterial = new THREE.ShaderMaterial({
 
     void main() {
       vec3 direction = normalize(vWorldPosition);
-      // Bajamos el gradiente de aparición para que las nubes se vean "en el horizonte" y no solo en el techo
+      // Bajamos el gradiente de aparici├│n para que las nubes se vean "en el horizonte" y no solo en el techo
       float horizonFade = smoothstep(-0.1, 0.1, direction.y);
       if (horizonFade <= 0.0) discard;
 
@@ -388,7 +387,7 @@ const cloudMaterial = new THREE.ShaderMaterial({
       skyUV += uTime * 0.015;
 
       float n = fbm(skyUV);
-      // Nubes más pobladas y con más presencia
+      // Nubes m├ís pobladas y con m├ís presencia
       float cloudMask = smoothstep(0.35, 0.6, n);
       
       float sunLight = max(0.0, dot(direction, normalize(uSunPos)));
@@ -403,7 +402,7 @@ scene.add(clouds);
 
 const sun = new THREE.Vector3();
 const skyUniforms = sky.material.uniforms;
-skyUniforms["turbidity"].value = 2.5; // Aire más claro
+skyUniforms["turbidity"].value = 2.5; // Aire m├ís claro
 skyUniforms["rayleigh"].value = 1.2; // Cielo azul brillante y natural
 skyUniforms["mieCoefficient"].value = 0.005;
 skyUniforms["mieDirectionalG"].value = 0.8;
@@ -412,7 +411,7 @@ const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
 function updateSun() {
   const elevation = 15; // Sol bajo en el horizonte para verlo bien desde el nivel de piso
-  const azimuth = 45; // Giramos el sol para que esté frente a la cámara inicial (que está en X+, Z+)
+  const azimuth = 45; // Giramos el sol para que est├® frente a la c├ímara inicial (que est├í en X+, Z+)
 
   const phi = THREE.MathUtils.degToRad(90 - elevation);
   const theta = THREE.MathUtils.degToRad(azimuth);
@@ -421,7 +420,7 @@ function updateSun() {
   sky.material.uniforms["sunPosition"].value.copy(sun);
   clouds.material.uniforms.uSunPos.value.copy(sun);
 
-  // Mantenemos la luz direccional en una posición alta y lejana para iluminar la maqueta colosal
+  // Mantenemos la luz direccional en una posici├│n alta y lejana para iluminar la maqueta colosal
   dirLight.position.set(1000, 2000, 500);
 
   if (scene.environment) {
@@ -431,7 +430,7 @@ function updateSun() {
 }
 updateSun();
 
-// Helpers eliminados para un look más limpio (daylight)
+// Helpers eliminados para un look m├ís limpio (daylight)
 
 const renderScene = new RenderPass(scene, camera);
 // Eliminamos el Composer si no hay efectos activos para ganar FPS directos
@@ -458,17 +457,17 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-      loadGLTF("public/japonutopia_texturas.glb"),
+      loadGLTF("public/japonutopia_capasrenovadas.glb"),
       loadGLTF("public/tree_detailed_dark.glb"),
       loadGLTF("public/tree_fat_darkh.glb"),
       loadGLTF("public/tree_pineGroundA.glb"),
     ]);
 
-    // Extraer mágicamente el material (hojas verdes) de los árboles
+    // Extraer m├ígicamente el material (hojas verdes) de los ├írboles
     let treeGrassMaterial = null;
     const checkMat = (m) => {
       if (treeGrassMaterial) return;
-      // Si tiene más verde que rojo (con margen), asumimos que es el pasto/hojas
+      // Si tiene m├ís verde que rojo (con margen), asumimos que es el pasto/hojas
       if (m.color && m.color.g > m.color.r * 1.1) {
         treeGrassMaterial = m.clone();
       }
@@ -481,7 +480,7 @@ const initModels = async () => {
       }
     });
 
-    // Fallback: tomar el primer material que aparezca en el árbol si todo falla
+    // Fallback: tomar el primer material que aparezca en el ├írbol si todo falla
     if (!treeGrassMaterial) {
       tree1.scene.traverse((c) => {
         if (c.isMesh && !treeGrassMaterial) {
@@ -494,7 +493,7 @@ const initModels = async () => {
 
     model = mainGltf.scene;
 
-    // 1. Escalar primero (para que la caja de colisión sea del tamaño real final)
+    // 1. Escalar primero (para que la caja de colisi├│n sea del tama├▒o real final)
     const targetSize = 1500;
     const initialBox = new THREE.Box3().setFromObject(model);
     const initialSize = initialBox.getSize(new THREE.Vector3());
@@ -502,7 +501,7 @@ const initModels = async () => {
     const scaleFactor = targetSize / (maxDim || 1);
     model.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-    // 2. Calcular la nueva caja de colisión ya escalada
+    // 2. Calcular la nueva caja de colisi├│n ya escalada
     model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
@@ -512,7 +511,7 @@ const initModels = async () => {
     model.position.z -= center.z;
     model.position.y -= box.min.y;
 
-    // ACTUALIZACIÓN CRÍTICA: Forzar que todas las posiciones de los hijos se recalculen tras mover el modelo
+    // ACTUALIZACI├ôN CR├ìTICA: Forzar que todas las posiciones de los hijos se recalculen tras mover el modelo
     model.updateMatrixWorld(true);
 
     // Bajar ligeramente el terreno y canchas para evitar interferencia (z-fighting) con TODOS los edificios
@@ -531,11 +530,11 @@ const initModels = async () => {
       }
     });
 
-    // Preparar nodos arquitectónicos para la Vista Explosionada interactiva
+    // Preparar nodos arquitect├│nicos para la Vista Explosionada interactiva
     model.traverse((child) => {
       const name = (child.name || "").toLowerCase().trim();
 
-      // Buscamos el nombre del padre, del abuelo, etc., hasta encontrar una categoría principal y capturar nombres intermedios
+      // Buscamos el nombre del padre, del abuelo, etc., hasta encontrar una categor├¡a principal y capturar nombres intermedios
       let category = "";
       let fullPathName = ""; // Acumulamos nombres para detectar materiales
       let current = child;
@@ -575,16 +574,16 @@ const initModels = async () => {
           cName.includes("roof")
         ) {
           if (!category) category = "estructura";
-          // NO hacemos break aquí para permitir encontrar el padre
+          // NO hacemos break aqu├¡ para permitir encontrar el padre
         }
 
         current = current.parent;
       }
 
-      // Si ya tiene una configuración, no hacemos nada
+      // Si ya tiene una configuraci├│n, no hacemos nada
       if (child.userData.explodeConfigured) return;
 
-      // --- APLICACIÓN POR CATEGORÍA ESTRICTA ---
+      // --- APLICACI├ôN POR CATEGOR├ìA ESTRICTA ---
 
       // 1. ESTRUCTURA (Techo y Esqueleto) -> Sube 40
       if (category === "estructura") {
@@ -596,7 +595,7 @@ const initModels = async () => {
       else if (category === "gym") {
         child.userData.explodeOffset = 20;
       }
-      // 3. ALBERCA, CANCHAS, ADMINISTRACIÓN Y TERRENO -> Se quedan en 0
+      // 3. ALBERCA, CANCHAS, ADMINISTRACI├ôN Y TERRENO -> Se quedan en 0
       else if (
         category === "pool" ||
         category === "canchas" ||
@@ -616,7 +615,7 @@ const initModels = async () => {
 
     // Clasificar capas y respaldar materiales mediante herencia (cascade)
     model.traverse((child) => {
-      // Obtener todos los nombres en la jerarquía hacia arriba para una detección robusta
+      // Obtener todos los nombres en la jerarqu├¡a hacia arriba para una detecci├│n robusta
       let fullName = "";
       let p = child;
       while (p) {
@@ -624,7 +623,7 @@ const initModels = async () => {
         p = p.parent;
       }
 
-      // Asignación de roles basada en el nombre completo (jerarquía)
+      // Asignaci├│n de roles basada en el nombre completo (jerarqu├¡a)
       // Prioridad 1: Techumbre (para permitir vista de rayos X)
       if (
         fullName.includes("techo") ||
@@ -636,7 +635,7 @@ const initModels = async () => {
         child.userData.role = "roof";
         child.userData.highlightColor = new THREE.Color(0x64748b);
       }
-      // Prioridad 2: Zonas de interés
+      // Prioridad 2: Zonas de inter├®s
       else if (fullName.includes("gym") || fullName.includes("gimnasio")) {
         child.userData.role = "gym";
         child.userData.highlightColor = new THREE.Color(0x3b82f6);
@@ -662,8 +661,8 @@ const initModels = async () => {
         fullName.includes("voley") ||
         fullName.includes("voleibol")
       ) {
-        // FILTRO DE SEGURIDAD: Solo aceptar si la malla está pegada al suelo (evita basura flotante del GLB)
-        // Usamos la posición local relativa al modelo centrado
+        // FILTRO DE SEGURIDAD: Solo aceptar si la malla est├í pegada al suelo (evita basura flotante del GLB)
+        // Usamos la posici├│n local relativa al modelo centrado
         if (Math.abs(child.position.y) < 10) { 
            child.userData.role = "canchas";
            child.userData.highlightColor = new THREE.Color(0xfbbf24);
@@ -698,7 +697,7 @@ const initModels = async () => {
         // Si es el terreno y queremos usar el material del bosque (opcional), 
         // pero por ahora priorizamos las texturas del nuevo modelo.
         if (isGrass && treeGrassMaterial) {
-          // Si prefieres la textura del GLB, comenta estas líneas:
+          // Si prefieres la textura del GLB, comenta estas l├¡neas:
           // originalMat = treeGrassMaterial.clone();
         }
 
@@ -730,7 +729,7 @@ const initModels = async () => {
 
         if (!child.userData.role) child.userData.role = "structure";
 
-        // Ajustar colores de highlight finales según rol asignado
+        // Ajustar colores de highlight finales seg├║n rol asignado
         if (child.userData.role === "gym")
           child.userData.highlightColor = new THREE.Color(0xf43f5e);
         else if (child.userData.role === "pool")
@@ -742,14 +741,14 @@ const initModels = async () => {
       }
     });
 
-    // --- CREACIÓN DE HITBOX INVISIBLE PARA LAS CANCHAS ---
+    // --- CREACI├ôN DE HITBOX INVISIBLE PARA LAS CANCHAS ---
     const canchaBox = new THREE.Box3();
     let bestCanchaMesh = null;
     let maxVertices = -1;
 
     model.traverse((c) => {
       if (c.isMesh && c.userData.role === "canchas") {
-        // Encontrar la malla real (la que tiene más geometría) ignorando basura del GLB
+        // Encontrar la malla real (la que tiene m├ís geometr├¡a) ignorando basura del GLB
         const vertexCount = c.geometry.attributes.position.count;
         if (vertexCount > maxVertices) {
            maxVertices = vertexCount;
@@ -765,7 +764,7 @@ const initModels = async () => {
       canchaBox.getSize(size);
       canchaBox.getCenter(center);
 
-      // Creamos un cubo invisible un poco más alto para facilitar el clic
+      // Creamos un cubo invisible un poco m├ís alto para facilitar el clic
       const hitBoxGeo = new THREE.BoxGeometry(size.x, size.y + 10, size.z);
       const hitBoxMat = new THREE.MeshBasicMaterial({ 
         visible: false, // Invisible pero detectable por Raycaster
@@ -786,7 +785,7 @@ const initModels = async () => {
     // Generar bosque usando InstancedMesh sobre Terrenos
     model.updateMatrixWorld(true);
 
-    // Zonas prohibidas para los árboles
+    // Zonas prohibidas para los ├írboles
     const forbiddenBoxes = [];
     model.traverse((child) => {
       const name = child.name ? child.name.toLowerCase() : "";
@@ -844,7 +843,7 @@ const initModels = async () => {
         new MeshSurfaceSampler(tm).build(),
       );
       const trees = [tree1, tree2, tree3];
-      const numTreesPerType = 300; // Total 900 árboles
+      const numTreesPerType = 300; // Total 900 ├írboles
 
       trees.forEach((treeGltf, treeIdx) => {
         const treeMeshes = [];
@@ -854,7 +853,7 @@ const initModels = async () => {
 
         const instancedMeshes = treeMeshes.map((tm) => {
           const mat = tm.material.clone();
-          mat.transparent = false; // Árboles opacos por defecto
+          mat.transparent = false; // ├ürboles opacos por defecto
           const im = new THREE.InstancedMesh(tm.geometry, mat, numTreesPerType);
 
           im.userData.role = "structure";
@@ -893,7 +892,7 @@ const initModels = async () => {
 
             if (!inForbidden) {
               validPos = true;
-              break; // Encontramos piso vacío y seguro
+              break; // Encontramos piso vac├¡o y seguro
             }
           }
 
@@ -902,13 +901,13 @@ const initModels = async () => {
           dummy.rotation.y = Math.random() * Math.PI * 2;
 
           if (!validPos) {
-            // Si estaba demasiado atascado y no cabía ni tras 30 intentos, abortamos la semilla (lo hacemos invisible)
+            // Si estaba demasiado atascado y no cab├¡a ni tras 30 intentos, abortamos la semilla (lo hacemos invisible)
             dummy.scale.set(0, 0, 0);
           } else {
-            // Escalar a un tamaño base de 6.0
+            // Escalar a un tama├▒o base de 6.0
             let s = (Math.random() * 0.5 + 0.8) * 6.0;
 
-            // Aumentar los pinos (tree_pineGroundA = índice 2) un 70% más
+            // Aumentar los pinos (tree_pineGroundA = ├¡ndice 2) un 70% m├ís
             if (treeIdx === 2) {
               s *= 1.7;
             }
@@ -929,7 +928,7 @@ const initModels = async () => {
       });
     }
 
-    // Configurar cámara (Vista peatonal extrema al ras del suelo para que el cielo sea el protagonista)
+    // Configurar c├ímara (Vista peatonal extrema al ras del suelo para que el cielo sea el protagonista)
     camera.position.set(
       targetSize * 0.35,
       targetSize * -0.045,
@@ -945,7 +944,7 @@ const initModels = async () => {
     updateDashboardData(); // NUEVO: Sincronizar UI al arrancar
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
-    console.error("❌ Loader Error:", error);
+    console.error("ÔØî Loader Error:", error);
     const loaderText = document.querySelector(".loader-text");
     if (loaderText) loaderText.innerText = "Error cargando los modelos";
   }
@@ -953,7 +952,7 @@ const initModels = async () => {
 
 initModels();
 
-// --- LÓGICA DE INTERFAZ MÓVIL (TOGGLE SIDEBAR) ---
+// --- L├ôGICA DE INTERFAZ M├ôVIL (TOGGLE SIDEBAR) ---
 function initMobileToggles() {
   const btnMenu = document.getElementById("mobile-menu-toggle");
   const sidebar = document.querySelector(".sidebar");
@@ -972,7 +971,7 @@ function initMobileToggles() {
   if (btnMenu) btnMenu.addEventListener("click", toggleSidebar);
   if (btnCapas) btnCapas.addEventListener("click", toggleSidebar);
 
-  // Cerrar al hacer clic fuera del sidebar en móvil
+  // Cerrar al hacer clic fuera del sidebar en m├│vil
   document.addEventListener("click", (e) => {
     if (
       window.innerWidth < 500 &&
@@ -1011,7 +1010,7 @@ function updateFocus(mode) {
       : [child.material];
 
     materials.forEach((mat) => {
-      // SIEMPRE restaurar propiedades básicas primero
+      // SIEMPRE restaurar propiedades b├ísicas primero
       mat.wireframe = false;
 
       if (mode === "all" || mode === "completo" || !mode) {
@@ -1038,10 +1037,10 @@ function updateFocus(mode) {
           child.visible = true;
           mat.emissive.setHex(0x000000);
         } else if (isSelected) {
-          // RESALTADO ACTIVO: Mantenemos la textura pero añadimos un brillo (glow)
+          // RESALTADO ACTIVO: Mantenemos la textura pero a├▒adimos un brillo (glow)
           if (originalMaterial) mat.color.copy(originalMaterial.color);
           mat.emissive.copy(child.userData.highlightColor);
-          mat.emissiveIntensity = 1.2; // Brillo neón elegante sobre la textura
+          mat.emissiveIntensity = 1.2; // Brillo ne├│n elegante sobre la textura
           mat.opacity = 1.0;
           mat.transparent = false;
           child.visible = true;
@@ -1058,7 +1057,7 @@ function updateFocus(mode) {
   });
 
   if (mode === "all" || mode === "completo" || !mode) {
-    // Ya NO reseteamos la cámara al overview por defecto (libertad total de navegación)
+    // Ya NO reseteamos la c├ímara al overview por defecto (libertad total de navegaci├│n)
     isCameraMoving = false;
 
     // Ocultar elementos de UI espacial si se desea limpiar la vista
@@ -1068,11 +1067,11 @@ function updateFocus(mode) {
     focusCameraOnRole(mode);
   }
 
-  // Después de actualizar el foco, refrescamos los heatmaps globales
+  // Despu├®s de actualizar el foco, refrescamos los heatmaps globales
   refreshHeatmaps();
 }
 
-// --- SISTEMA DE HEATMAPS (OCUPACIÓN VISUAL) ---
+// --- SISTEMA DE HEATMAPS (OCUPACI├ôN VISUAL) ---
 function refreshHeatmaps() {
   if (!model) return;
 
@@ -1101,9 +1100,9 @@ function refreshHeatmaps() {
             heatColor.lerpColors(new THREE.Color(0xeab308), new THREE.Color(0xef4444), (ratio - 0.5) * 2);
           }
 
-          // Aplicamos una emisión suave que represente el calor de ocupación
+          // Aplicamos una emisi├│n suave que represente el calor de ocupaci├│n
           mat.emissive.copy(heatColor);
-          mat.emissiveIntensity = 0.3 + ratio * 0.7; // Más brillante si hay más gente
+          mat.emissiveIntensity = 0.3 + ratio * 0.7; // M├ís brillante si hay m├ís gente
         }
       }
     }
@@ -1141,18 +1140,18 @@ function enterShowroom(role) {
   const finalTarget = floorMesh || targetObj;
 
   if (!finalTarget) {
-    addFeedItem("⚠️ No se encontró el área para el Showroom", "warning");
+    addFeedItem("ÔÜá´©Å No se encontr├│ el ├írea para el Showroom", "warning");
     return;
   }
 
-  addFeedItem(`🛰️ Teletransportando a zona ${role.toUpperCase()}...`, "info");
+  addFeedItem(`­ƒø░´©Å Teletransportando a zona ${role.toUpperCase()}...`, "info");
   
   const box = new THREE.Box3().setFromObject(finalTarget);
   const floorLevel = box.min.y;
   const center = new THREE.Vector3();
   box.getCenter(center);
   
-  // Posición de inicio despejada
+  // Posici├│n de inicio despejada
   const startPos = { 
     x: center.x + 2, 
     y: floorLevel + 1.7, 
@@ -1173,7 +1172,7 @@ function enterShowroom(role) {
     onComplete: () => {
         isWalkMode = true;
         
-        // Reset absoluto de rotación para evitar mirar al piso
+        // Reset absoluto de rotaci├│n para evitar mirar al piso
         pitch = 0;
         yaw = Math.atan2(center.x - startPos.x, center.z - startPos.z);
         
@@ -1184,7 +1183,7 @@ function enterShowroom(role) {
         document.querySelector('.zone-navigation-dock').classList.add('hidden');
         
         renderer.domElement.requestPointerLock();
-        addFeedItem("🎮 MODO SHOWROOM: Mouse para mirar, WASD para caminar", "success");
+        addFeedItem("­ƒÄ« MODO SHOWROOM: Mouse para mirar, WASD para caminar", "success");
     }
   });
 }
@@ -1255,7 +1254,7 @@ function focusCameraOnRole(role) {
 
     const maxDim = Math.max(size.x, size.y, size.z);
 
-    // --- MEJORA DE POSICIÓN PREMIUM DE CÁMARA ---
+    // --- MEJORA DE POSICI├ôN PREMIUM DE C├üMARA ---
     let cameraOffset = 1.35;
     let yFactor = 0.7;
     let lookAtOffset = new THREE.Vector3(0, 5, 0);
@@ -1282,7 +1281,7 @@ function focusCameraOnRole(role) {
       .add(new THREE.Vector3(finalDist, finalDist * yFactor, finalDist));
     controlsTargetPos.copy(center).add(lookAtOffset);
 
-    // --- ANILLO DE SELECCIÓN ELIMINADO ---
+    // --- ANILLO DE SELECCI├ôN ELIMINADO ---
 
     // Actualizar Etiqueta Flotante
     if (floatingLabel) {
@@ -1320,7 +1319,7 @@ function initLayoutControls() {
     });
   });
 
-  // --- CONTROLES DE CÁMARA (PRESETS) ---
+  // --- CONTROLES DE C├üMARA (PRESETS) ---
   const camBtns = document.querySelectorAll(".cam-preset");
   camBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1343,7 +1342,7 @@ function initLayoutControls() {
         isPanoActive = !isPanoActive;
         if (isPanoActive) {
           btn.classList.add("active");
-          addFeedItem("Iniciando rotación panorámica de inspección", "success");
+          addFeedItem("Iniciando rotaci├│n panor├ímica de inspecci├│n", "success");
         } else {
           btn.classList.remove("active");
         }
@@ -1351,7 +1350,7 @@ function initLayoutControls() {
     });
   });
 
-  // --- LÓGICA DEL NUEVO DASHBOARD MAESTRO ---
+  // --- L├ôGICA DEL NUEVO DASHBOARD MAESTRO ---
   const btnDash = document.getElementById("btn-dashboard");
   const dashOverlay = document.getElementById("extended-dashboard");
   const closeDash = document.getElementById("close-dashboard");
@@ -1366,7 +1365,7 @@ function initLayoutControls() {
     btnDash.addEventListener("click", () => {
       dashOverlay.classList.remove("hidden");
       updateDashboardData();
-      loadReservationsFromDB(); // <--- SINCRONIZACIÓN CON MYSQL
+      loadReservationsFromDB(); // <--- SINCRONIZACI├ôN CON MYSQL
       addFeedItem("Abriendo Dashboard de Control Maestro", "info");
     });
 
@@ -1415,7 +1414,7 @@ function initLayoutControls() {
           .then((res) => res.json())
           .then((result) => {
             if (result.status === "success") {
-              addFeedItem(`¡Éxito! ${result.message}`, "success");
+              addFeedItem(`┬í├ëxito! ${result.message}`, "success");
               resModal.classList.remove("active");
               resForm.reset();
               loadReservationsFromDB(); // Recargar historial
@@ -1425,64 +1424,12 @@ function initLayoutControls() {
           })
           .catch((err) => {
             console.error("Save Error:", err);
-            addFeedItem("Error de conexión con el Backend Laravel", "danger");
+            addFeedItem("Error de conexi├│n con el Backend Laravel", "danger");
           });
       });
     }
   }
 }
-
-// --- NUEVAS FUNCIONES DE CONTROL DE PANELES (RESTAURADAS) ---
-function openPanel(panelId) {
-  closeAllPanels();
-  
-  if (panelId === 'dashboard') {
-    const dash = document.getElementById("extended-dashboard");
-    if (dash) {
-      dash.classList.remove("hidden");
-      updateDashboardData();
-      loadReservationsFromDB();
-      addFeedItem("Abriendo Dashboard de Control Maestro", "info");
-    }
-  } else if (panelId === 'history') {
-    const history = document.getElementById("history-panel");
-    const btnHist = document.getElementById("btn-history");
-    if (history) {
-      history.classList.remove("hidden");
-      if (btnHist) btnHist.classList.add("history-active");
-      updateHistoryUI(parseInt(document.getElementById("history-slider")?.value || 0));
-      addFeedItem("Abriendo Línea de Tiempo Histórica", "info");
-    }
-  }
-}
-
-function closeAllPanels() {
-  const dash = document.getElementById("extended-dashboard");
-  const history = document.getElementById("history-panel");
-  const info = document.getElementById("info-card");
-  const btnHist = document.getElementById("btn-history");
-
-  if (dash) dash.classList.add("hidden");
-  if (history) history.classList.add("hidden");
-  if (info) info.classList.add("hidden");
-  if (btnHist) btnHist.classList.remove("history-active");
-}
-
-function changeWeather(type) {
-  currentWeatherType = type;
-  if (rain) {
-    rain.material.opacity = type === 'rain' ? 0.6 : 0;
-  }
-  // Ajustar atmósfera según el tipo
-  updateAtmosphere();
-  addFeedItem(`Clima cambiado a: ${type.toUpperCase()}`, "success");
-}
-
-// Exportar a window
-window.openPanel = openPanel;
-window.closeAllPanels = closeAllPanels;
-window.changeWeather = changeWeather;
-window.updateFocus = updateFocus;
 
 // Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
 function syncDBCounts() {
@@ -1504,7 +1451,7 @@ function syncDBCounts() {
     })
     .catch((err) => {
         console.error("[DB Sync Error]", err);
-        addFeedItem("⚠️ Error de sincronización con la base de datos", "danger");
+        addFeedItem("ÔÜá´©Å Error de sincronizaci├│n con la base de datos", "danger");
     });
 }
 
@@ -1539,7 +1486,7 @@ function applyDBCountsToWorld(zoneStatuses = null) {
       totalTemp += parseFloat(data.temp) || 22;
       zoneCount++;
 
-      // Refrescar UI si la zona está abierta en el panel de detalles
+      // Refrescar UI si la zona est├í abierta en el panel de detalles
       if (currentSelectedRole === role) {
           const statusEl = document.getElementById("area-status");
           const statusBox = document.getElementById("status-box");
@@ -1557,16 +1504,16 @@ function applyDBCountsToWorld(zoneStatuses = null) {
     const isClosed = statuses[role] === 'closed';
     const count = dbCounts[role] ?? 0;
 
-    // --- EFECTO VISUAL DE ÁREA CERRADA (ROJO HOLOGRÁFICO) ---
+    // --- EFECTO VISUAL DE ├üREA CERRADA (ROJO HOLOGR├üFICO) ---
     model.traverse((child) => {
         if (child.isMesh && child.userData.role === role && !child.userData.isHitBox) {
             const materials = Array.isArray(child.material) ? child.material : [child.material];
             materials.forEach(mat => {
                 if (isClosed) {
                     mat.emissive.setHex(0xff0000);
-                    mat.emissiveIntensity = 2.0 + Math.sin(Date.now() * 0.008) * 1.0; // Pulso más fuerte y rápido
+                    mat.emissiveIntensity = 2.0 + Math.sin(Date.now() * 0.008) * 1.0; // Pulso m├ís fuerte y r├ípido
                     mat.transparent = true;
-                    mat.opacity = 0.45; // Más fantasmal
+                    mat.opacity = 0.45; // M├ís fantasmal
                 } else {
                     // Restaurar material original si se abre
                     if (!child.userData.isSelectedInFocus) {
@@ -1578,18 +1525,18 @@ function applyDBCountsToWorld(zoneStatuses = null) {
         }
     });
 
-    // Spawn personas en el modelo 3D proporcional al aforo (0 si está cerrado)
+    // Spawn personas en el modelo 3D proporcional al aforo (0 si est├í cerrado)
     const limit = capacityLimits[role] || 50;
     const isClosedRole = statuses[role] === 'closed';
     const scaled = isClosedRole ? 0 : Math.min(count, limit);
     
-    // Filtrar reservaciones específicas de este rol para el coloreado
+    // Filtrar reservaciones espec├¡ficas de este rol para el coloreado
     const roleRes = (lastActiveReservations || []).filter(r => r.zone === role);
     
     spawnPeopleInRole(role, scaled, roleRes);
   });
 
-  // Refrescar heatmaps visuales en los suelos (solo si no están cerrados)
+  // Refrescar heatmaps visuales en los suelos (solo si no est├ín cerrados)
   refreshHeatmaps();
   
   // Actualizar etiquetas espaciales
@@ -1621,8 +1568,8 @@ function applyDBCountsToWorld(zoneStatuses = null) {
   const mobTemp = document.getElementById("txt-temp-avg-mob");
   if (tempAvgEl && zoneCount > 0) {
     const avg = (totalTemp / zoneCount).toFixed(1);
-    tempAvgEl.innerText = `${avg}°C`;
-    if (mobTemp) mobTemp.innerText = `${avg}°C`;
+    tempAvgEl.innerText = `${avg}┬░C`;
+    if (mobTemp) mobTemp.innerText = `${avg}┬░C`;
   }
 
   // Total personas visible
@@ -1673,7 +1620,7 @@ function loadReservationsFromDB() {
             hour: "2-digit",
             minute: "2-digit",
           });
-          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> · ${res.name || "Invitado"} · ${dateStr}`;
+          item.innerHTML = `<strong>${res.zone.toUpperCase()}</strong> ┬À ${res.name || "Invitado"} ┬À ${dateStr}`;
           historyList.appendChild(item);
         });
 
@@ -1681,7 +1628,7 @@ function loadReservationsFromDB() {
         if (totals) {
           counts = totals;
         } else {
-          // Fallback: calcular manualmente con ventana de ±3 horas
+          // Fallback: calcular manualmente con ventana de ┬▒3 horas
           reservations.forEach((res) => {
             const diffMins =
               Math.abs(now - new Date(res.reservation_date)) / 60000;
@@ -1691,13 +1638,13 @@ function loadReservationsFromDB() {
           });
         }
 
-        // Guardar en dbCounts (fuente de verdad) — el motor 3D lo lee en cada tick
+        // Guardar en dbCounts (fuente de verdad) ÔÇö el motor 3D lo lee en cada tick
         if (totals) {
           dbCounts.gym = totals.gym ?? 0;
           dbCounts.pool = totals.pool ?? 0;
           dbCounts.canchas = totals.canchas ?? 0;
         } else {
-          // Fallback: calcular con ventana ±3h
+          // Fallback: calcular con ventana ┬▒3h
           reservations.forEach((res) => {
             const diffMins =
               Math.abs(now - new Date(res.reservation_date)) / 60000;
@@ -1711,10 +1658,10 @@ function loadReservationsFromDB() {
         const total =
           (dbCounts.gym || 0) + (dbCounts.pool || 0) + (dbCounts.canchas || 0);
         addFeedItem(
-          `🏟️ DB SYNC — Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`,
+          `­ƒÅƒ´©Å DB SYNC ÔÇö Hoy: ${total} pax reservados (GYM:${dbCounts.gym} POOL:${dbCounts.pool} CANCHAS:${dbCounts.canchas})`,
           "info",
         );
-        applyDBCountsToWorld(data.zone_status || null); // ← actualiza capacidad + spawns 3D + estados
+        applyDBCountsToWorld(data.zone_status || null); // ÔåÉ actualiza capacidad + spawns 3D + estados
         updateDashboardData();
       } else {
         historyList.innerHTML =
@@ -1728,7 +1675,7 @@ function loadReservationsFromDB() {
     });
 }
 
-// --- NUEVA LÓGICA DE DASHBOARD "INCREÍBLE" ---
+// --- NUEVA L├ôGICA DE DASHBOARD "INCRE├ìBLE" ---
 function updateDashboardData() {
   let total = 0;
   let totalTemp = 0;
@@ -1752,12 +1699,12 @@ function updateDashboardData() {
   const avgTemp = (totalTemp / count).toFixed(1);
   const capacity = Math.min(100, Math.floor((total / 100) * 100));
 
-  // Animación de conteo simple (Dashboard)
+  // Animaci├│n de conteo simple (Dashboard)
   animateValue("dash-total-people", 0, total, 1000);
   const tempEl = document.getElementById("dash-avg-temp");
-  if (tempEl) tempEl.innerText = `${avgTemp}°C`;
+  if (tempEl) tempEl.innerText = `${avgTemp}┬░C`;
 
-  // --- SINCRONIZACIÓN GLOBAL DE PANELES (SIDEBAR + HEADER) ---
+  // --- SINCRONIZACI├ôN GLOBAL DE PANELES (SIDEBAR + HEADER) ---
   const capSide = document.getElementById("txt-capacity");
   const capMob = document.getElementById("txt-capacity-mob");
   const tempSide = document.getElementById("txt-temp-avg");
@@ -1778,8 +1725,8 @@ function updateDashboardData() {
     capMob.innerText = `${capacity}%`;
     capMob.style.color = capColor;
   }
-  if (tempSide) tempSide.innerText = `${avgTemp}°C`;
-  if (tempMob) tempMob.innerText = `${avgTemp}°C`;
+  if (tempSide) tempSide.innerText = `${avgTemp}┬░C`;
+  if (tempMob) tempMob.innerText = `${avgTemp}┬░C`;
 
   updateClock();
 }
@@ -1834,11 +1781,11 @@ function initDashboardEffects() {
 
   const logs = [
     "Sincronizando malla del Digital Twin...",
-    "Analizando patrones térmicos en Alberca...",
-    "Optimización de flujo energético completada.",
-    "Detección de ocupación anómala: Ninguna.",
+    "Analizando patrones t├®rmicos en Alberca...",
+    "Optimizaci├│n de flujo energ├®tico completada.",
+    "Detecci├│n de ocupaci├│n an├│mala: Ninguna.",
     "Sincronizando con MSSQL Server... OK",
-    "IA: Sugiriendo ajuste en iluminación Campo 1.",
+    "IA: Sugiriendo ajuste en iluminaci├│n Campo 1.",
     "Estado del sistema: ESTABLE (99.8%)",
     "Analizando logs de reserva recientes...",
     "Digital Twin v2.4 operativo y listo.",
@@ -1875,7 +1822,7 @@ if (btnExplode) {
     if (isModelExploded) {
       btnExplode.classList.add("active");
       btnExplode.querySelector(".layer-desc").innerText =
-        "Restaurar arquitectura a posición original";
+        "Restaurar arquitectura a posici├│n original";
 
       // Al explotar, forzamos que nada sea transparente para apreciar bien los interiores
       const allBtn = document.querySelector('.layer-btn[data-layer="all"]');
@@ -1907,22 +1854,22 @@ function updateAtmosphere() {
     const txt = isHistoryMode ? `${timeStr} (HS)` : `${timeStr}`;
     txtHour.innerText = isHistoryMode ? `${timeStr} (HS)` : `${timeStr} (CDMX)`;
 
-    // Sync móvil en header
+    // Sync m├│vil en header
     const mobHour = document.getElementById("txt-hour-mob");
     if (mobHour) mobHour.innerText = txt;
   }
 
-  // Mapear hora al Sol (Simulación realista)
+  // Mapear hora al Sol (Simulaci├│n realista)
   // 6:00 (Amanecer, Elev 0), 12:00 (Cenit, Elev 90), 18:00 (Ocaso, Elev 0)
   let elevation = Math.sin(((decimalHour - 6) * Math.PI) / 12) * 90;
 
-  // Si es modo SOLEADO (Caluroso), forzamos que el sol esté siempre alto (mínimo 15 grados)
+  // Si es modo SOLEADO (Caluroso), forzamos que el sol est├® siempre alto (m├¡nimo 15 grados)
   // para que el cielo siempre se vea azul profundo y no naranja de atardecer.
   if (currentWeatherType === "sunny") {
     elevation = Math.max(15, elevation);
   }
 
-  const azimuth = 180; // Orientación constante
+  const azimuth = 180; // Orientaci├│n constante
 
   const phi = THREE.MathUtils.degToRad(90 - elevation);
   const theta = THREE.MathUtils.degToRad(azimuth);
@@ -1931,11 +1878,11 @@ function updateAtmosphere() {
   sky.material.uniforms["sunPosition"].value.copy(sun);
   clouds.material.uniforms.uSunPos.value.copy(sun);
 
-  // Lógica de iluminación Día/Noche
+  // L├│gica de iluminaci├│n D├¡a/Noche
   const isNight = elevation < -5;
   const lightIntensity = Math.max(0, Math.min(1, (elevation + 10) / 20));
 
-  // Parámetros de Clima que respetan la hora del día
+  // Par├ímetros de Clima que respetan la hora del d├¡a
   if (currentWeatherType === "sunny") {
     sky.material.uniforms["turbidity"].value = 0.1;
     sky.material.uniforms["rayleigh"].value = 4.0; // Azul cobalto intenso estable
@@ -1943,7 +1890,7 @@ function updateAtmosphere() {
     clouds.visible = false;
     clouds.material.uniforms.uOpacity.value = 0;
 
-    // Caluroso: Tinte amarillento en luces si es de día
+    // Caluroso: Tinte amarillento en luces si es de d├¡a
     if (!isNight) {
       dirLight.color.setHex(0xfff4d6);
       ambientLight.color.setHex(0xfffce8);
@@ -1960,7 +1907,7 @@ function updateAtmosphere() {
       lightIntensity * 0.85,
     );
 
-    // Lluvia gris: Tinte metálico/neutro
+    // Lluvia gris: Tinte met├ílico/neutro
     dirLight.color.setHex(0xe9ecef);
     ambientLight.color.setHex(0xf8f9fa);
   } else {
@@ -2024,14 +1971,14 @@ function initWeatherControls() {
     });
   }
 
-  // 3. Selección de Clima (Manual)
+  // 3. Selecci├│n de Clima (Manual)
   btns.forEach((btn) => {
     btn.addEventListener("click", () => {
       btns.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentWeatherType = btn.dataset.weather;
 
-      // Al cambiar manual, apagamos la sincronización real automática
+      // Al cambiar manual, apagamos la sincronizaci├│n real autom├ítica
       weatherSyncEnabled = false;
 
       // Actualizar Visuales
@@ -2042,13 +1989,13 @@ function initWeatherControls() {
 
       if (container) container.classList.remove("active");
       addFeedItem(
-        `Simulación Manuel: ${currentWeatherType.toUpperCase()}`,
+        `Simulaci├│n Manuel: ${currentWeatherType.toUpperCase()}`,
         "info",
       );
     });
   });
 
-  // 4. Regresar al Clima Real (Sincronización)
+  // 4. Regresar al Clima Real (Sincronizaci├│n)
   const btnSync = document.getElementById("btn-sync-weather");
   if (btnSync) {
     btnSync.addEventListener("click", () => {
@@ -2064,7 +2011,7 @@ function initWeatherControls() {
     container?.classList.remove("active");
   });
 
-  // 5. Función Maestra: Sincronización Real (Open-Meteo)
+  // 5. Funci├│n Maestra: Sincronizaci├│n Real (Open-Meteo)
   async function syncRealWeather() {
     if (!weatherSyncEnabled) return;
     try {
@@ -2093,22 +2040,22 @@ function initWeatherControls() {
       updateAtmosphere();
 
       const tempLabel = document.getElementById("txt-temp-avg");
-      if (tempLabel) tempLabel.innerText = `${temp}°C`;
+      if (tempLabel) tempLabel.innerText = `${temp}┬░C`;
       const mobTemp = document.getElementById("txt-temp-avg-mob");
-      if (mobTemp) mobTemp.innerText = `${temp}°C`;
+      if (mobTemp) mobTemp.innerText = `${temp}┬░C`;
 
-      addFeedItem(`Clima Real Detectado: ${temp}°C`, "success");
+      addFeedItem(`Clima Real Detectado: ${temp}┬░C`, "success");
     } catch (e) {
       console.warn("Weather Sync Fail", e);
     }
   }
 
-  // Primera ejecución y loop
+  // Primera ejecuci├│n y loop
   syncRealWeather();
   setInterval(syncRealWeather, 10 * 60 * 1000);
 }
 
-// --- VIAJE EN EL TIEMPO: LÓGICA DE CONTROL ---
+// --- VIAJE EN EL TIEMPO: L├ôGICA DE CONTROL ---
 const btnHistory = document.getElementById("btn-history");
 const historyPanel = document.getElementById("history-panel");
 const historySlider = document.getElementById("history-slider");
@@ -2196,9 +2143,9 @@ function updateHistoryUI(min) {
   if (dateDisplay) {
     if (min === 0) dateDisplay.innerText = "Ahora (En vivo)";
     else if (min < 0)
-      dateDisplay.innerText = `Hace ${Math.abs(Math.round(min / 60))}h — ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
+      dateDisplay.innerText = `Hace ${Math.abs(Math.round(min / 60))}h ÔÇö ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
     else
-      dateDisplay.innerText = `En ${Math.round(min / 60)}h — ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
+      dateDisplay.innerText = `En ${Math.round(min / 60)}h ÔÇö ${targetDate.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}`;
   }
 
   if (avgOcc) {
@@ -2214,29 +2161,29 @@ function updateHistoryUI(min) {
 let _historyDebounceTimer = null;
 
 function simulateHistoryEffect(offsetMin) {
-  // offsetMin = 0 → AHORA, negativo = pasado, positivo = futuro
+  // offsetMin = 0 ÔåÆ AHORA, negativo = pasado, positivo = futuro
 
   // Calcular la hora del momento seleccionado (para sensores)
   const targetDate = new Date(Date.now() + offsetMin * 60000);
   const hour = targetDate.getHours();
   const isClosed = hour >= 23 || hour < 6;
 
-  // Actualizar sensores (simulación pura, no necesita DB)
+  // Actualizar sensores (simulaci├│n pura, no necesita DB)
   Object.keys(digitalTwinData).forEach((role) => {
     const data = digitalTwinData[role];
     if (!data.isSensor) return;
     const dayFactor = Math.sin((hour * Math.PI) / 12);
     data.bat = (90 + Math.random() * 8).toFixed(0) + "%";
-    data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + "°C";
+    data.temp = (20 + dayFactor * 10 + Math.random() * 2).toFixed(1) + "┬░C";
     data.hum = (50 - dayFactor * 20 + Math.random() * 5).toFixed(0) + "%";
-    data.status = hour < 6 ? "Modo Hibernación" : "Transmisión LoRaWAN";
+    data.status = hour < 6 ? "Modo Hibernaci├│n" : "Transmisi├│n LoRaWAN";
     if (data.specialLabel === "SONIDO (dB)") {
       data.specialVal =
         (isClosed ? 30 : 70 + Math.random() * 15).toFixed(1) + " dB";
     }
   });
 
-  // ── Fetch datos reales de la DB para el momento seleccionado (debounced 300ms) ──
+  // ÔöÇÔöÇ Fetch datos reales de la DB para el momento seleccionado (debounced 300ms) ÔöÇÔöÇ
   clearTimeout(_historyDebounceTimer);
   _historyDebounceTimer = setTimeout(() => {
     fetch(`${API_BASE_URL}/api/reservations/history?offset=${offsetMin}`)
@@ -2249,7 +2196,7 @@ function simulateHistoryEffect(offsetMin) {
         ["gym", "pool", "canchas"].forEach((role) => {
           let count = totals[role] ?? 0;
 
-          // Si la hora está cerrada, forzar 0
+          // Si la hora est├í cerrada, forzar 0
           if (isClosed) count = 0;
 
           totalPeople += count;
@@ -2298,11 +2245,11 @@ function simulateHistoryEffect(offsetMin) {
         if (canchasEl) canchasEl.innerText = totals.canchas;
 
         addFeedItem(
-          `🕐 Historial ${offsetMin >= 0 ? "+" : ""}${Math.round(offsetMin / 60)}h → ${totalPeople} pax (${data.window?.from}–${data.window?.to})`,
+          `­ƒòÉ Historial ${offsetMin >= 0 ? "+" : ""}${Math.round(offsetMin / 60)}h ÔåÆ ${totalPeople} pax (${data.window?.from}ÔÇô${data.window?.to})`,
           "info",
         );
 
-        // Actualizar info card si está abierta (sea cual sea el método de apertura)
+        // Actualizar info card si est├í abierta (sea cual sea el m├®todo de apertura)
         if (currentSelectedRole && !infoCard.classList.contains("hidden")) {
           showInfoCard(currentSelectedRole);
         }
@@ -2322,7 +2269,7 @@ function simulateHistoryEffect(offsetMin) {
           const count = isClosed ? 0 : Math.floor(Math.random() * 20);
           if (digitalTwinData[role]) {
             digitalTwinData[role].current = count;
-            digitalTwinData[role].status = "Simulación (Sin Conexión)";
+            digitalTwinData[role].status = "Simulaci├│n (Sin Conexi├│n)";
           }
           spawnPeopleInRole(role, count);
         });
@@ -2333,11 +2280,11 @@ function simulateHistoryEffect(offsetMin) {
   }, 300);
 }
 
-// Bucle de Animación
+// Bucle de Animaci├│n
 function animate() {
   requestAnimationFrame(animate);
 
-  // Lógica de Giro Panorámico
+  // L├│gica de Giro Panor├ímico
   if (isPanoActive) {
     panoAngle += 0.002;
     const radius = 1000;
@@ -2349,7 +2296,7 @@ function animate() {
 
   // Efecto 'Pulso de Vida' y MOVIMIENTO ACENTUADO
   const pulseEmissive = 2.0 + Math.sin(Date.now() * 0.005) * 1.5;
-  const bobbing = Math.sin(Date.now() * 0.003) * 0.8; // Bobbing balanceo más visible
+  const bobbing = Math.sin(Date.now() * 0.003) * 0.8; // Bobbing balanceo m├ís visible
 
   Object.keys(peopleInstances).forEach((role) => {
     const inst = peopleInstances[role];
@@ -2360,15 +2307,15 @@ function animate() {
 
       for (let i = 0; i < states.length; i++) {
         const p = states[i];
-        // Movimiento más rápido (Caminata Digital)
+        // Movimiento m├ís r├ípido (Caminata Digital)
         p.pos.x += p.dir.x * p.speed * 2.5;
         p.pos.z += p.dir.z * p.speed * 2.5;
 
-        // Rebote en límites (con un pequeño offset interno)
+        // Rebote en l├¡mites (con un peque├▒o offset interno)
         if (p.pos.x < p.bounds.min.x || p.pos.x > p.bounds.max.x) p.dir.x *= -1;
         if (p.pos.z < p.bounds.min.z || p.pos.z > p.bounds.max.z) p.dir.z *= -1;
 
-        // SINCRONIZACIÓN CON VISTA EXPLOSIONADA:
+        // SINCRONIZACI├ôN CON VISTA EXPLOSIONADA:
         // Sincronizar habitantes del gym con la nueva altura de 60
         const roleExplodeOffset = role === "gym" ? 20 * explodeFactor : 0;
         dummy.position.set(
@@ -2378,7 +2325,7 @@ function animate() {
         );
 
         if (role === "pool") {
-          // Orientación de nado: Se inclina para mirar hacia adelante mientras nada
+          // Orientaci├│n de nado: Se inclina para mirar hacia adelante mientras nada
           dummy.rotation.set(Math.PI / 2, Math.atan2(p.dir.x, p.dir.z), 0);
         } else {
           dummy.rotation.y = Math.atan2(p.dir.x, p.dir.z);
@@ -2393,7 +2340,7 @@ function animate() {
 
   const time = performance.now() * 0.001;
 
-  // Suavizado de Cámara Pro
+  // Suavizado de C├ímara Pro
   if (isCameraMoving) {
     camera.position.lerp(cameraTargetPos, 0.05);
     controls.target.lerp(controlsTargetPos, 0.05);
@@ -2403,7 +2350,7 @@ function animate() {
     }
   }
 
-  // Animación de UI Espacial
+  // Animaci├│n de UI Espacial
 
   // Posicionamiento de Info Card (Fijo a la Izquierda, ya no sigue el objeto 3D)
   /* if (infoCard && !infoCard.classList.contains("hidden")) {
@@ -2446,13 +2393,9 @@ function animate() {
 
   updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
 
-  // Pulsación suave y Vista Explosionada Sincronizada
+  // Pulsaci├│n suave y Vista Explosionada Sincronizada
   if (model) {
     const time = clock.getElapsedTime();
-
-    // Actualizar factor de explosión global (Lerp dinámico)
-    const targetExp = isModelExploded ? 1.0 : 0.0;
-    explodeFactor += (targetExp - explodeFactor) * 0.08;
 
     model.traverse((child) => {
       // 1. Resplandor pulsante
@@ -2473,11 +2416,11 @@ function animate() {
     // Actualizar nubes procedurales
     if (clouds) clouds.material.uniforms.uTime.value = time;
 
-    // Actualizar lluvia si está activa
+    // Actualizar lluvia si est├í activa
     if (rain && rain.material.opacity > 0) {
       const pos = rain.geometry.attributes.position.array;
       for (let i = 1; i < pos.length; i += 3) {
-        pos[i] -= 25.0; // Caída rápida
+        pos[i] -= 25.0; // Ca├¡da r├ípida
         if (pos[i] < -100) pos[i] = 1500;
       }
       rain.geometry.attributes.position.needsUpdate = true;
@@ -2490,21 +2433,21 @@ function animate() {
   
   updateWalkMode(delta);
 
-  renderer.render(scene, camera); // Renderizado directo para máxima velocidad
+  renderer.render(scene, camera); // Renderizado directo para m├íxima velocidad
 
   // --- LABORATORIO DE SIMULACIONES (WHAT-IF ANALYSIS) ---
 function runSimulation(type) {
   if (!model) return;
 
-  addFeedItem(`🧪 Iniciando Simulación: ${type.toUpperCase()}`, "info");
+  addFeedItem(`­ƒº¬ Iniciando Simulaci├│n: ${type.toUpperCase()}`, "info");
 
   if (type === "peak") {
-    // Simulamos capacidad máxima en todo el complejo
+    // Simulamos capacidad m├íxima en todo el complejo
     dbCounts.gym = 50;
     dbCounts.pool = 30;
     dbCounts.canchas = 20;
     applyDBCountsToWorld();
-    addFeedItem("⚠️ Alerta: Capacidad máxima alcanzada en todas las áreas", "danger");
+    addFeedItem("ÔÜá´©Å Alerta: Capacidad m├íxima alcanzada en todas las ├íreas", "danger");
   } 
   else if (type === "maintenance-gym") {
     // Cerramos el gimnasio por mantenimiento
@@ -2521,19 +2464,19 @@ function runSimulation(type) {
     });
 
     applyDBCountsToWorld();
-    addFeedItem("🔧 Simulación: Gimnasio fuera de servicio", "warning");
+    addFeedItem("­ƒöº Simulaci├│n: Gimnasio fuera de servicio", "warning");
   }
   else if (type === "event") {
     // Simulamos un evento de 100 personas repartidas
     dbCounts.gym = 40;
-    dbCounts.pool = 40; // Sobrepasa límite
+    dbCounts.pool = 40; // Sobrepasa l├¡mite
     dbCounts.canchas = 20;
     applyDBCountsToWorld();
-    addFeedItem("📢 Simulación: Evento Corporativo en curso", "success");
+    addFeedItem("­ƒôó Simulaci├│n: Evento Corporativo en curso", "success");
   }
   else if (type === "reset") {
     // Volvemos a los datos reales (o 0 si no hay DB)
-    location.reload(); // Forma más limpia de resetear el estado del modelo
+    location.reload(); // Forma m├ís limpia de resetear el estado del modelo
   }
 }
 window.runSimulation = runSimulation;
@@ -2541,11 +2484,11 @@ window.runSimulation = runSimulation;
     const vector = lbl.pos.clone();
     vector.project(camera);
 
-    // Conversión de pantalla refinada
+    // Conversi├│n de pantalla refinada
     const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
     const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
 
-    // Unificar ocultamiento: detrás de cámara o fuera de rango
+    // Unificar ocultamiento: detr├ís de c├ímara o fuera de rango
     const isBehind = vector.z > 1;
     lbl.el.style.display = isBehind ? "none" : "flex";
 
@@ -2575,7 +2518,7 @@ window.addEventListener("resize", () => {
 let hoveredRole = null;
 
 function onMouseMove(event) {
-  // 1. Giro de cámara en Modo Showroom (Manual)
+  // 1. Giro de c├ímara en Modo Showroom (Manual)
   if (isWalkMode) {
     // Validar contra el elemento que tiene el foco (Vite puede inyectar el canvas)
     if (document.pointerLockElement) {
@@ -2589,7 +2532,7 @@ function onMouseMove(event) {
     return; 
   }
 
-  if (!model || event.target.tagName !== "CANVAS") return;
+  if (event.target.tagName !== "CANVAS") return;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -2598,7 +2541,7 @@ function onMouseMove(event) {
   const intersects = raycaster.intersectObject(model, true);
 
   let currentHoverRole = null;
-  // Añadimos sensores a los roles de interés
+  // A├▒adimos sensores a los roles de inter├®s
   const interestRoles = [
     "gym",
     "pool",
@@ -2609,7 +2552,7 @@ function onMouseMove(event) {
   ];
 
   if (intersects.length > 0) {
-    // BÚSQUEDA ROBUSTA: Recorremos todas las intersecciones y sus ancestros
+    // B├ÜSQUEDA ROBUSTA: Recorremos todas las intersecciones y sus ancestros
     for (const intersect of intersects) {
       let testObj = intersect.object;
       let role = null;
@@ -2635,7 +2578,7 @@ function onMouseMove(event) {
   if (currentHoverRole !== hoveredRole) {
     hoveredRole = currentHoverRole;
 
-    // Cambiar cursor (pointer para zonas de interés)
+    // Cambiar cursor (pointer para zonas de inter├®s)
     const containerEl = document.getElementById("container");
     if (containerEl) {
       containerEl.style.cursor = hoveredRole ? "pointer" : "default";
@@ -2652,11 +2595,11 @@ function onMouseMove(event) {
             child.userData.role === hoveredRole &&
             !child.userData.isSelectedInFocus
           ) {
-            // Mantenemos la textura y solo añadimos emisión en el hover
+            // Mantenemos la textura y solo a├▒adimos emisi├│n en el hover
             mat.emissive.copy(
               child.userData.highlightColor || new THREE.Color(0x3b82f6),
             );
-            mat.emissiveIntensity = 0.5; // Brillo sutil de pre-selección
+            mat.emissiveIntensity = 0.5; // Brillo sutil de pre-selecci├│n
           } else if (!child.userData.isSelectedInFocus) {
             mat.emissive.setHex(0x000000);
           }
@@ -2667,17 +2610,17 @@ function onMouseMove(event) {
 }
 
 function onMouseClick(event) {
-  // Solo procesar si fue una interacción rápida y sin movimiento (Punto a Punto) para no bloquear la navegación
+  // Solo procesar si fue una interacci├│n r├ípida y sin movimiento (Punto a Punto) para no bloquear la navegaci├│n
   const duration = Date.now() - clickStartTime;
   const dist = Math.hypot(
     event.clientX - clickStartX,
     event.clientY - clickStartY,
   );
 
-  // Si tardó más de 250ms o se movió más de 5px, es una navegación, NO un clic de selección
+  // Si tard├│ m├ís de 250ms o se movi├│ m├ís de 5px, es una navegaci├│n, NO un clic de selecci├│n
   if (duration > 250 || dist > 5) return;
 
-  if (!model || event.target.tagName !== "CANVAS") return;
+  if (event.target.tagName !== "CANVAS") return;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -2688,8 +2631,8 @@ function onMouseClick(event) {
     const intersects = raycaster.intersectObject(model, true);
 
     if (intersects.length > 0) {
-      // SELECCIÓN PENETRANTE: Buscamos primero zonas de interés (Gym, Pool, Canchas)
-      // Saltándonos el techo y la estructura si hay algo debajo
+      // SELECCI├ôN PENETRANTE: Buscamos primero zonas de inter├®s (Gym, Pool, Canchas)
+      // Salt├índonos el techo y la estructura si hay algo debajo
       let role = null;
       let selectedObject = null;
 
@@ -2702,7 +2645,7 @@ function onMouseClick(event) {
           testRole = testObj.userData.role;
         }
 
-        // Si el rol es zona de interés o SENSORES
+        // Si el rol es zona de inter├®s o SENSORES
         const allRoles = [
           "gym",
           "pool",
@@ -2719,7 +2662,7 @@ function onMouseClick(event) {
         }
       }
 
-      // Si no encontramos zona de interés (ej: clic en un área vacía), tomamos el primero
+      // Si no encontramos zona de inter├®s (ej: clic en un ├írea vac├¡a), tomamos el primero
       if (!role) {
         selectedObject = intersects[0].object;
         role = selectedObject.userData.role;
@@ -2784,7 +2727,7 @@ container.addEventListener('click', () => {
 
 function showInfoCard(role) {
   if (!digitalTwinData[role]) return;
-  currentSelectedRole = role; // Guardar referencia para refrescos automáticos
+  currentSelectedRole = role; // Guardar referencia para refrescos autom├íticos
   const data = digitalTwinData[role];
 
   // Elementos principales
@@ -2808,13 +2751,13 @@ function showInfoCard(role) {
 
   if (titleEl) titleEl.innerText = data.title;
 
-  // Control de Visualización (Cámara vs LiDAR)
+  // Control de Visualizaci├│n (C├ímara vs LiDAR)
   const lidarCont = document.getElementById("lidar-container");
   const camNoise = document.getElementById("camera-noise");
   const camScan = document.getElementById("camera-scanline");
   const liveTag = document.getElementById("live-tag-text");
 
-  // Paneles de Detalle dinámicos
+  // Paneles de Detalle din├ímicos
   const standardTrend = document.getElementById("standard-trend");
   const sensorAdvanced = document.getElementById("sensor-advanced");
   const diagL1 = document.getElementById("diag-label-1");
@@ -2825,7 +2768,7 @@ function showInfoCard(role) {
   const diagBar = document.getElementById("diag-bar-fill");
 
   if (data.isAsset) {
-    // Modo Diagnóstico de Activo
+    // Modo Diagn├│stico de Activo
     if (standardMetrics) standardMetrics.classList.add("hidden");
     if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
     if (standardTrend) standardTrend.classList.add("hidden");
@@ -2836,12 +2779,12 @@ function showInfoCard(role) {
     
     if (diagL1) diagL1.innerText = "SALUD DEL SISTEMA";
     if (diagV1) diagV1.innerText = (data.health || 98) + "%";
-    if (diagL2) diagL2.innerText = "VIBRACIÓN";
+    if (diagL2) diagL2.innerText = "VIBRACI├ôN";
     if (diagV2) diagV2.innerText = data.vibration || "0.4mm/s";
-    if (diagL3) diagL3.innerText = "ESTADO DE SEÑAL";
+    if (diagL3) diagL3.innerText = "ESTADO DE SE├æAL";
     if (diagBar) diagBar.style.width = (data.health || 98) + "%";
     
-    if (tempEl) tempEl.innerText = data.temp || "38°C";
+    if (tempEl) tempEl.innerText = data.temp || "38┬░C";
     if (humEl) humEl.innerText = (data.hours || 1200) + " hrs";
     if (maintEl) maintEl.innerText = data.nextService || "Pendiente";
     if (hoursEl) hoursEl.innerText = data.status || "OPERATIVO";
@@ -2854,11 +2797,11 @@ function showInfoCard(role) {
     if (standardMetrics) standardMetrics.classList.add("hidden");
     if (sensorTelemetry) sensorTelemetry.classList.remove("hidden");
 
-    // Mostrar Diagnóstico Avanzado y ocultar Telemetría Semanal
+    // Mostrar Diagn├│stico Avanzado y ocultar Telemetr├¡a Semanal
     if (standardTrend) standardTrend.classList.add("hidden");
     if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
 
-    // Poblar Diagnósticos
+    // Poblar Diagn├│sticos
     if (diagL1) diagL1.innerText = data.diag1_label;
     if (diagV1) diagV1.innerText = data.diag1_val;
     if (diagL2) diagL2.innerText = data.diag2_label;
@@ -2876,7 +2819,7 @@ function showInfoCard(role) {
     if (sensorSpecLabel) sensorSpecLabel.innerText = data.specialLabel;
     if (sensorSpecVal) sensorSpecVal.innerText = data.specialVal;
 
-    // Mantener visibles campos técnicos si existen
+    // Mantener visibles campos t├®cnicos si existen
     if (tempEl) tempEl.innerText = data.temp || "--";
     if (humEl) humEl.innerText = data.hum || "--";
     if (maintEl) maintEl.innerText = "SISTEMA OK";
@@ -2885,18 +2828,18 @@ function showInfoCard(role) {
     if (standardMetrics) standardMetrics.classList.remove("hidden");
     if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
 
-    // Mostrar Telemetría Semanal y ocultar Diagnóstico
+    // Mostrar Telemetr├¡a Semanal y ocultar Diagn├│stico
     if (standardTrend) standardTrend.classList.remove("hidden");
     if (sensorAdvanced) sensorAdvanced.classList.add("hidden");
 
-    // Restaurar Cámara normal
+    // Restaurar C├ímara normal
     if (lidarCont) lidarCont.classList.add("hidden");
     if (camNoise) camNoise.classList.remove("hidden");
     if (camScan) camScan.classList.remove("hidden");
     if (liveTag) liveTag.innerText = "LIVE FEED";
 
     if (peopleEl) {
-      // Usar data.current como fuente única de verdad para el UI
+      // Usar data.current como fuente ├║nica de verdad para el UI
       peopleEl.innerText =
         typeof data.current === "number"
           ? data.current
@@ -2933,7 +2876,7 @@ function showInfoCard(role) {
     }
   }
 
-  // Actualizar Gráfico de Tendencia
+  // Actualizar Gr├ífico de Tendencia
   const bars = document.querySelectorAll(".trend-bar");
   if (bars.length > 0 && data.trend) {
     bars.forEach((bar, i) => {
@@ -2949,10 +2892,10 @@ function showInfoCard(role) {
   if (infoCard) {
     infoCard.classList.remove("hidden");
 
-    // Dibujar Gráfica de Línea
+    // Dibujar Gr├ífica de L├¡nea
     updateLineChart(data.trend || [20, 50, 30, 80, 40, 90]);
 
-    // Trigger para relanzar la animación del Live Feed (opcional)
+    // Trigger para relanzar la animaci├│n del Live Feed (opcional)
     const scanLine = infoCard.querySelector(".scan-line");
     if (scanLine) {
       scanLine.style.animation = "none";
@@ -2998,7 +2941,7 @@ function addFeedItem(text, type = "info") {
 
   toast.innerHTML = `
         <div class="toast-header">
-            <span class="toast-title">Notificación de Sistema</span>
+            <span class="toast-title">Notificaci├│n de Sistema</span>
             <span class="toast-time">${timeStr}</span>
         </div>
         <div class="toast-body">${text}</div>
@@ -3013,9 +2956,9 @@ function addFeedItem(text, type = "info") {
 
 // Inicializar feed con algunos eventos de bienvenida
 setTimeout(() => {
-  addFeedItem("⚠️ Alerta: Temperatura crítica detectada en motores", "danger");
+  addFeedItem("ÔÜá´©Å Alerta: Temperatura cr├¡tica detectada en motores", "danger");
   setTimeout(() => {
-    addFeedItem("✅ Mantenimiento preventivo completado", "success");
+    addFeedItem("Ô£à Mantenimiento preventivo completado", "success");
   }, 2500);
 }, 1000);
 
@@ -3024,7 +2967,7 @@ window.addEventListener("click", onMouseClick);
 window.addEventListener("mousemove", onMouseMove);
 
 if (controls) {
-  // Solo la interacción HUMANA real interrumpe el movimiento automático
+  // Solo la interacci├│n HUMANA real interrumpe el movimiento autom├ítico
   // Usamos wheel y mousedown/pointerdown directos porque controls 'change' se disparaba solo
   const unlockCamera = () => {
     isCameraMoving = false;
@@ -3043,7 +2986,7 @@ if (controls) {
   );
 }
 function initPopulation() {
-  // Generar población inicial basada en digitalTwinData
+  // Generar poblaci├│n inicial basada en digitalTwinData
   Object.keys(digitalTwinData).forEach((role) => {
     const countStr = digitalTwinData[role].current;
     const count = parseInt(countStr) || 0;
@@ -3063,7 +3006,7 @@ function spawnPeopleInRole(role, count, reservations = []) {
 
   if (count <= 0) return;
 
-  // Recolectar superficies de tránsito...
+  // Recolectar superficies de tr├ínsito...
   let roleMeshes = [];
   model.traverse((c) => {
     if (c.isMesh && c.userData.role === role) {
@@ -3117,7 +3060,7 @@ function spawnPeopleInRole(role, count, reservations = []) {
   instMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
   instMesh.userData.role = role;
 
-  // --- LÓGICA DE COLOREADO POR ASISTENCIA ---
+  // --- L├ôGICA DE COLOREADO POR ASISTENCIA ---
   // Expandir invitados por reserva para asignar colores individuales
   let peopleColors = [];
   reservations.forEach(res => {
@@ -3174,18 +3117,18 @@ function spawnPeopleInRole(role, count, reservations = []) {
   peopleInstances[role] = instMesh;
 }
 
-// Gestión del Cierre de Tarjeta (Botón X)
+// Gesti├│n del Cierre de Tarjeta (Bot├│n X)
 document.addEventListener("click", (e) => {
   if (e.target.id === "close-card") {
     if (infoCard) infoCard.classList.add("hidden");
   }
 });
 
-// --- INICIALIZACIÓN DE SENSORES ARDUINO ---
+// --- INICIALIZACI├ôN DE SENSORES ARDUINO ---
 function initSensors() {
   if (!model) return;
 
-  // Función auxiliar para hallar el centro de un rol específico (IGNORANDO TECHOS)
+  // Funci├│n auxiliar para hallar el centro de un rol espec├¡fico (IGNORANDO TECHOS)
   const getFloorCenter = (roleName) => {
     const box = new THREE.Box3();
     let found = false;
@@ -3212,7 +3155,7 @@ function initSensors() {
   const sensorGeo = new THREE.BoxGeometry(4, 4, 4);
   const createSensor = (worldPos, role, color) => {
     const localPos = worldPos.clone();
-    model.worldToLocal(localPos); // TRANSFORMACIÓN CRÍTICA: Mundo -> Modelo Local
+    model.worldToLocal(localPos); // TRANSFORMACI├ôN CR├ìTICA: Mundo -> Modelo Local
 
     const sensorGroup = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
@@ -3244,7 +3187,7 @@ function initSensors() {
   let has2 = false;
   let has3 = false;
 
-  // 1. Obtener posición del Nodo 2 (Canchas)
+  // 1. Obtener posici├│n del Nodo 2 (Canchas)
   const canchaBox = new THREE.Box3();
   let foundCanchas = false;
   model.traverse(c => {
@@ -3263,7 +3206,7 @@ function initSensors() {
     has2 = true;
   }
 
-  // 2. Obtener posición del Nodo 3 (Alberca)
+  // 2. Obtener posici├│n del Nodo 3 (Alberca)
   const poolCenter = getFloorCenter("pool");
   if (poolCenter) {
     pos3.copy(poolCenter);
@@ -3276,7 +3219,7 @@ function initSensors() {
   // 3. Posicionar Nodo 1 (Bosque) en el punto medio entre 2 y 3
   if (has2 && has3) {
     const midPoint = new THREE.Vector3().lerpVectors(pos2, pos3, 0.5);
-    // Lo movemos un poco hacia afuera (eje Z o X) para que no quede pegado al edificio si están muy alineados
+    // Lo movemos un poco hacia afuera (eje Z o X) para que no quede pegado al edificio si est├ín muy alineados
     midPoint.x -= 40; 
     midPoint.y = 2;
     createSensor(midPoint, "sensor1", 0x10b981);
@@ -3293,29 +3236,29 @@ function initSpatialLabels() {
   spatialLabels.length = 0; // Limpiar lista
 
   const targets = [
-    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 120 },
-    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 120 },
+    { role: "gym", label: "­ƒÅó Gimnasio", color: "gym", yOffset: 120 },
+    { role: "pool", label: "­ƒîè Centro Acu├ítico", color: "pool", yOffset: 120 },
     {
       role: "canchas",
-      label: "⚽ Canchas",
+      label: "ÔÜ¢ Canchas",
       color: "canchas",
       yOffset: 160,
     },
     {
       role: "sensor1",
-      label: "📡 Nodo 01 - Bosque",
+      label: "­ƒôí Nodo 01 - Bosque",
       color: "sensor",
       yOffset: 80,
     },
     {
       role: "sensor2",
-      label: "📡 Nodo 02 - Canchas",
+      label: "­ƒôí Nodo 02 - Canchas",
       color: "sensor",
       yOffset: 80,
     },
     {
       role: "sensor3",
-      label: "📡 Nodo 03 - Alberca",
+      label: "­ƒôí Nodo 03 - Alberca",
       color: "sensor",
       yOffset: 80,
     },
@@ -3331,7 +3274,7 @@ function initSpatialLabels() {
     model.traverse((child) => {
       if (child.isMesh && child.userData.role === t.role) {
         if (t.role === "canchas") {
-           // Filtro de geometría para evitar basura flotante
+           // Filtro de geometr├¡a para evitar basura flotante
            const vCount = child.geometry.attributes.position.count;
            if (vCount > maxVertices) {
               maxVertices = vCount;
@@ -3366,7 +3309,7 @@ function initSpatialLabels() {
       el.innerHTML = `<span>${t.label}</span>`;
       el.dataset.role = t.role; // Identificador para actualizaciones de estado
 
-      // Etiquetas ahora son grandes en todos los tamaños (Petición usuario)
+      // Etiquetas ahora son grandes en todos los tama├▒os (Petici├│n usuario)
       if (window.innerWidth < 800) {
         el.style.fontSize = "12px";
         el.style.padding = "8px 16px";
@@ -3383,7 +3326,7 @@ function initSpatialLabels() {
     }
   });
 
-  // Una vez creadas las etiquetas, forzamos una sincronización para aplicar estados (Abierto/Cerrado)
+  // Una vez creadas las etiquetas, forzamos una sincronizaci├│n para aplicar estados (Abierto/Cerrado)
   syncDBCounts();
 }
 
@@ -3395,13 +3338,13 @@ function updateSpatialLabelsStatus(zoneStatuses) {
       if (isClosed) {
         labelObj.el.classList.add('closed');
         const span = labelObj.el.querySelector('span');
-        if (span && !span.innerText.includes('🚫')) {
-            span.innerText = '🚫 ' + span.innerText;
+        if (span && !span.innerText.includes('­ƒÜ½')) {
+            span.innerText = '­ƒÜ½ ' + span.innerText;
         }
       } else {
         labelObj.el.classList.remove('closed');
         const span = labelObj.el.querySelector('span');
-        if (span) span.innerText = span.innerText.replace('🚫 ', '');
+        if (span) span.innerText = span.innerText.replace('­ƒÜ½ ', '');
       }
     }
   });
@@ -3433,9 +3376,9 @@ function initAssets() {
     mesh.userData.role = a.id;
     mesh.userData.isAsset = true;
     
-    // Animación de pulso inteligente
+    // Animaci├│n de pulso inteligente
     const pulse = () => {
-      // Simulamos un chequeo de salud (puedes conectar esto a tu DB después)
+      // Simulamos un chequeo de salud (puedes conectar esto a tu DB despu├®s)
       const isCritical = a.id === "asset-pump-1"; // Ejemplo: forzamos alerta en la bomba 1
       const color = isCritical ? 0xffa500 : a.color;
       mesh.material.color.setHex(color);
@@ -3458,7 +3401,7 @@ function initAssets() {
   });
 }
 
-// --- EXPORTACIÓN GLOBAL ---
+// --- EXPORTACI├ôN GLOBAL ---
 window.updateFocus = updateFocus;
 window.enterShowroom = enterShowroom;
 window.exitShowroom = exitShowroom;
