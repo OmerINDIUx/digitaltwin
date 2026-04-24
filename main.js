@@ -494,18 +494,26 @@ const initModels = async () => {
 
     model = mainGltf.scene;
 
-    // Centrar modelo
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-
-    model.position.sub(center);
-
-    // Escalar modelo para que sea muchísimo más masivo visualmente
+    // 1. Escalar primero (para que la caja de colisión sea del tamaño real final)
     const targetSize = 1500;
+    const initialBox = new THREE.Box3().setFromObject(model);
+    const initialSize = initialBox.getSize(new THREE.Vector3());
+    const maxDim = Math.max(initialSize.x, initialSize.y, initialSize.z);
     const scaleFactor = targetSize / (maxDim || 1);
     model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+    // 2. Calcular la nueva caja de colisión ya escalada
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+
+    // 3. Alinear: Centro en X/Z, pero Base (min.y) estrictamente en 0
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    model.position.y -= box.min.y;
+
+    // ACTUALIZACIÓN CRÍTICA: Forzar que todas las posiciones de los hijos se recalculen tras mover el modelo
+    model.updateMatrixWorld(true);
 
     // Bajar ligeramente el terreno y canchas para evitar interferencia (z-fighting) con TODOS los edificios
     model.traverse((child) => {
@@ -651,11 +659,15 @@ const initModels = async () => {
         fullName.includes("pista") ||
         fullName.includes("futbol") ||
         fullName.includes("soccer") ||
-        fullName.includes("voleibol") ||
-        fullName.includes("voley")
+        fullName.includes("voley") ||
+        fullName.includes("voleibol")
       ) {
-        child.userData.role = "canchas";
-        child.userData.highlightColor = new THREE.Color(0xfbbf24); // Oro Pro
+        // FILTRO DE SEGURIDAD: Solo aceptar si la malla está pegada al suelo (evita basura flotante del GLB)
+        // Usamos la posición local relativa al modelo centrado
+        if (Math.abs(child.position.y) < 10) { 
+           child.userData.role = "canchas";
+           child.userData.highlightColor = new THREE.Color(0xfbbf24);
+        }
       } else if (fullName.includes("administracion") || fullName.includes("admin")) {
         child.userData.role = "admin";
         child.userData.highlightColor = new THREE.Color(0x94a3b8);
@@ -732,15 +744,22 @@ const initModels = async () => {
 
     // --- CREACIÓN DE HITBOX INVISIBLE PARA LAS CANCHAS ---
     const canchaBox = new THREE.Box3();
-    let hasCanchas = false;
+    let bestCanchaMesh = null;
+    let maxVertices = -1;
+
     model.traverse((c) => {
       if (c.isMesh && c.userData.role === "canchas") {
-        canchaBox.expandByObject(c);
-        hasCanchas = true;
+        // Encontrar la malla real (la que tiene más geometría) ignorando basura del GLB
+        const vertexCount = c.geometry.attributes.position.count;
+        if (vertexCount > maxVertices) {
+           maxVertices = vertexCount;
+           bestCanchaMesh = c;
+        }
       }
     });
 
-    if (hasCanchas) {
+    if (bestCanchaMesh) {
+      canchaBox.setFromObject(bestCanchaMesh);
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       canchaBox.getSize(size);
@@ -3170,22 +3189,50 @@ function initSensors() {
 
   // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
   // El terreno suele estar en Y=0 o cerca.
-  createSensor(new THREE.Vector3(-300, 2, -150), "sensor1", 0x10b981);
+  const pos2 = new THREE.Vector3();
+  const pos3 = new THREE.Vector3();
+  let has2 = false;
+  let has3 = false;
 
-  // 2. Sensor Canchas: Pegado a la base de las canchas
-  const courtsCenter = getFloorCenter("canchas");
-  if (courtsCenter) {
-    courtsCenter.x += 320; // Offset lateral
-    courtsCenter.y = 2; // Justo sobre el plano
-    createSensor(courtsCenter, "sensor2", 0xfbbf24);
+  // 1. Obtener posición del Nodo 2 (Canchas)
+  const canchaBox = new THREE.Box3();
+  let foundCanchas = false;
+  model.traverse(c => {
+    if (c.isMesh && c.userData.role === 'canchas' && !c.userData.isHitBox) {
+        canchaBox.expandByObject(c);
+        foundCanchas = true;
+    }
+  });
+  if (foundCanchas) {
+    canchaBox.getCenter(pos2);
+    const size = new THREE.Vector3();
+    canchaBox.getSize(size);
+    pos2.x += (size.x / 2) + 10;
+    pos2.y = 2;
+    createSensor(pos2, "sensor2", 0xfbbf24);
+    has2 = true;
   }
 
-  // 3. Sensor Alberca: Pegado a la base de la alberca
+  // 2. Obtener posición del Nodo 3 (Alberca)
   const poolCenter = getFloorCenter("pool");
   if (poolCenter) {
-    poolCenter.z += 100; // Offset lateral
-    poolCenter.y = 2; // Justo sobre el plano
-    createSensor(poolCenter, "sensor3", 0x22d3ee);
+    pos3.copy(poolCenter);
+    pos3.z += 100;
+    pos3.y = 2;
+    createSensor(pos3, "sensor3", 0x22d3ee);
+    has3 = true;
+  }
+
+  // 3. Posicionar Nodo 1 (Bosque) en el punto medio entre 2 y 3
+  if (has2 && has3) {
+    const midPoint = new THREE.Vector3().lerpVectors(pos2, pos3, 0.5);
+    // Lo movemos un poco hacia afuera (eje Z o X) para que no quede pegado al edificio si están muy alineados
+    midPoint.x -= 40; 
+    midPoint.y = 2;
+    createSensor(midPoint, "sensor1", 0x10b981);
+  } else {
+    // Fallback por si alguno falla
+    createSensor(new THREE.Vector3(-550, 2, -450), "sensor1", 0x10b981);
   }
 }
 
@@ -3227,21 +3274,40 @@ function initSpatialLabels() {
   targets.forEach((t) => {
     const box = new THREE.Box3();
     let found = false;
+    let bestMesh = null;
+    let maxVertices = -1;
 
     // Buscamos mallas que tengan el rol asociado
     model.traverse((child) => {
       if (child.isMesh && child.userData.role === t.role) {
-        box.expandByObject(child);
-        found = true;
+        if (t.role === "canchas") {
+           // Filtro de geometría para evitar basura flotante
+           const vCount = child.geometry.attributes.position.count;
+           if (vCount > maxVertices) {
+              maxVertices = vCount;
+              bestMesh = child;
+           }
+        } else {
+           box.expandByObject(child);
+           found = true;
+        }
       }
     });
+
+    if (t.role === "canchas" && bestMesh) {
+       box.setFromObject(bestMesh);
+       found = true;
+    }
 
     if (found) {
       const center = new THREE.Vector3();
       box.getCenter(center);
 
-      // Estabilización para áreas masivas
-      if (t.role === "canchas") center.y = 8;
+      // Ajuste manual para canchas si el centro sale desviado por el GLB
+      if (t.role === "canchas") {
+          center.y = 5;
+          // center.x y center.z se mantienen del box real filtrado
+      }
 
       center.y += t.yOffset;
 
