@@ -31,7 +31,7 @@ let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const LATITUDE = 19.4326; // Ciudad de México
 const LONGITUDE = -99.1332;
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 
 
 // Posiciones de Control de Cámara
@@ -2336,6 +2336,7 @@ function simulateHistoryEffect(offsetMin) {
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
+  timer.update();
 
   // Lógica de Giro Panorámico
   if (isPanoActive) {
@@ -2448,7 +2449,7 @@ function animate() {
 
   // Pulsación suave y Vista Explosionada Sincronizada
   if (model) {
-    const time = clock.getElapsedTime();
+    const time = timer.getElapsed();
 
     // Actualizar factor de explosión global (Lerp dinámico)
     const targetExp = isModelExploded ? 1.0 : 0.0;
