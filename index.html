@@ -1,35 +1,177 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Utopía Japón - Digital Twin</title>
-  
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utopía Japón - Digital Twin</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="style.css">
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.166.1/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.166.1/examples/jsm/"
+    <!-- LIBRERÍAS EXTERNAS (CDNs) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- IMPORT MAP (Necesario para Hostinger) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.166.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.166.1/examples/jsm/"
+        }
       }
-    }
-  </script>
+    </script>
 </head>
 <body>
-  <div id="app">
-    <div id="container"></div>
-    
-    <!-- Loader Overlay -->
-    <div id="loader-overlay">
-      <div class="loader-content">
-        <div class="loader-spinner"></div>
-        <p class="loader-text">Iniciando Gemelo Digital...</p>
-      </div>
-    </div>
-  </div>
+    <div id="app">
+        <!-- Contenedor del render de Three.js -->
+        <div id="container"></div>
 
-  <script type="module" src="main.js"></script>
+        <!-- CAPA DE INTERFAZ (HUD) -->
+        <div id="ui-layer">
+            <!-- Header con Logo y Reloj -->
+            <header class="main-header">
+                <div class="logo">
+                    <span class="glitch-text" data-text="UTOPÍA JAPÓN">UTOPÍA JAPÓN</span>
+                    <span class="sub-logo">DIGITAL TWIN V1.0</span>
+                </div>
+                <div class="header-info">
+                    <div id="weather-display" class="info-block">
+                        <span class="label">WEATHER:</span>
+                        <span id="weather-val" class="value">SYNCING...</span>
+                    </div>
+                    <div class="info-block">
+                        <span class="label">TIME:</span>
+                        <span id="clock-val" class="value">00:00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Menú Lateral Izquierdo (Métricas) -->
+            <aside class="sidebar-left">
+                <div class="card occupancy-card">
+                    <h3>CAPACIDAD ACTUAL</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item" onclick="updateFocus('gym')">
+                            <span class="label">GYM</span>
+                            <div class="progress-bar"><div id="bar-gym" class="fill"></div></div>
+                            <span id="val-gym" class="value">0/50</span>
+                        </div>
+                        <div class="stat-item" onclick="updateFocus('pool')">
+                            <span class="label">ALBERCA</span>
+                            <div class="progress-bar"><div id="bar-pool" class="fill"></div></div>
+                            <span id="val-pool" class="value">0/30</span>
+                        </div>
+                        <div class="stat-item" onclick="updateFocus('canchas')">
+                            <span class="label">CANCHAS</span>
+                            <div class="progress-bar"><div id="bar-canchas" class="fill"></div></div>
+                            <span id="val-canchas" class="value">0/20</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card alerts-card">
+                    <h3>SISTEMA DE ALERTAS</h3>
+                    <div id="feed-container" class="feed">
+                        <!-- Alertas dinámicas aquí -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Controles Inferiores (Dashboard & History) -->
+            <footer class="controls-footer">
+                <div class="footer-left">
+                    <button class="btn-main" onclick="openPanel('dashboard')">
+                        <span class="icon">📊</span> DASHBOARD
+                    </button>
+                    <button class="btn-main" onclick="openPanel('history')">
+                        <span class="icon">🕒</span> HISTORIAL
+                    </button>
+                </div>
+                
+                <div class="footer-center">
+                    <div id="weather-controls" class="weather-pills">
+                        <button onclick="changeWeather('normal')">SOL</button>
+                        <button onclick="changeWeather('rain')">LLUVIA</button>
+                        <button onclick="changeWeather('night')">NOCHE</button>
+                    </div>
+                </div>
+
+                <div class="footer-right">
+                    <button id="btn-walk" class="btn-main special" onclick="toggleWalkMode()">
+                        <span class="icon">🚶</span> MODO CAMINAR
+                    </button>
+                </div>
+            </footer>
+        </div>
+
+        <!-- PANELES MODALES (OCULTOS POR DEFECTO) -->
+        <div id="overlay" class="hidden" onclick="closeAllPanels()"></div>
+
+        <!-- Dashboard Panel -->
+        <div id="panel-dashboard" class="side-panel hidden">
+            <div class="panel-header">
+                <h2>ANÁLISIS DE OCUPACIÓN</h2>
+                <button class="close-btn" onclick="closeAllPanels()">×</button>
+            </div>
+            <div class="panel-content">
+                <canvas id="occupancyChart"></canvas>
+                <div class="occupancy-details">
+                    <p>Total reservaciones hoy: <strong id="total-reservations-today">0</strong></p>
+                    <p>Pico de ocupación esperado: <strong>15:30h</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Panel -->
+        <div id="panel-history" class="side-panel hidden">
+            <div class="panel-header">
+                <h2>HISTORIAL DE RESERVAS</h2>
+                <button class="close-btn" onclick="closeAllPanels()">×</button>
+            </div>
+            <div class="panel-content">
+                <div class="history-list" id="history-container">
+                    <!-- Registros dinámicos aquí -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Card (Posicionada dinámicamente) -->
+        <div id="info-card" class="info-card hidden">
+            <button class="close-mini" onclick="hideInfoCard()">×</button>
+            <div class="card-body">
+                <h2 id="card-title">ZONA</h2>
+                <div class="card-status" id="card-status">ESTADO: NORMAL</div>
+                <div class="card-metrics">
+                    <div class="metric">
+                        <span class="label">CAPACIDAD</span>
+                        <span class="val" id="card-cap">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">TEMPERATURA</span>
+                        <span class="val" id="card-temp">24°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loader Overlay -->
+        <div id="loader-overlay">
+            <div class="loader-content">
+                <div class="loader-spinner"></div>
+                <p class="loader-text">SINCRONIZANDO CON GEMELO DIGITAL...</p>
+                <p class="loader-subtext">Cargando geometrías y texturas...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor para Etiquetas Espaciales (HTML Proyectado) -->
+    <div id="labels-container"></div>
+
+    <script type="module" src="main.js"></script>
 </body>
 </html>
