@@ -31,8 +31,7 @@ let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const LATITUDE = 19.4326; // Ciudad de México
 const LONGITUDE = -99.1332;
-const timer = new THREE.Timer();
-timer.update();
+const clock = new THREE.Clock();
 
 // Posiciones de Control de Cámara
 let floatingLabel;
@@ -2395,10 +2394,10 @@ function animate() {
   updateAtmosphere(); // Sincroniza Sol, Clima y Hora CDMX
 
   // Pulsación suave y Vista Explosionada Sincronizada
-  if (model) {
-    timer.update();
-    const time = timer.getElapsed();
+  const delta = clock.getDelta();
+  const elapsed = clock.getElapsedTime();
 
+  if (model) {
     // Actualizar factor de explosión global (Lerp dinámico)
     const targetExp = isModelExploded ? 1.0 : 0.0;
     explodeFactor += (targetExp - explodeFactor) * 0.08;
