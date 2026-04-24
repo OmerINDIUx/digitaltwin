@@ -31,8 +31,7 @@ let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const LATITUDE = 19.4326; // Ciudad de México
 const LONGITUDE = -99.1332;
-const timer = new THREE.Timer();
-timer.update();
+const clock = new THREE.Clock();
 
 // Posiciones de Control de Cámara
 let floatingLabel;
@@ -2396,8 +2395,7 @@ function animate() {
 
   // Pulsación suave y Vista Explosionada Sincronizada
   if (model) {
-    timer.update();
-    const time = timer.getElapsed();
+    const time = clock.getElapsedTime();
 
     model.traverse((child) => {
       // 1. Resplandor pulsante
