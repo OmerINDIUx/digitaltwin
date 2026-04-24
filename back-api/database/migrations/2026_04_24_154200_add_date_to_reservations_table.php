@@ -10,7 +10,13 @@ return new class extends Migration
     {
         Schema::table('reservations', function (Blueprint $table) {
             if (!Schema::hasColumn('reservations', 'date')) {
-                $table->date('date')->nullable()->after('zone');
+                $table->date('date')->nullable()->after('id');
+            }
+            if (!Schema::hasColumn('reservations', 'time')) {
+                $table->string('time')->nullable()->after('date');
+            }
+            if (!Schema::hasColumn('reservations', 'guests')) {
+                $table->integer('guests')->default(1)->after('time');
             }
         });
     }
@@ -18,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('reservations', function (Blueprint $table) {
-            $table->dropColumn('date');
+            $table->dropColumn(['date', 'time', 'guests']);
         });
     }
 };
