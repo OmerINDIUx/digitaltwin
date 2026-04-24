@@ -31,8 +31,8 @@ let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const LATITUDE = 19.4326; // Ciudad de México
 const LONGITUDE = -99.1332;
-const timer = new THREE.Timer();
-timer.update();
+const clock = new THREE.Clock();
+
 
 // Posiciones de Control de Cámara
 let floatingLabel;
@@ -458,10 +458,10 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-      loadGLTF("/japonutopia_texturas.glb"),
-      loadGLTF("/tree_detailed_dark.glb"),
-      loadGLTF("/tree_fat_darkh.glb"),
-      loadGLTF("/tree_pineGroundA.glb"),
+      loadGLTF("public/japonutopia_texturas.glb"),
+      loadGLTF("public/tree_detailed_dark.glb"),
+      loadGLTF("public/tree_fat_darkh.glb"),
+      loadGLTF("public/tree_pineGroundA.glb"),
     ]);
 
     // Extraer mágicamente el material (hojas verdes) de los árboles
@@ -2396,8 +2396,7 @@ function animate() {
 
   // Pulsación suave y Vista Explosionada Sincronizada
   if (model) {
-    timer.update();
-    const time = timer.getElapsed();
+    const time = clock.getElapsedTime();
 
     // Actualizar factor de explosión global (Lerp dinámico)
     const targetExp = isModelExploded ? 1.0 : 0.0;
