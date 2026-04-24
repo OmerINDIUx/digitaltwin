@@ -1,4 +1,4 @@
-// import "./style.css";
+import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -1432,6 +1432,58 @@ function initLayoutControls() {
   }
 }
 
+// --- NUEVAS FUNCIONES DE CONTROL DE PANELES (RESTAURADAS) ---
+function openPanel(panelId) {
+  closeAllPanels();
+  
+  if (panelId === 'dashboard') {
+    const dash = document.getElementById("extended-dashboard");
+    if (dash) {
+      dash.classList.remove("hidden");
+      updateDashboardData();
+      loadReservationsFromDB();
+      addFeedItem("Abriendo Dashboard de Control Maestro", "info");
+    }
+  } else if (panelId === 'history') {
+    const history = document.getElementById("history-panel");
+    const btnHist = document.getElementById("btn-history");
+    if (history) {
+      history.classList.remove("hidden");
+      if (btnHist) btnHist.classList.add("history-active");
+      updateHistoryUI(parseInt(document.getElementById("history-slider")?.value || 0));
+      addFeedItem("Abriendo Línea de Tiempo Histórica", "info");
+    }
+  }
+}
+
+function closeAllPanels() {
+  const dash = document.getElementById("extended-dashboard");
+  const history = document.getElementById("history-panel");
+  const info = document.getElementById("info-card");
+  const btnHist = document.getElementById("btn-history");
+
+  if (dash) dash.classList.add("hidden");
+  if (history) history.classList.add("hidden");
+  if (info) info.classList.add("hidden");
+  if (btnHist) btnHist.classList.remove("history-active");
+}
+
+function changeWeather(type) {
+  currentWeatherType = type;
+  if (rain) {
+    rain.material.opacity = type === 'rain' ? 0.6 : 0;
+  }
+  // Ajustar atmósfera según el tipo
+  updateAtmosphere();
+  addFeedItem(`Clima cambiado a: ${type.toUpperCase()}`, "success");
+}
+
+// Exportar a window
+window.openPanel = openPanel;
+window.closeAllPanels = closeAllPanels;
+window.changeWeather = changeWeather;
+window.updateFocus = updateFocus;
+
 // Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
 function syncDBCounts() {
   if (isHistoryMode) return; // NO sincronizar si estamos en el pasado/futuro
@@ -2537,13 +2589,12 @@ function onMouseMove(event) {
     return; 
   }
 
-  if (event.target.tagName !== "CANVAS") return;
+  if (!model || event.target.tagName !== "CANVAS") return;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
-  if (!model) return;
   const intersects = raycaster.intersectObject(model, true);
 
   let currentHoverRole = null;
@@ -2626,7 +2677,7 @@ function onMouseClick(event) {
   // Si tardó más de 250ms o se movió más de 5px, es una navegación, NO un clic de selección
   if (duration > 250 || dist > 5) return;
 
-  if (event.target.tagName !== "CANVAS") return;
+  if (!model || event.target.tagName !== "CANVAS") return;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
