@@ -48,7 +48,10 @@ Route::patch('/admin/zones/{zone}',    [ZoneController::class, 'update'])->name(
 Route::post('/admin/reservations', [AdminController::class, 'adminStore'])->name('admin.reservations.store');
 Route::post('/admin/reservations/{reservation}/check-in', [AdminController::class, 'adminCheckIn'])->name('admin.reservations.checkin');
 
-// Check-in de asistencia via QR (Endpoint de validación)
+// Ver pase digital (Vista para el usuario)
+Route::get('/reservations/show/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
+
+// Check-in de asistencia via QR (Endpoint de validación para el admin)
 Route::get('/reservations/check-in/{reservation}', [ReservationController::class, 'checkIn'])->name('reservations.checkin');
 
 // API de disponibilidad

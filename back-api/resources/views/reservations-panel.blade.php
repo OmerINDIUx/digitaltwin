@@ -42,7 +42,7 @@
                     $nowH = (int)now()->format('H');
                     $startH = (int)explode(':', explode(' - ', $zoneStat['schedule'])[0])[0];
                     $hoursPassed = max(0, $nowH - $startH);
-                    $capacityPerHour = $zone->capacity;
+                    $capacityPerHour = $zoneStat['limit_per_hour'] ?? $zone->capacity;
                     $expiredSpots = $hoursPassed * $capacityPerHour;
                     
                     $totalTaken = $zoneStat['count'] + $expiredSpots;
@@ -208,12 +208,11 @@
                 </div>
             </div>
 
-            <!-- CONTROLES -->
             <div class="grid grid-cols-2 gap-3 mb-3">
                 <button onclick="downloadFullCard()" id="dl-btn" class="py-5 bg-white text-slate-900 font-black rounded-3xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm shadow-xl border border-slate-200">
-                    💾 DESCARGAR PASE
+                    💾 DESCARGAR
                 </button>
-                <button onclick="shareCard()" id="share-btn" class="py-5 bg-[#25D366] text-white font-black rounded-3xl hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 text-sm shadow-xl">
+                <button onclick="shareViaWhatsApp()" id="share-btn" class="py-5 bg-[#25D366] text-white font-black rounded-3xl hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 text-sm shadow-xl">
                     📱 ENVIAR WA
                 </button>
             </div>
@@ -223,8 +222,8 @@
             </button>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         const qr = new QRCode(document.getElementById("qrcode"), {
             text: "{{ route('reservations.checkin', session('new_reservation_id')) }}",
@@ -237,12 +236,35 @@
 
         async function getCardCanvas() {
             const card = document.getElementById("access-card");
-            return html2canvas(card, {
-                scale: 2,
-                backgroundColor: "#ffffff",
-                logging: false,
-                useCORS: true
-            });
+            
+            // Ocultar elementos problemáticos temporalmente
+            const blurs = card.querySelectorAll('.blur-3xl, .blur-2xl');
+            blurs.forEach(b => b.style.opacity = '0');
+            
+            try {
+                // Pequeña espera para asegurar renderizado de fuentes y QR
+                await new Promise(r => setTimeout(r, 150));
+                
+                const canvas = await html2canvas(card, {
+                    scale: 2,
+                    backgroundColor: "#ffffff",
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true,
+                    foreignObjectRendering: false, // Más estable en algunos navegadores
+                    onclone: (clonedDoc) => {
+                        const el = clonedDoc.getElementById("access-card");
+                        el.style.boxShadow = 'none';
+                        el.style.transform = 'none';
+                    }
+                });
+                return canvas;
+            } catch (err) {
+                console.error("Fallo en html2canvas:", err);
+                throw err;
+            } finally {
+                blurs.forEach(b => b.style.opacity = '1');
+            }
         }
 
         async function downloadFullCard() {
@@ -250,44 +272,24 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = '⌛...';
             
-            const canvas = await getCardCanvas();
-            const link = document.createElement("a");
-            link.href = canvas.toDataURL("image/png");
-            link.download = "Pase_Acceso_{{ session('new_reservation_name') }}.png";
-            link.click();
-            
-            btn.innerHTML = originalText;
-        }
-
-        async function shareCard() {
-            const btn = document.getElementById('share-btn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '⌛...';
-
             try {
                 const canvas = await getCardCanvas();
-                canvas.toBlob(async (blob) => {
-                    const file = new File([blob], "Pase_Digital_Twin.png", { type: 'image/png' });
-                    
-                    // Si el navegador soporta compartir archivos (Móviles modernos)
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: 'Mi Pase de Acceso',
-                            text: 'Hola! Aquí está mi pase para el complejo.'
-                        });
-                    } else {
-                        // Si es PC o no soporta archivos, enviamos solo el texto/link
-                        const waUrl = "https://wa.me/?text=Hola! Ya tengo mi pase para el Digital Twin. Aquí puedes ver mi reserva: {{ route('reservations.checkin', session('new_reservation_id')) }}";
-                        window.open(waUrl, "_blank");
-                        alert("En PC la imagen no se adjunta automáticamente. Por favor, descarga la tarjeta y adjúntala manualmente.");
-                    }
-                    btn.innerHTML = originalText;
-                }, 'image/png');
+                const link = document.createElement("a");
+                link.href = canvas.toDataURL("image/png");
+                link.download = "Pase_Acceso_{{ session('new_reservation_name') }}.png";
+                link.click();
             } catch (err) {
-                console.error(err);
+                console.error("Error al descargar:", err);
+                alert("No se pudo generar la imagen completa. Puedes intentar tomar una captura de pantalla.");
+            } finally {
                 btn.innerHTML = originalText;
             }
+        }
+
+        function shareViaWhatsApp() {
+            const text = encodeURIComponent("¡Hola! Ya tengo mi pase para el Digital Twin. Aquí puedes ver mi pase digital: {{ route('reservations.show', session('new_reservation_id')) }}");
+            const waUrl = `https://wa.me/?text=${text}`;
+            window.open(waUrl, "_blank");
         }
     </script>
     @endif
@@ -557,8 +559,7 @@
                 `;
                 
                 if(occupancy < hCap) {
-                    const free = hCap - occupancy;
-                    hDiv.onclick = () => selectHour(h, hourStr, free);
+                    hDiv.onclick = () => selectHour(h, hourStr);
                 }
                 
                 hourGrid.appendChild(hDiv);
@@ -568,27 +569,48 @@
             updateUI();
         }
 
-        function selectHour(h, hourStr, freeSpots) {
+        function selectHour(h, hourStr) {
             selectedHour = h;
+            const duration = parseInt(document.getElementById('res-duration').value);
+            const config = zoneConfig[selectedZone];
+            const dayOfWeek = new Date(selectedDate + 'T00:00:00').getDay();
+            const daySched = config.schedules[dayOfWeek] || {};
+            const hCap = daySched.capacity ? parseInt(daySched.capacity) : config.limit;
+
+            // Calcular disponibilidad real en el bloque completo
+            let minFree = hCap;
+            for(let i=0; i < duration; i++) {
+                const targetH = h + i;
+                const occupancy = (availabilityData[selectedDate] && availabilityData[selectedDate][selectedZone] && availabilityData[selectedDate][selectedZone][targetH]) ? parseInt(availabilityData[selectedDate][selectedZone][targetH]) : 0;
+                const free = hCap - occupancy;
+                if(free < minFree) minFree = free;
+            }
+            
             document.querySelectorAll('.hour-pill').forEach(p => p.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-indigo-500/50'));
             const pill = document.getElementById(`hour-${h}`);
             pill.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-lg', 'shadow-indigo-500/50');
             
             const dtFinal = `${selectedDate}T${h < 10 ? '0'+h : h}:00`;
             document.getElementById('res-datetime').value = dtFinal;
-            document.getElementById('final-datetime-display').textContent = `${selectedDate} a las ${hourStr} (${freeSpots} libres)`;
+            document.getElementById('final-datetime-display').textContent = `${selectedDate} a las ${hourStr} (${minFree} libres en bloque)`;
             document.getElementById('final-datetime-display').classList.remove('text-slate-400', 'bg-slate-100');
             document.getElementById('final-datetime-display').classList.add('text-indigo-600', 'bg-indigo-50');
             
-            // Ajustar el máximo de invitados según lugares libres
             const guestsInput = document.querySelector('input[name="guests"]');
-            guestsInput.max = freeSpots;
-            if(parseInt(guestsInput.value) > freeSpots) {
-                guestsInput.value = freeSpots;
+            guestsInput.max = minFree;
+            if(parseInt(guestsInput.value) > minFree) {
+                guestsInput.value = minFree;
             }
 
             updateUI();
         }
+
+        document.getElementById('res-duration').onchange = () => {
+            if(selectedHour !== null) {
+                const hourStr = selectedHour < 10 ? `0${selectedHour}:00` : `${selectedHour}:00`;
+                selectHour(selectedHour, hourStr);
+            }
+        };
 
         function updateUI() {
             const btn = document.getElementById('submit-btn');

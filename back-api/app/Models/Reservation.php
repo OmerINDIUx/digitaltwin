@@ -16,6 +16,7 @@ class Reservation extends Model
         'zone',
         'reservation_date',
         'guests',
+        'duration',
         'status',
     ];
 

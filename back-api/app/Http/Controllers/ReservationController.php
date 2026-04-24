@@ -78,22 +78,55 @@ class ReservationController extends Controller
             $stats[$z->slug] = [
                 'count' => Reservation::where('zone', $z->slug)->whereDate('reservation_date', $today)->sum('guests'),
                 'limit' => max(0, $dailyCapacity - $eventBlock),
+                'limit_per_hour' => $limitPerHour,
                 'schedule' => substr($hStart, 0, 5) . ' - ' . substr($hEnd, 0, 5)
             ];
         }
 
         // Disponibilidad por día, zona y HORA (Próximos 7 días)
-        $availability = Reservation::selectRaw('DATE(reservation_date) as date, HOUR(reservation_date) as hour, zone, SUM(guests) as total_guests')
-            ->where('reservation_date', '>=', now()->toDateString())
-            ->where('reservation_date', '<=', now()->addDays(7)->toDateString())
-            ->groupBy('date', 'hour', 'zone')
-            ->get()
-            ->groupBy('date')
-            ->map(function ($dateItems) {
-                return $dateItems->groupBy('zone')->map(function ($zoneItems) {
-                    return $zoneItems->pluck('total_guests', 'hour');
-                });
-            });
+        $rawReservations = Reservation::whereIn('status', ['confirmed', 'pending'])
+            ->whereDate('reservation_date', '>=', now()->toDateString())
+            ->get();
+
+        $availability = [];
+        foreach ($rawReservations as $res) {
+            $date = $res->reservation_date->format('Y-m-d');
+            $startHour = (int)$res->reservation_date->format('H');
+            
+            for ($i = 0; $i < $res->duration; $i++) {
+                $currentH = $startHour + $i;
+                if (!isset($availability[$date])) $availability[$date] = [];
+                if (!isset($availability[$date][$res->zone])) $availability[$date][$res->zone] = [];
+                if (!isset($availability[$date][$res->zone][$currentH])) $availability[$date][$res->zone][$currentH] = 0;
+                
+                $availability[$date][$res->zone][$currentH] += $res->guests;
+            }
+        }
+
+        // Sumar también ocupación de eventos/clases al calendario
+        $activeEventsForCal = \App\Models\Event::where('is_active', true)
+            ->whereDate('event_date', '>=', now()->toDateString())
+            ->get();
+
+        foreach ($activeEventsForCal as $ev) {
+            $date = $ev->event_date->format('Y-m-d');
+            $startHour = (int)$ev->event_date->format('H');
+            
+            for ($i = 0; $i < $ev->duration; $i++) {
+                $currentH = $startHour + $i;
+                if (!isset($availability[$date])) $availability[$date] = [];
+                if (!isset($availability[$date][$ev->zone])) $availability[$date][$ev->zone] = [];
+                if (!isset($availability[$date][$ev->zone][$currentH])) $availability[$date][$ev->zone][$currentH] = 0;
+                
+                // Si es evento privado o mantenimiento, bloquea todo el cupo de esa hora
+                if ($ev->type === 'private_event' || $ev->type === 'maintenance') {
+                    $z = $zones->where('slug', $ev->zone)->first();
+                    $availability[$date][$ev->zone][$currentH] = $z ? $z->capacity : 999;
+                } else {
+                    $availability[$date][$ev->zone][$currentH] += $ev->capacity;
+                }
+            }
+        }
 
         // Obtener eventos activos (Excluyendo mantenimiento para residentes)
         $events = \App\Models\Event::where('is_active', true)
@@ -134,17 +167,19 @@ class ReservationController extends Controller
         $daySched = $sched[$dayOfWeek] ?? null;
         $limit = $daySched['capacity'] ?? $zone->capacity;
         
-        // Sumar ocupación actual (incluyendo reservas que traslapan por duración)
+        $endDatetime = date('Y-m-d H:i:s', strtotime($data['datetime'] . " + {$data['duration']} hours"));
+
+        // Sumar ocupación actual (Cualquier reserva que se cruce con nuestro rango)
         $currentOccupancy = \App\Models\Reservation::where('zone', $data['zone'])
             ->whereIn('status', ['confirmed', 'pending'])
-            ->where('reservation_date', '<=', $data['datetime'])
+            ->where('reservation_date', '<', $endDatetime)
             ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$data['datetime']])
             ->sum('guests');
 
-        // Sumar ocupación de eventos/clases
+        // Sumar ocupación de eventos/clases (Cualquier evento que se cruce)
         $activeEvents = \App\Models\Event::where('zone', $data['zone'])
             ->where('is_active', true)
-            ->where('event_date', '<=', $data['datetime'])
+            ->where('event_date', '<', $endDatetime)
             ->whereRaw('DATE_ADD(event_date, INTERVAL duration HOUR) > ?', [$data['datetime']])
             ->get();
 
@@ -190,6 +225,18 @@ class ReservationController extends Controller
         ]);
     }
     /**
+     * Ver el pase digital (Vista tipo App).
+     */
+    public function show(Reservation $reservation)
+    {
+        return view('reservations.check-in', [
+            'status' => 'pending', 
+            'message' => 'Pase de Acceso Activo', 
+            'reservation' => $reservation
+        ]);
+    }
+
+    /**
      * Marcar asistencia mediante QR.
      */
     public function checkIn(Reservation $reservation)
@@ -201,18 +248,24 @@ class ReservationController extends Controller
         // 1. Validar ventana de tiempo (Margen de 10 min antes y 10 min después del inicio)
         if ($now->lt($startTime->copy()->subMinutes(10))) {
             $msg = "Demasiado pronto. Solo puedes entrar desde las " . $startTime->copy()->subMinutes(10)->format('H:i') . " hrs.";
-            return request()->ajax() ? response()->json(['status' => 'error_time', 'message' => $msg]) : "<h1>❌ $msg</h1>";
+            return request()->ajax() 
+                ? response()->json(['status' => 'error_time', 'message' => $msg]) 
+                : view('reservations.check-in', ['status' => 'error', 'message' => $msg, 'reservation' => $reservation]);
         }
 
         if ($now->gt($startTime->copy()->addMinutes(10))) {
             $msg = "Pase expirado. Tu tolerancia de 10 minutos terminó a las " . $startTime->copy()->addMinutes(10)->format('H:i') . " hrs.";
-            return request()->ajax() ? response()->json(['status' => 'error_expired', 'message' => $msg]) : "<h1>❌ $msg</h1>";
+            return request()->ajax() 
+                ? response()->json(['status' => 'error_expired', 'message' => $msg]) 
+                : view('reservations.check-in', ['status' => 'error', 'message' => $msg, 'reservation' => $reservation]);
         }
 
         // 2. Validar si ya asistió
         if ($reservation->checked_in_at) {
             $msg = "Este pase ya fue validado el " . $reservation->checked_in_at->format('d/m H:i') . " hrs.";
-            return request()->ajax() ? response()->json(['status' => 'error_duplicate', 'message' => $msg]) : "<h1>⚠️ $msg</h1>";
+            return request()->ajax() 
+                ? response()->json(['status' => 'error_duplicate', 'message' => $msg]) 
+                : view('reservations.check-in', ['status' => 'error', 'message' => $msg, 'reservation' => $reservation]);
         }
 
         // 3. Confirmar asistencia
@@ -224,7 +277,7 @@ class ReservationController extends Controller
         $msg = "¡Bienvenido, {$reservation->name}! Acceso autorizado.";
         return request()->ajax() 
             ? response()->json(['status' => 'success', 'message' => $msg, 'name' => $reservation->name]) 
-            : "<h1>✅ $msg</h1><p>Zona: {$reservation->zone}</p><script>setTimeout(() => window.close(), 3000);</script>";
+            : view('reservations.check-in', ['status' => 'success', 'message' => $msg, 'reservation' => $reservation]);
     }
 
     /**
@@ -320,6 +373,7 @@ class ReservationController extends Controller
     {
         $zoneSlug = $request->get('zone');
         $datetime = $request->get('datetime');
+        $duration = (int)$request->get('duration', 1);
 
         if (!$zoneSlug || !$datetime) {
             return response()->json(['error' => 'Parámetros incompletos'], 400);
@@ -327,6 +381,8 @@ class ReservationController extends Controller
 
         $zone = Zone::where('slug', $zoneSlug)->first();
         if (!$zone) return response()->json(['error' => 'Zona no encontrada'], 404);
+
+        $endDatetime = date('Y-m-d H:i:s', strtotime($datetime . " + {$duration} hours"));
 
         $dayOfWeek = date('w', strtotime($datetime));
         $sched = $zone->schedules ?? [];
@@ -338,14 +394,14 @@ class ReservationController extends Controller
 
         $currentOccupancy = Reservation::where('zone', $zoneSlug)
             ->whereIn('status', ['confirmed', 'pending'])
-            ->where('reservation_date', '<=', $datetime)
+            ->where('reservation_date', '<', $endDatetime)
             ->whereRaw('DATE_ADD(reservation_date, INTERVAL duration HOUR) > ?', [$datetime])
             ->sum('guests');
 
         // DESCONTAR AFORO DE EVENTOS/CLASES
         $activeEvents = \App\Models\Event::where('zone', $zoneSlug)
             ->where('is_active', true)
-            ->where('event_date', '<=', $datetime)
+            ->where('event_date', '<', $endDatetime)
             ->whereRaw('DATE_ADD(event_date, INTERVAL duration HOUR) > ?', [$datetime])
             ->get();
 
