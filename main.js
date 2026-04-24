@@ -2395,7 +2395,7 @@ function animate() {
 
   // Pulsación suave y Vista Explosionada Sincronizada
   const delta = clock.getDelta();
-  const time = clock.getElapsedTime(); // Cambiamos elapsed por time para mantener compatibilidad
+  const elapsedTime = clock.getElapsedTime();
 
   if (model) {
     // Actualizar factor de explosión global (Lerp dinámico)
@@ -2405,7 +2405,7 @@ function animate() {
     model.traverse((child) => {
       // 1. Resplandor pulsante
       if (child.isMesh && child.material.emissiveIntensity > 20.0) {
-        const pulse = 25.0 + Math.sin(time * 3) * 3.0;
+        const pulse = 25.0 + Math.sin(elapsedTime * 3) * 3.0;
         child.material.emissiveIntensity = pulse;
       }
 
@@ -2419,7 +2419,7 @@ function animate() {
     });
 
     // Actualizar nubes procedurales
-    if (clouds) clouds.material.uniforms.uTime.value = time;
+    if (clouds) clouds.material.uniforms.uTime.value = elapsedTime;
 
     // Actualizar lluvia si está activa
     if (rain && rain.material.opacity > 0) {
