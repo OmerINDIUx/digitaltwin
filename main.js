@@ -3188,9 +3188,9 @@ function initSensors() {
   };
 
   // 1. Sensor Bosque: Al alejarse mucho en el terreno (X negativo)
-  // El terreno suele estar en Y=0 o cerca.
-  const pos2 = new THREE.Vector3();
-  const pos3 = new THREE.Vector3();
+  // El terreno suelet currentWeatherType = "normal";
+const clock = new THREE.Clock(); // Usamos Clock en lugar de Timer para máxima compatibilidad
+const scene = new THREE.Scene();
   let has2 = false;
   let has3 = false;
 
