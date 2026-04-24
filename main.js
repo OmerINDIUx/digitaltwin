@@ -457,10 +457,10 @@ const loadGLTF = (url) =>
 const initModels = async () => {
   try {
     const [mainGltf, tree1, tree2, tree3] = await Promise.all([
-      loadGLTF("japonutopia_capasrenovadas.glb"),
-      loadGLTF("tree_detailed_dark.glb"),
-      loadGLTF("tree_fat_darkh.glb"),
-      loadGLTF("tree_pineGroundA.glb"),
+      loadGLTF("public/japonutopia_capasrenovadas.glb"),
+      loadGLTF("public/tree_detailed_dark.glb"),
+      loadGLTF("public/tree_fat_darkh.glb"),
+      loadGLTF("public/tree_pineGroundA.glb"),
     ]);
 
     // Extraer mágicamente el material (hojas verdes) de los árboles
