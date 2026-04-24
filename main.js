@@ -2543,6 +2543,7 @@ function onMouseMove(event) {
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
+  if (!model) return;
   const intersects = raycaster.intersectObject(model, true);
 
   let currentHoverRole = null;
