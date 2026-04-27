@@ -9,34 +9,30 @@ class ZoneSeeder extends Seeder
 {
     public function run(): void
     {
-        Zone::updateOrCreate(['slug' => 'gym'], [
-            'name' => 'Gimnasio',
-            'icon' => 'activity',
-            'description' => 'Área de pesas y cardio de alto rendimiento.',
-            'capacity' => 50,
-            'opening_hour' => '07:00',
-            'closing_hour' => '22:00',
-            'image' => 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400',
-        ]);
+        $jsonPath = database_path('data/local_zones.json');
 
-        Zone::updateOrCreate(['slug' => 'pool'], [
-            'name' => 'Natación',
-            'icon' => 'waves',
-            'description' => 'Centro acuático con alberca climatizada.',
-            'capacity' => 30,
-            'opening_hour' => '08:00',
-            'closing_hour' => '20:00',
-            'image' => 'Natación.JPG',
-        ]);
-
-        Zone::updateOrCreate(['slug' => 'canchas'], [
-            'name' => 'Canchas Deportivas',
-            'icon' => 'target',
-            'description' => 'Canchas multideportivas para fútbol y básquet.',
-            'capacity' => 20,
-            'opening_hour' => '09:00',
-            'closing_hour' => '21:00',
-            'image' => 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=400',
-        ]);
+        if (file_exists($jsonPath)) {
+            $zonesData = json_decode(file_get_contents($jsonPath), true);
+            foreach ($zonesData as $row) {
+                Zone::updateOrCreate(
+                    ['slug' => $row['slug']],
+                    [
+                        'name'                   => $row['name'],
+                        'icon'                   => $row['icon'],
+                        'description'            => $row['description'],
+                        'capacity'               => $row['capacity'],
+                        'opening_hour'           => $row['opening_hour'],
+                        'closing_hour'           => $row['closing_hour'],
+                        'image'                  => $row['image'],
+                        'status'                 => $row['status'] ?? 'active',
+                        'max_reservation_hours'  => $row['max_reservation_hours'] ?? 2,
+                        'schedules'              => $row['schedules'], // Aquí va la matriz semanal
+                    ]
+                );
+            }
+            echo "✅ ¡Configuración de Áreas sincronizada con éxito!\n";
+        } else {
+            echo "⚠️ No se encontró el archivo de zonas locales.\n";
+        }
     }
 }
