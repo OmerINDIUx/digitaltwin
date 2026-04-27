@@ -8,7 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist (removed to allow git deployment to Hostinger)
+# dist
+
 dist-ssr
 *.local
 
