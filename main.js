@@ -2545,7 +2545,16 @@ function runSimulation(type) {
 }
 window.runSimulation = runSimulation;
   spatialLabels.forEach((lbl) => {
-    const vector = lbl.pos.clone();
+    if (!lbl.target) return;
+
+    // Calculamos posición de mundo DINÁMICA (sigue al edificio si explota)
+    const worldPos = new THREE.Vector3();
+    lbl.target.getWorldPosition(worldPos);
+    
+    // Aplicamos el offset en vertical
+    worldPos.y += lbl.yOffset;
+
+    const vector = worldPos.clone();
     vector.project(camera);
 
     // Conversión de pantalla refinada
@@ -2560,10 +2569,10 @@ window.runSimulation = runSimulation;
       lbl.el.style.left = `${x}px`;
       lbl.el.style.top = `${y}px`;
 
-      const dist = camera.position.distanceTo(lbl.pos);
-      const scale = Math.max(0.5, Math.min(1.0, 750 / dist));
+      const dist = camera.position.distanceTo(worldPos);
+      const scale = Math.max(0.4, Math.min(1.0, 800 / dist));
       lbl.el.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      lbl.el.style.opacity = Math.max(0.1, Math.min(1.0, 950 / dist));
+      lbl.el.style.opacity = Math.max(0.1, Math.min(1.0, 1200 / dist));
     }
   });
 }
@@ -3300,8 +3309,8 @@ function initSpatialLabels() {
   spatialLabels.length = 0; // Limpiar lista
 
   const targets = [
-    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 120 },
-    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 120 },
+    { role: "gym", label: "🏢 Gimnasio", color: "gym", yOffset: 130 },
+    { role: "pool", label: "🌊 Centro Acuático", color: "pool", yOffset: 130 },
     {
       role: "canchas",
       label: "⚽ Canchas",
@@ -3312,19 +3321,19 @@ function initSpatialLabels() {
       role: "sensor1",
       label: "📡 Nodo 01 - Bosque",
       color: "sensor",
-      yOffset: 80,
+      yOffset: 45, // Más bajo para que se vea sobre el cubo
     },
     {
       role: "sensor2",
       label: "📡 Nodo 02 - Canchas",
       color: "sensor",
-      yOffset: 80,
+      yOffset: 45,
     },
     {
       role: "sensor3",
       label: "📡 Nodo 03 - Alberca",
       color: "sensor",
-      yOffset: 80,
+      yOffset: 45,
     },
   ];
 
@@ -3334,9 +3343,12 @@ function initSpatialLabels() {
     let bestMesh = null;
     let maxVertices = -1;
 
+    let childWithRole = null;
+
     // Buscamos mallas que tengan el rol asociado
     model.traverse((child) => {
       if (child.isMesh && child.userData.role === t.role) {
+        childWithRole = child; // Guardamos uno de referencia
         if (t.role === "canchas") {
            // Filtro de geometría para evitar basura flotante
            const vCount = child.geometry.attributes.position.count;
@@ -3386,7 +3398,13 @@ function initSpatialLabels() {
       };
 
       labelsContainer.appendChild(el);
-      spatialLabels.push({ el, pos: center });
+      // Guardamos la referencia al objeto y su offset para que sea DINÁMICO
+      spatialLabels.push({ 
+        el, 
+        target: bestMesh || model.getObjectByProperty('uuid', childWithRole?.uuid), // Guardar el mesh para seguirlo
+        yOffset: t.yOffset,
+        role: t.role
+      });
     }
   });
 
