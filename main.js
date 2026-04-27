@@ -2545,13 +2545,16 @@ function runSimulation(type) {
 }
 window.runSimulation = runSimulation;
   spatialLabels.forEach((lbl) => {
-    if (!lbl.target) return;
-
-    // Calculamos posición de mundo DINÁMICA (sigue al edificio si explota)
-    const worldPos = new THREE.Vector3();
-    lbl.target.getWorldPosition(worldPos);
+    // Calculamos posición final sumando el movimiento de la explosión si aplica
+    const worldPos = lbl.basePos.clone();
     
-    // Aplicamos el offset en vertical
+    // Si es el gimnasio, sumamos el offset de explosión (20 unidades)
+    if (lbl.role === 'gym') {
+        worldPos.y += (20 * explodeFactor);
+    }
+    // Si fuera el techo (roof), sumaríamos 40, etc.
+    
+    // Aplicamos el offset de altura de la propia etiqueta
     worldPos.y += lbl.yOffset;
 
     const vector = worldPos.clone();
@@ -3375,15 +3378,12 @@ function initSpatialLabels() {
       // Ajuste manual para canchas si el centro sale desviado por el GLB
       if (t.role === "canchas") {
           center.y = 5;
-          // center.x y center.z se mantienen del box real filtrado
       }
-
-      center.y += t.yOffset;
 
       const el = document.createElement("div");
       el.className = `holo-label ${t.color}`;
       el.innerHTML = `<span>${t.label}</span>`;
-      el.dataset.role = t.role; // Identificador para actualizaciones de estado
+      el.dataset.role = t.role;
 
       // Etiquetas ahora son grandes en todos los tamaños (Petición usuario)
       if (window.innerWidth < 800) {
@@ -3398,10 +3398,11 @@ function initSpatialLabels() {
       };
 
       labelsContainer.appendChild(el);
-      // Guardamos la referencia al objeto y su offset para que sea DINÁMICO
+      
+      // Guardamos la posición base calculada y el offset
       spatialLabels.push({ 
         el, 
-        target: bestMesh || model.getObjectByProperty('uuid', childWithRole?.uuid), // Guardar el mesh para seguirlo
+        basePos: center.clone(), // Posición central real
         yOffset: t.yOffset,
         role: t.role
       });
