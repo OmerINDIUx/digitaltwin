@@ -943,6 +943,12 @@ const initModels = async () => {
     initWeatherControls();
     initPopulation();
     updateDashboardData(); // NUEVO: Sincronizar UI al arrancar
+
+    // NUEVO: Inicializar elementos espaciales solo cuando el modelo esté listo
+    initSensors();
+    initSpatialLabels();
+    initAssets();
+
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
     console.error("❌ Loader Error:", error);
@@ -3408,10 +3414,7 @@ function updateSpatialLabelsStatus(zoneStatuses) {
   });
 }
 
-// Inicializar sensores, etiquetas y activos
-setTimeout(initSensors, 2500);
-setTimeout(initSpatialLabels, 4500);
-setTimeout(initAssets, 5500);
+// Inicializar sensores, etiquetas y activos se movió dentro de initModels()
 
 function initAssets() {
   const assets = [
