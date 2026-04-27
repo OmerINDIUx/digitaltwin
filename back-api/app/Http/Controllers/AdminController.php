@@ -143,7 +143,7 @@ class AdminController extends Controller
             ->where('reservation_date', '>=', now()->toDateString())
             ->where('reservation_date', '<=', now()->addDays(7)->toDateString())
             ->whereIn('status', ['confirmed', 'pending'])
-            ->groupBy('date', 'hour', 'zone')
+            ->groupByRaw('DATE(reservation_date), HOUR(reservation_date), zone')
             ->get()
             ->groupBy('date')
             ->map(function ($dateItems) {
