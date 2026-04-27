@@ -4,5 +4,14 @@ AddType image/vnd.microsoft.icon .ico
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  # Si necesitas redirecciones adicionales, se pueden poner aquí
+
+  # 1. Rutas de Vite (CSS/JS compilados)
+  # Redirige cualquier petición a /build/* hacia back-api/public/build/*
+  RewriteRule ^build/(.*)$ back-api/public/build/$1 [L]
+
+  # 2. Rutas de Laravel (Panel, API, Admin)
+  # Redirige /panel, /api, /login, etc., hacia la carpeta public del backend
+  RewriteCond %{REQUEST_URI} ^/(panel|api|admin|login|register|storage|reservations) [NC]
+  RewriteRule ^(.*)$ back-api/public/index.php [L]
+
 </IfModule>
