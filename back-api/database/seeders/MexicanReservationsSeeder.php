@@ -10,7 +10,31 @@ class MexicanReservationsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Lista extendida de nombres mexicanos realistas
+        // 1. IMPORTAR RESERVACIONES LOCALES (SINCRO TOTAL)
+        $jsonPath = database_path('data/local_reservations.json');
+        
+        if (file_exists($jsonPath)) {
+            $localData = json_decode(file_get_contents($jsonPath), true);
+            foreach ($localData as $row) {
+                Reservation::updateOrCreate(
+                    [
+                        'name'             => $row['name'],
+                        'zone'             => $row['zone'],
+                        'reservation_date' => $row['reservation_date'],
+                    ],
+                    [
+                        'email'    => $row['email'],
+                        'phone'    => $row['phone'],
+                        'guests'   => $row['guests'],
+                        'duration' => $row['duration'] ?? 60,
+                        'status'   => $row['status'],
+                    ]
+                );
+            }
+            echo "✅ ¡" . count($localData) . " reservaciones locales sincronizadas!\n";
+        }
+
+        // 2. GENERAR RESERVACIONES ADICIONALES PARA EL FUTURO
         $mexicanNames = [
             ['name' => 'Alejandro Villagómez', 'email' => 'a.villagomez@gmail.com'],
             ['name' => 'Beatriz Arizmendi', 'email' => 'betty.ariz@outlook.com'],
@@ -43,34 +67,28 @@ class MexicanReservationsSeeder extends Seeder
         $zones = ['gym', 'pool', 'canchas'];
         $today = Carbon::today('America/Mexico_City');
 
-        // Generar para los próximos 3 días
-        for ($i = 0; $i < 3; $i++) {
+        // Generar algunas extras para hoy y mañana
+        for ($i = 0; $i < 2; $i++) {
             $currentDate = $today->copy()->addDays($i);
-            
-            // Desde las 7:00 AM hasta las 9:00 PM (21:00)
-            for ($hour = 7; $hour <= 21; $hour++) {
-                
-                // Generar entre 1 y 3 reservas por cada hora
-                $reservationsInHour = rand(1, 3);
-                
-                for ($j = 0; $j < $reservationsInHour; $j++) {
-                    $person = $mexicanNames[array_rand($mexicanNames)];
-                    $minute = [0, 15, 30, 45][rand(0, 3)];
-                    
-                    Reservation::create([
+            for ($hour = 8; $hour <= 20; $hour += 2) {
+                $person = $mexicanNames[array_rand($mexicanNames)];
+                Reservation::updateOrCreate(
+                    [
                         'name'             => $person['name'],
-                        'email'            => $person['email'],
-                        'phone'            => '+52 55 ' . rand(1111, 9999) . ' ' . rand(1111, 9999),
                         'zone'             => $zones[array_rand($zones)],
-                        'reservation_date' => $currentDate->copy()->setHour($hour)->setMinute($minute),
-                        'guests'           => rand(1, 4),
-                        'duration'         => 60,
-                        'status'           => $i === 0 && $hour <= Carbon::now()->hour ? 'confirmed' : 'pending',
-                    ]);
-                }
+                        'reservation_date' => $currentDate->copy()->setHour($hour)->setMinute(0),
+                    ],
+                    [
+                        'email'    => $person['email'],
+                        'phone'    => '+52 55 ' . rand(1111, 9999) . ' ' . rand(1111, 9999),
+                        'guests'   => rand(1, 3),
+                        'duration' => 60,
+                        'status'   => 'confirmed',
+                    ]
+                );
             }
         }
 
-        echo "✅ ¡Base de datos poblada con éxito con nombres mexicanos!\n";
+        echo "✅ ¡Sincronización y generación completada!\n";
     }
 }
