@@ -1,13 +1,12 @@
-# PRUEBA DEFINITIVA DE CONEXIÓN
+# COMANDO PARA FINALIZAR TODO
 
-He creado un archivo llamado `prueba_conexion.html` en tu computadora.
+Siento el lío. Ejecuta esto para forzar el desbloqueo y subir la nueva versión de una vez:
 
-### 1. Súbelo con este comando:
-`scp -P 65002 prueba_conexion.html u776699452@195.35.10.75:~/public_html/digitaltwin/`
+### 1. Desbloquear carpeta
+`ssh -p 65002 u776699452@195.35.10.75 "chmod -R 775 ~/public_html/digitaltwin"`
+
+### 2. Subir todo (El definitivo)
+`scp -P 65002 -r dist/. u776699452@195.35.10.75:~/public_html/digitaltwin/`
 
 ---
-### 2. Visita esta URL:
-`https://digitaltwin.xn--diseoygestion-lkb.com/prueba_conexion.html`
-
-*   **Si ves "CONEXIÓN EXITOSA":** ¡Estamos en el lugar correcto! El problema es tu navegador (Caché).
-*   **Si ves un 404:** El dominio apunta a otra carpeta. Avísame y lo buscamos.
+Con esto la nueva versión quedará arriba. Una vez más, perdón por la complicación.
