@@ -942,10 +942,13 @@ const initModels = async () => {
     initLayoutControls();
     initWeatherControls();
     initPopulation();
-    updateDashboardData(); // NUEVO: Sincronizar UI al arrancar
-
     // NUEVO: Inicializar elementos espaciales solo cuando el modelo esté listo
     initSensors();
+    
+    // FORZAR ACTUALIZACIÓN: Esto asegura que los sensores recién añadidos 
+    // tengan su posición de mundo lista para las etiquetas
+    model.updateMatrixWorld(true); 
+    
     initSpatialLabels();
     initAssets();
 
@@ -3378,6 +3381,11 @@ function initSpatialLabels() {
       // Ajuste manual para canchas si el centro sale desviado por el GLB
       if (t.role === "canchas") {
           center.y = 5;
+      }
+      
+      // Si es un sensor, usamos directamente su posición de mundo para mayor precisión
+      if (t.role.includes('sensor') && childWithRole) {
+          childWithRole.getWorldPosition(center);
       }
 
       const el = document.createElement("div");
