@@ -66,29 +66,48 @@ class MexicanReservationsSeeder extends Seeder
 
         $zones = ['gym', 'pool', 'canchas'];
         $today = Carbon::today('America/Mexico_City');
+        $endDate = Carbon::create(2026, 5, 15, 0, 0, 0, 'America/Mexico_City');
 
-        // Generar algunas extras para hoy y mañana
-        for ($i = 0; $i < 2; $i++) {
-            $currentDate = $today->copy()->addDays($i);
-            for ($hour = 8; $hour <= 20; $hour += 2) {
+        echo "🔍 Verificando días sin reservaciones hasta el " . $endDate->toDateString() . "...\n";
+
+        // Iterar desde hoy hasta el 15 de mayo
+        for ($date = $today->copy(); $date->lte($endDate); $date->addDay()) {
+            
+            // Si ya existen reservaciones para este día, saltamos (según petición del usuario)
+            $exists = Reservation::whereDate('reservation_date', $date)->exists() 
+                   || Reservation::where('date', $date->toDateString())->exists();
+
+            if ($exists) {
+                echo "ℹ️ El día " . $date->toDateString() . " ya tiene datos. Saltando...\n";
+                continue;
+            }
+
+            echo "✍️ Generando datos simulados para el " . $date->toDateString() . "...\n";
+
+            // Generar entre 5 y 10 reservaciones aleatorias por día
+            $numReservations = rand(5, 10);
+            for ($i = 0; $i < $numReservations; $i++) {
                 $person = $mexicanNames[array_rand($mexicanNames)];
-                Reservation::updateOrCreate(
-                    [
-                        'name'             => $person['name'],
-                        'zone'             => $zones[array_rand($zones)],
-                        'reservation_date' => $currentDate->copy()->setHour($hour)->setMinute(0),
-                    ],
-                    [
-                        'email'    => $person['email'],
-                        'phone'    => '+52 55 ' . rand(1111, 9999) . ' ' . rand(1111, 9999),
-                        'guests'   => rand(1, 3),
-                        'duration' => 60,
-                        'status'   => 'confirmed',
-                    ]
-                );
+                $hour = rand(8, 20);
+                $minute = [0, 15, 30, 45][array_rand([0, 1, 2, 3])];
+                
+                $reservationTime = $date->copy()->setHour($hour)->setMinute($minute)->setSecond(0);
+
+                Reservation::create([
+                    'name'             => $person['name'],
+                    'email'            => $person['email'],
+                    'phone'            => '+52 55 ' . rand(1111, 9999) . ' ' . rand(1111, 9999),
+                    'zone'             => $zones[array_rand($zones)],
+                    'reservation_date' => $reservationTime,
+                    'date'             => $date->toDateString(),
+                    'time'             => $reservationTime->format('H:i'),
+                    'guests'           => rand(1, 4),
+                    'duration'         => 60,
+                    'status'           => 'confirmed',
+                ]);
             }
         }
 
-        echo "✅ ¡Sincronización y generación completada!\n";
+        echo "✅ ¡Sincronización y generación completada hasta el 15 de mayo!\n";
     }
 }

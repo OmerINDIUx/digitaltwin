@@ -15,6 +15,8 @@ class Reservation extends Model
         'phone',
         'zone',
         'reservation_date',
+        'date',
+        'time',
         'guests',
         'duration',
         'status',
