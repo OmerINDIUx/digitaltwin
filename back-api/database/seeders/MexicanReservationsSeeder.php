@@ -66,29 +66,25 @@ class MexicanReservationsSeeder extends Seeder
 
         $zones = ['gym', 'pool', 'canchas'];
         $today = Carbon::today('America/Mexico_City');
-        $endDate = Carbon::create(2026, 5, 15, 0, 0, 0, 'America/Mexico_City');
+        $endDate = $today->copy()->addDays(10); // Generar para los próximos 10 días
 
-        echo "🔍 Verificando días sin reservaciones hasta el " . $endDate->toDateString() . "...\n";
+        echo "🧹 Limpiando reservaciones existentes desde " . $today->toDateString() . " hasta " . $endDate->toDateString() . " para volver a poblar...\n";
+        Reservation::whereDate('reservation_date', '>=', $today)
+                   ->whereDate('reservation_date', '<=', $endDate)
+                   ->delete();
 
-        // Iterar desde hoy hasta el 15 de mayo
+        echo "✍️ Generando reservaciones para el periodo " . $today->toDateString() . " al " . $endDate->toDateString() . "...\n";
+
+        // Iterar desde hoy hasta la fecha fin
         for ($date = $today->copy(); $date->lte($endDate); $date->addDay()) {
             
-            // Si ya existen reservaciones para este día, saltamos (según petición del usuario)
-            $exists = Reservation::whereDate('reservation_date', $date)->exists() 
-                   || Reservation::where('date', $date->toDateString())->exists();
+            echo "📅 Generando datos para el " . $date->toDateString() . "...\n";
 
-            if ($exists) {
-                echo "ℹ️ El día " . $date->toDateString() . " ya tiene datos. Saltando...\n";
-                continue;
-            }
-
-            echo "✍️ Generando datos simulados para el " . $date->toDateString() . "...\n";
-
-            // Generar entre 5 y 10 reservaciones aleatorias por día
-            $numReservations = rand(5, 10);
+            // Generar entre 8 y 15 reservaciones aleatorias por día (un poco más denso)
+            $numReservations = rand(8, 15);
             for ($i = 0; $i < $numReservations; $i++) {
                 $person = $mexicanNames[array_rand($mexicanNames)];
-                $hour = rand(8, 20);
+                $hour = rand(7, 21); // Rango de horario extendido
                 $minute = [0, 15, 30, 45][array_rand([0, 1, 2, 3])];
                 
                 $reservationTime = $date->copy()->setHour($hour)->setMinute($minute)->setSecond(0);
@@ -108,6 +104,6 @@ class MexicanReservationsSeeder extends Seeder
             }
         }
 
-        echo "✅ ¡Sincronización y generación completada hasta el 15 de mayo!\n";
+        echo "✅ ¡Población completada con éxito hasta el " . $endDate->toDateString() . "!\n";
     }
 }
