@@ -157,22 +157,25 @@
 
         <!-- NAVIGATION -->
         <nav class="space-y-2 flex-1">
-            <a href="{{ route('admin.dashboard') }}" class="nav-link active">
+            <a href="{{ route('admin.dashboard') }}" class="nav-link {{ Route::is('admin.dashboard') ? 'active' : '' }}">
                 <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                 Dashboard
             </a>
-            <a href="{{ route('admin.zones.index') }}" class="nav-link">
+            <a href="{{ route('admin.zones.index') }}" class="nav-link {{ Route::is('admin.zones.*') ? 'active' : '' }}">
                 <i data-lucide="map" class="w-5 h-5"></i>
                 Gestión de Áreas
             </a>
-            <a href="{{ route('admin.scanner') }}" class="nav-link">
-                <i data-lucide="qr-code" class="w-5 h-5 text-indigo-400"></i>
-                Scanner de Accesos
+            <a href="{{ route('admin.scanner') }}" class="nav-link {{ Route::is('admin.scanner') ? 'active' : '' }}">
+                <i data-lucide="qr-code" class="w-5 h-5"></i>
+                Scanner
             </a>
-            <a href="{{ route('admin.events.index') }}" class="nav-link">
-                <i data-lucide="calendar-heart" class="w-5 h-5 text-rose-400"></i>
-                Eventos y Clases
+            <a href="{{ route('admin.events.index') }}" class="nav-link {{ Route::is('admin.events.*') ? 'active' : '' }}">
+                <i data-lucide="calendar-heart" class="w-5 h-5"></i>
+                Eventos
             </a>
+            <div class="pt-6 pb-2">
+                <span class="text-slate-600 text-[10px] font-bold uppercase tracking-widest px-4">Accesos Rápidos</span>
+            </div>
             <a href="{{ url('/panel') }}" target="_blank" class="nav-link">
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 Panel Público
@@ -180,17 +183,6 @@
             <a href="{{ url('/') }}" target="_blank" class="nav-link">
                 <i data-lucide="box" class="w-5 h-5"></i>
                 Visualizador 3D
-            </a>
-            <div class="pt-6 pb-2">
-                <span class="text-slate-600 text-[10px] font-bold uppercase tracking-widest px-4">Gestión</span>
-            </div>
-            <a href="#" class="nav-link">
-                <i data-lucide="users" class="w-5 h-5"></i>
-                Usuarios
-            </a>
-            <a href="#" class="nav-link">
-                <i data-lucide="settings" class="w-5 h-5"></i>
-                Configuración
             </a>
         </nav>
 

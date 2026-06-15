@@ -128,13 +128,16 @@ class ReservationController extends Controller
             }
         }
 
-        // Obtener eventos activos (Excluyendo mantenimiento para residentes)
+        // Obtener eventos activos creados desde /admin/events.
+        // Se filtra por dia completo para que los eventos de hoy sigan visibles en el panel.
         $events = \App\Models\Event::where('is_active', true)
             ->where('type', '!=', 'maintenance')
-            ->where('event_date', '>=', now())
-            ->withCount('registrations')
+            ->whereDate('event_date', '>=', now()->toDateString())
+            ->withCount([
+                'activeRegistrations as registrations_count',
+            ])
             ->orderBy('event_date', 'asc')
-            ->take(6)
+            ->take(12)
             ->get();
 
         return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones', 'events'));
@@ -320,7 +323,9 @@ class ReservationController extends Controller
 
             return response()->json([
                 'date'         => $today,
+                'server_time'  => $now->format('Y-m-d H:i:s'),
                 'reservations' => $reservations,
+                'active_reservations' => $activeReservations->values(),
                 'totals'       => $totals,
                 'zone_status'  => $zoneStatus,
                 'grand_total'  => array_sum($totals),
@@ -427,17 +432,19 @@ class ReservationController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string',
-            'email' => 'required|email'
+            'email' => 'nullable|email',
+            'phone' => 'required|string|max:30',
         ]);
 
-        if ($event->registrations()->count() >= $event->capacity) {
+        if ($event->activeRegistrations()->count() >= $event->capacity) {
             return response()->json(['error' => 'El evento ya está lleno.'], 422);
         }
 
-        $event->registrations()->create($data);
+        $event->registrations()->create(array_merge($data, [
+            'status' => 'por_pagar',
+        ]));
         
-        // Actualizar contador
-        $event->increment('current_attendees');
+        $event->syncActiveAttendeeCount();
 
         return response()->json(['success' => true]);
     }

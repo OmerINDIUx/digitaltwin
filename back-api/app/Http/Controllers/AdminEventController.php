@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +14,11 @@ class AdminEventController extends Controller
     {
         if (!session('admin_logged_in')) return redirect()->route('admin.login');
         
-        $events = Event::withCount('registrations')->latest()->get();
+        $events = Event::with([
+            'registrations' => fn ($query) => $query->latest(),
+        ])->withCount([
+            'activeRegistrations as registrations_count',
+        ])->latest()->get();
         $zones = Zone::all();
         return view('admin.events.index', compact('events', 'zones'));
     }
@@ -26,15 +31,18 @@ class AdminEventController extends Controller
             'event_date' => 'required|date',
             'duration' => 'required|integer|min:1',
             'capacity' => 'required|integer|min:1',
-            'type' => 'required'
+            'type' => 'required',
+            'attachments.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp|max:10240',
         ]);
 
-        $data = $request->all();
+        $data = $request->except(['attachments']);
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('events', 'public');
             $data['image'] = '/storage/' . $path;
         }
+
+        $data['attachments'] = $this->storeAttachments($request);
 
         Event::create($data);
 
@@ -44,7 +52,13 @@ class AdminEventController extends Controller
     public function update(Request $request, $id)
     {
         $event = Event::findOrFail($id);
-        $data = $request->all();
+        $request->validate([
+            'attachments.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp|max:10240',
+            'remove_attachments' => 'array',
+            'remove_attachments.*' => 'string',
+        ]);
+
+        $data = $request->except(['attachments', 'remove_attachments']);
 
         if ($request->hasFile('image')) {
             // Eliminar anterior si existe
@@ -54,6 +68,12 @@ class AdminEventController extends Controller
             $path = $request->file('image')->store('events', 'public');
             $data['image'] = '/storage/' . $path;
         }
+
+        $data['attachments'] = $this->mergeAttachments(
+            $event,
+            $request->input('remove_attachments', []),
+            $this->storeAttachments($request)
+        );
 
         $event->update($data);
         return redirect()->back()->with('success', 'Evento actualizado.');
@@ -67,9 +87,73 @@ class AdminEventController extends Controller
         return redirect()->back()->with('success', 'Estatus actualizado.');
     }
 
+    public function updateRegistrationStatus(Request $request, EventRegistration $registration)
+    {
+        if (!session('admin_logged_in')) return redirect()->route('admin.login');
+
+        $data = $request->validate([
+            'status' => 'required|in:aceptado,rechazado,por_pagar,pagado',
+        ]);
+
+        $registration->update($data);
+        $registration->event?->syncActiveAttendeeCount();
+
+        return redirect()->back()
+            ->with('success', 'Estatus de inscripción actualizado.')
+            ->with('open_event_details', $registration->event_id);
+    }
+
     public function destroy($id)
     {
-        Event::findOrFail($id)->delete();
+        $event = Event::findOrFail($id);
+
+        foreach ($event->attachments ?? [] as $attachment) {
+            if (!empty($attachment['path'])) {
+                Storage::disk('public')->delete($attachment['path']);
+            }
+        }
+
+        $event->delete();
         return redirect()->back()->with('success', 'Evento eliminado.');
+    }
+
+    private function storeAttachments(Request $request): array
+    {
+        if (!$request->hasFile('attachments')) {
+            return [];
+        }
+
+        return collect($request->file('attachments'))->map(function ($file) {
+            $path = $file->store('events/attachments', 'public');
+
+            return [
+                'name' => $file->getClientOriginalName(),
+                'url' => '/storage/' . $path,
+                'path' => $path,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+            ];
+        })->values()->all();
+    }
+
+    private function mergeAttachments(Event $event, array $removePaths, array $newAttachments): array
+    {
+        $removePaths = array_filter($removePaths);
+
+        $kept = collect($event->attachments ?? [])
+            ->reject(function ($attachment) use ($removePaths) {
+                $path = $attachment['path'] ?? null;
+
+                if ($path && in_array($path, $removePaths, true)) {
+                    Storage::disk('public')->delete($path);
+                    return true;
+                }
+
+                return false;
+            })
+            ->values()
+            ->all();
+
+        return array_values(array_merge($kept, $newAttachments));
     }
 }

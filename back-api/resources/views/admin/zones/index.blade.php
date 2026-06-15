@@ -1,67 +1,17 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Áreas | Command Center</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+@extends('admin.dashboard_layout')
+
+@section('content')
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #f8fafc; }
-        .glass-card { 
-            background: rgba(255, 255, 255, 0.8); 
-            backdrop-filter: blur(12px); 
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
         }
-        .sidebar { background: #0f172a; }
-        .nav-link.active { background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
     </style>
-</head>
-<body class="flex">
 
-    <!-- SIDEBAR -->
-    <aside class="w-72 h-screen sidebar fixed left-0 top-0 text-slate-300 p-6 flex flex-col z-50">
-        <div class="flex items-center gap-3 px-2 mb-10">
-            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/40">
-                <i data-lucide="layout-grid"></i>
-            </div>
-            <div>
-                <h1 class="text-white font-black text-xl tracking-tight leading-none">DIGITAL<span class="text-indigo-500">TWIN</span></h1>
-                <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500">Admin Control</p>
-            </div>
-        </div>
-
-        <nav class="flex-1 space-y-2">
-            <a href="{{ route('admin.dashboard') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all font-bold text-sm">
-                <i data-lucide="gauge" class="w-5 h-5"></i> Dashboard
-            </a>
-            <a href="{{ route('admin.zones.index') }}" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm">
-                <i data-lucide="map" class="w-5 h-5"></i> Gestión de Áreas
-            </a>
-            <div class="pt-6 pb-2 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Digital Twin</div>
-            <a href="{{ url('/') }}" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all font-bold text-sm">
-                <i data-lucide="external-link" class="w-5 h-5"></i> Visualizador 3D
-            </a>
-            <a href="{{ route('reservations.index') }}" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all font-bold text-sm">
-                <i data-lucide="users" class="w-5 h-5"></i> Panel Público
-            </a>
-        </nav>
-
-        <div class="border-t border-white/5 pt-6">
-            <form action="{{ route('admin.logout') }}" method="POST">
-                @csrf
-                <button type="submit" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500/10 text-red-400 font-bold text-sm hover:bg-red-500/20 transition-all">
-                    <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión
-                </button>
-            </form>
-        </div>
-    </aside>
-
-    <!-- MAIN CONTENT -->
-    <main class="ml-72 flex-1 p-8 min-h-screen" x-data="{ showToast: {{ session('success') ? 'true' : 'false' }}, toastMsg: '{{ session('success') }}' }" x-init="if(showToast) setTimeout(() => showToast = false, 3000)">
+    <div class="p-8 min-h-screen" x-data="{ showToast: {{ session('success') ? 'true' : 'false' }}, toastMsg: '{{ session('success') }}' }" x-init="if(showToast) setTimeout(() => showToast = false, 3000)">
         
         <!-- TOAST NOTIFICATION -->
         <div x-show="showToast" 
@@ -264,7 +214,7 @@
             </div>
             @endforeach
         </div>
-    </main>
+    </div>
 
     <!-- MODAL NUEVA ÁREA -->
     <div id="add-zone-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
@@ -343,5 +293,4 @@
             }, 1500);
         }
     </script>
-</body>
-</html>
+@endsection

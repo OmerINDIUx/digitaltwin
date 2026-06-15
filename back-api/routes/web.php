@@ -33,6 +33,7 @@ Route::get('/admin/events', [AdminEventController::class, 'index'])->name('admin
 Route::post('/admin/events', [AdminEventController::class, 'store'])->name('admin.events.store');
 Route::patch('/admin/events/{id}', [AdminEventController::class, 'update'])->name('admin.events.update');
 Route::patch('/admin/events/{id}/toggle', [AdminEventController::class, 'toggleActive'])->name('admin.events.toggle');
+Route::patch('/admin/events/registrations/{registration}/status', [AdminEventController::class, 'updateRegistrationStatus'])->name('admin.events.registrations.status');
 Route::delete('/admin/events/{id}', [AdminEventController::class, 'destroy'])->name('admin.events.destroy');
 
 // Gestión de reservas (desde el admin)

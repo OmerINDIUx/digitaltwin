@@ -1,4 +1,3 @@
-import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -11,18 +10,21 @@ import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
 import { Sky } from "three/addons/objects/Sky.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
-// Detectar si estamos en local o producción para la API
-const isLocal =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
+const appBasePath = window.location.pathname
+  .replace(/\/[^\/]*$/, "")
+  .replace(/\/dist$/, "");
+const isViteDevServer =
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1") &&
+  window.location.port &&
+  window.location.port !== "80";
 
-// Ahora detectamos si estamos en una subcarpeta (PRODUCCIÓN) automáticamente
-const API_BASE_URL = isLocal
+const API_BASE_URL = isViteDevServer
   ? "http://localhost:8000"
-  : `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, "")}/back-api/public`;
+  : `${window.location.origin}${appBasePath}/back-api/public`;
 
 // NOTA: Si usas un subdominio separado (ej: api.tudominio.com),
-// cambia la línea de arriba por: 'https://api.tudominio.com'
+// cambia API_BASE_URL por: 'https://api.tudominio.com'
 
 let model;
 let rain;
@@ -54,6 +56,7 @@ const labelsContainer = document.getElementById("labels-container");
 let dbCounts = { gym: null, pool: null, canchas: null };
 let lastActiveReservations = []; // <--- DATOS PARA COLOREADO DE PERSONAS
 let currentSelectedRole = null; // Para refrescar la card abierta durante el historial
+let liveSyncTimer = null;
 
 const peopleInstances = {
   gym: null,
@@ -61,15 +64,12 @@ const peopleInstances = {
   canchas: null,
 };
 let lastZoneStatuses = {}; // <--- PERSISTENCIA GLOBAL DE ESTADOS
-const peopleGeometry = new THREE.CapsuleGeometry(2.5, 6.0, 4, 8); // Gigante Digital para visibilidad
-const peopleMaterial = new THREE.MeshStandardMaterial({
-  color: 0x22d3ee,
-  emissive: 0x22d3ee,
-  emissiveIntensity: 4.0, // Brillo neón intenso
+const peopleGeometry = new THREE.CapsuleGeometry(4.0, 10.0, 4, 8); // Personas visibles desde la vista 3D
+const peopleMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
   transparent: true,
   opacity: 1.0,
-  metalness: 0,
-  roughness: 0.5,
+  toneMapped: false,
 });
 
 // Estados para movimiento de personas
@@ -951,6 +951,7 @@ const initModels = async () => {
     
     initSpatialLabels();
     initAssets();
+    startLiveSync();
 
     document.getElementById("loader-overlay").classList.add("hidden");
   } catch (error) {
@@ -1403,7 +1404,7 @@ function initLayoutControls() {
 
     if (btnViewPanel) {
       btnViewPanel.addEventListener("click", () => {
-        window.open("http://127.0.0.1:8000/panel", "_blank");
+        window.open(`${API_BASE_URL}/panel`, "_blank");
       });
     }
 
@@ -1496,7 +1497,10 @@ window.updateFocus = updateFocus;
 // Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
 function syncDBCounts() {
   if (isHistoryMode) return; // NO sincronizar si estamos en el pasado/futuro
-  fetch(`${API_BASE_URL}/api/reservations/live`)
+  fetch(`${API_BASE_URL}/api/reservations/live?t=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  })
     .then((res) => res.json())
     .then((data) => {
       const totals = data.totals || { gym: 0, pool: 0, canchas: 0 };
@@ -1506,8 +1510,13 @@ function syncDBCounts() {
       dbCounts.pool = totals.pool ?? 0;
       dbCounts.canchas = totals.canchas ?? 0;
       
-      // Guardar reservaciones para el coloreado del motor 3D
-      lastActiveReservations = data.reservations || [];
+      // Guardar solo reservaciones activas para coloreado y población en vivo
+      lastActiveReservations = data.active_reservations || [];
+      console.info("[LIVE SYNC]", {
+        serverTime: data.server_time,
+        totals,
+        activeReservations: lastActiveReservations.length,
+      });
       
       applyDBCountsToWorld(statuses);
     })
@@ -1649,10 +1658,15 @@ function applyDBCountsToWorld(zoneStatuses = null) {
   updateDashboardData();
 }
 
-// Sincronizar al cargar y cada 60 segundos
-document.addEventListener("DOMContentLoaded", () => {
+function startLiveSync() {
   syncDBCounts();
-  setInterval(syncDBCounts, 60000);
+  if (liveSyncTimer) clearInterval(liveSyncTimer);
+  liveSyncTimer = setInterval(syncDBCounts, 10000);
+}
+
+// Sincronizar al cargar y cada 10 segundos
+document.addEventListener("DOMContentLoaded", () => {
+  startLiveSync();
 });
 
 function loadReservationsFromDB() {
@@ -1668,7 +1682,9 @@ function loadReservationsFromDB() {
     .then((data) => {
       // El endpoint /live devuelve { date, reservations, totals, grand_total }
       const reservations = Array.isArray(data) ? data : data.reservations || [];
+      const activeReservations = data.active_reservations || [];
       const totals = data.totals || null;
+      lastActiveReservations = activeReservations;
 
       if (reservations.length > 0) {
         historyList.innerHTML = "";
@@ -2365,7 +2381,6 @@ function animate() {
     const inst = peopleInstances[role];
     const states = peopleStates[role];
     if (inst && states.length > 0) {
-      inst.material.emissiveIntensity = pulseEmissive;
       const dummy = new THREE.Object3D();
 
       for (let i = 0; i < states.length; i++) {
@@ -3088,7 +3103,7 @@ function spawnPeopleInRole(role, count, reservations = []) {
   // Recolectar superficies de tránsito...
   let roleMeshes = [];
   model.traverse((c) => {
-    if (c.isMesh && c.userData.role === role) {
+    if (c.isMesh && c.userData.role === role && !c.userData.isHitBox) {
       const name = (c.name || "").toLowerCase();
       const isStructural =
         name.includes("techo") ||
@@ -3096,7 +3111,9 @@ function spawnPeopleInRole(role, count, reservations = []) {
         name.includes("viga") ||
         name.includes("truss") ||
         name.includes("lamina") ||
-        name.includes("columna");
+        name.includes("columna") ||
+        name.includes("muro") ||
+        name.includes("pared");
 
       if (!isStructural) {
         roleMeshes.push(c);
@@ -3106,7 +3123,7 @@ function spawnPeopleInRole(role, count, reservations = []) {
 
   if (roleMeshes.length === 0) {
     model.traverse((c) => {
-      if (c.isMesh && c.userData.role === role) roleMeshes.push(c);
+      if (c.isMesh && c.userData.role === role && !c.userData.isHitBox) roleMeshes.push(c);
     });
   }
 
@@ -3131,6 +3148,38 @@ function spawnPeopleInRole(role, count, reservations = []) {
 
   if (roleMeshes.length === 0) return;
 
+  const meshInfo = roleMeshes
+    .map((mesh) => {
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = box.getSize(new THREE.Vector3());
+      const name = (mesh.name || "").toLowerCase();
+      const area = Math.max(1, size.x * size.z);
+      const flatness = area / Math.max(1, size.y);
+      const floorName =
+        name.includes("piso") ||
+        name.includes("suelo") ||
+        name.includes("floor") ||
+        name.includes("mat") ||
+        name.includes("plataforma");
+      return { mesh, box, size, area, score: flatness + (floorName ? area * 4 : 0) };
+    })
+    .filter((item) => item.area > 150);
+
+  if (meshInfo.length === 0) {
+    console.warn(`[LIVE SYNC] No se encontró superficie visible para ${role}`);
+    return;
+  }
+
+  meshInfo.sort((a, b) => b.score - a.score);
+  const spawnSurfaces = meshInfo.slice(0, Math.min(3, meshInfo.length));
+  console.info(`[LIVE SYNC] Pintando ${count} personas en ${role}`, {
+    surfaces: spawnSurfaces.map((s) => ({
+      name: s.mesh.name,
+      area: Math.round(s.area),
+      y: Number(s.box.max.y.toFixed(2)),
+    })),
+  });
+
   const instMesh = new THREE.InstancedMesh(
     peopleGeometry,
     peopleMaterial.clone(),
@@ -3138,13 +3187,15 @@ function spawnPeopleInRole(role, count, reservations = []) {
   );
   instMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
   instMesh.userData.role = role;
+  instMesh.frustumCulled = false;
+  instMesh.renderOrder = 50;
 
-  // --- LÓGICA DE COLOREADO POR ASISTENCIA ---
-  // Expandir invitados por reserva para asignar colores individuales
+  // --- LÓGICA DE COLOREADO POR ESTADO DE RESERVA ---
+  // Confirmada = azul, pendiente/no confirmada = amarillo.
   let peopleColors = [];
   reservations.forEach(res => {
-      const isAttended = res.checked_in_at !== null;
-      const color = isAttended ? new THREE.Color(0x10b981) : new THREE.Color(0xfacc15); // Verde vs Amarillo
+      const isConfirmed = res.status === "confirmed";
+      const color = isConfirmed ? new THREE.Color(0x22d3ee) : new THREE.Color(0xfacc15);
       for(let g=0; g < res.guests; g++) {
           if (peopleColors.length < count) peopleColors.push(color);
       }
@@ -3152,25 +3203,32 @@ function spawnPeopleInRole(role, count, reservations = []) {
 
   // Rellenar si faltan (por si hay inconsistencia)
   while(peopleColors.length < count) {
-      peopleColors.push(new THREE.Color(0xfacc15)); // Default Amarillo
+      peopleColors.push(new THREE.Color(0xfacc15)); // Default: pendiente/no confirmada
   }
 
   const dummy = new THREE.Object3D();
   peopleStates[role] = [];
 
   for (let i = 0; i < count; i++) {
-    const targetMesh = roleMeshes[Math.floor(Math.random() * roleMeshes.length)];
-    const meshBox = new THREE.Box3().setFromObject(targetMesh);
-    const size = meshBox.getSize(new THREE.Vector3());
+    const surface = spawnSurfaces[i % spawnSurfaces.length];
+    const meshBox = surface.box;
+    const size = surface.size;
     const center = meshBox.getCenter(new THREE.Vector3());
 
-    const rx = (Math.random() - 0.5) * (size.x * 0.8);
-    const rz = (Math.random() - 0.5) * (size.z * 0.8);
-    const yOffset = role === "pool" ? 0.3 : 4.0;
-    const pos = new THREE.Vector3(center.x + rx, meshBox.min.y + yOffset, center.z + rz);
+    const columns = Math.ceil(Math.sqrt(count));
+    const row = Math.floor(i / columns);
+    const col = i % columns;
+    const gridX = columns === 1 ? 0 : (col / (columns - 1) - 0.5);
+    const gridZ = columns === 1 ? 0 : (row / (columns - 1) - 0.5);
+    const jitterX = (Math.random() - 0.5) * Math.min(10, size.x * 0.08);
+    const jitterZ = (Math.random() - 0.5) * Math.min(10, size.z * 0.08);
+    const x = center.x + gridX * size.x * 0.42 + jitterX;
+    const z = center.z + gridZ * size.z * 0.42 + jitterZ;
+    const yOffset = role === "pool" ? 2.0 : 8.0;
+    const pos = new THREE.Vector3(x, meshBox.max.y + yOffset, z);
     const dir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
     const speed = 0.05 + Math.random() * 0.08;
-    const scale = 1.0 + Math.random() * 0.5;
+    const scale = 1.15 + Math.random() * 0.45;
 
     peopleStates[role].push({
       pos, dir, speed, scale,
@@ -3187,11 +3245,12 @@ function spawnPeopleInRole(role, count, reservations = []) {
     dummy.updateMatrix();
     instMesh.setMatrixAt(i, dummy.matrix);
     
-    // Aplicar color de asistencia
+    // Aplicar color por estado de reserva
     instMesh.setColorAt(i, peopleColors[i]);
   }
 
   instMesh.instanceMatrix.needsUpdate = true;
+  if (instMesh.instanceColor) instMesh.instanceColor.needsUpdate = true;
   scene.add(instMesh);
   peopleInstances[role] = instMesh;
 }

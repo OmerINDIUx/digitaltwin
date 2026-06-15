@@ -1,6 +1,53 @@
 @extends('admin.dashboard_layout')
 
 @section('content')
+<style>
+    .event-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 250;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background: rgba(15, 23, 42, 0.64);
+        backdrop-filter: blur(14px);
+    }
+
+    .event-popup.hidden {
+        display: none;
+    }
+
+    .event-popup__panel {
+        width: min(880px, calc(100vw - 3rem));
+        max-height: min(760px, calc(100vh - 3rem));
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 28px;
+        box-shadow: 0 30px 90px rgba(15, 23, 42, 0.28);
+    }
+
+    .event-popup__body {
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+
+    @media (max-width: 760px) {
+        .event-popup {
+            padding: 1rem;
+            place-items: end center;
+        }
+
+        .event-popup__panel {
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+            border-radius: 24px;
+        }
+    }
+</style>
+
 <div class="p-8">
     <div class="flex items-center justify-between mb-10">
         <div>
@@ -51,9 +98,18 @@
                     </div>
                     <div class="flex items-center gap-3 text-slate-500 text-sm font-bold">
                         <i data-lucide="users" class="w-4 h-4 text-emerald-500"></i>
-                        {{ $event->registrations_count }} / {{ $event->capacity }} inscritos
+                        {{ $event->registrations_count }} / {{ $event->capacity }} cupos ocupados
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-500 text-sm font-bold">
+                        <i data-lucide="badge-dollar-sign" class="w-4 h-4 text-amber-500"></i>
+                        ${{ number_format((float) $event->price, 2) }}
                     </div>
                 </div>
+
+                <button type="button" onclick="document.getElementById('event-details-{{ $event->id }}').classList.remove('hidden')" class="w-full mb-3 py-3 bg-slate-900 text-white font-black rounded-xl text-center text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                    Ver inscritos y detalles
+                </button>
 
                 <div class="flex gap-3">
                     <button onclick='openEditModal({!! json_encode($event) !!})' class="flex-1 py-3 bg-indigo-50 text-indigo-600 font-black rounded-xl text-center text-xs uppercase tracking-widest hover:bg-indigo-100 transition-all">
@@ -74,6 +130,138 @@
                 </div>
             </div>
         </div>
+
+        <div id="event-details-{{ $event->id }}" class="event-popup hidden" onclick="if (event.target === this) this.classList.add('hidden')">
+            <div class="event-popup__panel animate-in fade-in zoom-in duration-300">
+                <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-5">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <span class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest">{{ $event->type }}</span>
+                            <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest">{{ $event->zone }}</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-slate-900 leading-tight">{{ $event->name }}</h3>
+                        <p class="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
+                            <i data-lucide="calendar-clock" class="w-4 h-4 text-indigo-500"></i>
+                            {{ $event->event_date->format('d/m/Y H:i') }} hrs · {{ $event->duration }} h
+                        </p>
+                    </div>
+                    <button type="button" onclick="document.getElementById('event-details-{{ $event->id }}').classList.add('hidden')" class="w-10 h-10 flex-shrink-0 rounded-full border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <div class="event-popup__body">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cupos ocupados</p>
+                            <p class="text-xl font-black text-slate-900">{{ $event->registrations_count }} / {{ $event->capacity }}</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Disponibles</p>
+                            <p class="text-xl font-black text-slate-900">{{ max(0, $event->capacity - $event->registrations_count) }}</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Precio</p>
+                            <p class="text-xl font-black text-slate-900">${{ number_format((float) $event->price, 2) }}</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estatus</p>
+                            <p class="text-sm font-black {{ $event->is_active ? 'text-emerald-600' : 'text-slate-400' }} uppercase tracking-widest mt-1">{{ $event->is_active ? 'Activo' : 'Inactivo' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-6 bg-white border border-slate-200 rounded-2xl p-5">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Información general</p>
+                        <p class="text-sm font-bold text-slate-600 leading-6">{{ $event->description ?: 'Sin descripción registrada.' }}</p>
+                    </div>
+
+                    @if(!empty($event->attachments))
+                        <div class="mb-6 bg-white border border-slate-200 rounded-2xl p-5">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Archivos adjuntos</p>
+                            <div class="grid gap-3 md:grid-cols-2">
+                                @foreach($event->attachments as $attachment)
+                                    <a href="{{ $attachment['url'] ?? '#' }}" target="_blank" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all">
+                                        <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-indigo-600">
+                                            <i data-lucide="{{ str_contains($attachment['mime'] ?? '', 'pdf') ? 'file-text' : 'paperclip' }}" class="w-5 h-5"></i>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-black">{{ $attachment['name'] ?? 'Archivo adjunto' }}</p>
+                                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ isset($attachment['size']) ? number_format($attachment['size'] / 1024, 0) . ' KB' : 'Archivo' }}</p>
+                                        </div>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <div class="px-5 py-4 bg-slate-50 flex items-center justify-between gap-4">
+                            <h4 class="font-black text-slate-900">Personas inscritas</h4>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $event->registrations->count() }} registros</span>
+                        </div>
+
+                        @if($event->registrations->isNotEmpty())
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead>
+                                        <tr class="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th class="px-5 py-3">Nombre</th>
+                                            <th class="px-5 py-3">Correo</th>
+                                            <th class="px-5 py-3">WhatsApp</th>
+                                            <th class="px-5 py-3">Fecha de inscripción</th>
+                                            <th class="px-5 py-3">Estatus</th>
+                                            <th class="px-5 py-3">Asistencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        @foreach($event->registrations as $registration)
+                                            <tr class="text-sm font-bold text-slate-600">
+                                                <td class="px-5 py-4 text-slate-900">{{ $registration->name }}</td>
+                                                <td class="px-5 py-4">{{ $registration->email ?: 'Sin email' }}</td>
+                                                <td class="px-5 py-4">{{ $registration->phone ?: 'Sin WhatsApp' }}</td>
+                                                <td class="px-5 py-4">{{ $registration->created_at->format('d/m/Y H:i') }}</td>
+                                                <td class="px-5 py-4">
+                                                    <form action="{{ route('admin.events.registrations.status', $registration) }}" method="POST" class="flex items-center gap-2">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <select name="status" onchange="this.form.submit()" class="min-w-36 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10">
+                                                            <option value="aceptado" @selected($registration->status === 'aceptado')>Aceptado</option>
+                                                            <option value="rechazado" @selected($registration->status === 'rechazado')>Rechazado</option>
+                                                            <option value="por_pagar" @selected(($registration->status ?? 'por_pagar') === 'por_pagar')>Por pagar</option>
+                                                            <option value="pagado" @selected($registration->status === 'pagado')>Pagado</option>
+                                                        </select>
+                                                    </form>
+                                                </td>
+                                                <td class="px-5 py-4">
+                                                    @if($registration->checked_in_at)
+                                                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+                                                            <i data-lucide="check-circle" class="w-3 h-3"></i>
+                                                            {{ $registration->checked_in_at->format('d/m H:i') }}
+                                                        </span>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                                            <i data-lucide="clock" class="w-3 h-3"></i>
+                                                            Pendiente
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="p-10 text-center">
+                                <div class="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i data-lucide="user-x" class="w-7 h-7 text-slate-300"></i>
+                                </div>
+                                <p class="font-black text-slate-400">Todavía no hay personas inscritas.</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
         @empty
         <div class="col-span-full py-20 text-center">
             <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -89,7 +277,7 @@
 <!-- Modal Evento -->
 <div id="event-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
     <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
-    <div class="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div class="relative bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
         <div class="p-8 border-b border-slate-100 flex items-center justify-between">
             <h3 class="text-2xl font-black text-slate-900">Nuevo Evento / Clase</h3>
             <button onclick="document.getElementById('event-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
@@ -97,7 +285,7 @@
             </button>
         </div>
         
-        <form action="{{ route('admin.events.store') }}" method="POST" class="p-8" enctype="multipart/form-data">
+        <form action="{{ route('admin.events.store') }}" method="POST" class="p-8 overflow-y-auto" enctype="multipart/form-data">
             @csrf
             <div class="space-y-6">
                 <!-- Zona de Carga Prioritaria -->
@@ -129,6 +317,16 @@
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Descripción</label>
                     <textarea name="description" rows="3" placeholder="Detalles de la clase, requisitos, etc..." class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Archivos adjuntos</label>
+                    <label class="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 transition-all">
+                        <i data-lucide="paperclip" class="w-5 h-5 text-indigo-500"></i>
+                        <span>Subir PDF, imagen o documento</span>
+                        <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp" class="hidden">
+                    </label>
+                    <p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Máximo 10 MB por archivo</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -202,7 +400,7 @@
 <!-- Modal Editar Evento -->
 <div id="edit-event-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
     <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
-    <div class="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div class="relative bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
         <div class="p-8 border-b border-slate-100 flex items-center justify-between">
             <h3 class="text-2xl font-black text-slate-900">Editar Evento</h3>
             <button onclick="document.getElementById('edit-event-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
@@ -210,7 +408,7 @@
             </button>
         </div>
         
-        <form id="edit-event-form" method="POST" class="p-8" enctype="multipart/form-data">
+        <form id="edit-event-form" method="POST" class="p-8 overflow-y-auto" enctype="multipart/form-data">
             @csrf @method('PATCH')
             <div class="space-y-6">
                 <!-- Zona de Carga Prioritaria (Edit) -->
@@ -236,6 +434,23 @@
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Descripción</label>
                     <textarea name="description" id="edit-description" rows="3" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Archivos actuales</label>
+                    <div id="edit-existing-attachments" class="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                        Sin archivos adjuntos.
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Agregar archivos</label>
+                    <label class="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 transition-all">
+                        <i data-lucide="paperclip" class="w-5 h-5 text-indigo-500"></i>
+                        <span>Subir PDF, imagen o documento</span>
+                        <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp" class="hidden">
+                    </label>
+                    <p class="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Máximo 10 MB por archivo</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -292,6 +507,43 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
 <script>
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;',
+        }[char]));
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes) return 'Archivo';
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+
+    function renderExistingAttachments(attachments = []) {
+        const container = document.getElementById('edit-existing-attachments');
+
+        if (!attachments.length) {
+            container.innerHTML = 'Sin archivos adjuntos.';
+            return;
+        }
+
+        container.innerHTML = attachments.map((attachment) => `
+            <label class="flex items-center justify-between gap-4 rounded-xl bg-white px-4 py-3 border border-slate-100">
+                <span class="min-w-0">
+                    <a href="${escapeHtml(attachment.url)}" target="_blank" class="block truncate text-slate-800 hover:text-indigo-600">${escapeHtml(attachment.name || 'Archivo adjunto')}</a>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">${formatFileSize(attachment.size)}</span>
+                </span>
+                <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500">
+                    <input type="checkbox" name="remove_attachments[]" value="${escapeHtml(attachment.path)}" class="w-4 h-4 accent-rose-600">
+                    Quitar
+                </span>
+            </label>
+        `).join('');
+    }
+
     function openEditModal(event) {
         document.getElementById('edit-event-form').action = `/admin/events/${event.id}`;
         document.getElementById('edit-name').value = event.name;
@@ -313,6 +565,8 @@
             document.getElementById('edit-preview-img').src = event.image;
             document.getElementById('edit-preview-container').classList.remove('hidden');
         }
+
+        renderExistingAttachments(event.attachments || []);
 
         document.getElementById('edit-event-modal').classList.remove('hidden');
     }
@@ -372,6 +626,12 @@
 @if($errors->any())
 <script>
     document.getElementById('event-modal').classList.remove('hidden');
+</script>
+@endif
+
+@if(session('open_event_details'))
+<script>
+    document.getElementById('event-details-{{ session('open_event_details') }}')?.classList.remove('hidden');
 </script>
 @endif
 @endsection

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SISTEMA DE RESERVACIONES | Digital Twin</title>
     <title>SISTEMA DE RESERVACIONES | Digital Twin</title>
@@ -121,6 +122,17 @@
                             </span>
                         </div>
                         <p class="text-slate-400 text-xs line-clamp-2 mb-6">{{ $ev->description ?: 'Sin descripción disponible.' }}</p>
+
+                        @if(!empty($ev->attachments))
+                            <div class="mb-6 flex flex-wrap gap-2">
+                                @foreach($ev->attachments as $attachment)
+                                    <a href="{{ $attachment['url'] ?? '#' }}" target="_blank" class="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-100">
+                                        <i data-lucide="paperclip" class="w-3 h-3"></i>
+                                        {{ \Illuminate\Support\Str::limit($attachment['name'] ?? 'Archivo', 18) }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
                         
                         <div class="flex items-center justify-between mb-6">
                             <div class="text-xs font-bold text-slate-500 flex items-center gap-2">
@@ -130,9 +142,9 @@
                                 {{ $ev->capacity - $ev->registrations_count }} cupos
                             </div>
                         </div>
-                        <button onclick="openEventEnrollModal({{ $ev->id }}, '{{ $ev->name }}')" 
+                        <button onclick='openEventEnrollModal(@json($ev))' 
                             class="w-full py-4 bg-rose-500 text-white font-black rounded-2xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 active:scale-95 text-xs uppercase tracking-widest">
-                            Inscribirme Ahora
+                            Ver información e inscribirme
                         </button>
                     </div>
                 </div>
@@ -388,7 +400,182 @@
         </div>
     </div>
 
+    <div id="event-enroll-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xl">
+        <div class="bg-white w-full max-w-4xl max-h-[92vh] rounded-[2.25rem] shadow-2xl relative border border-slate-200 overflow-hidden flex flex-col">
+            <button onclick="closeEventEnrollModal()" class="absolute top-5 right-5 z-10 text-slate-400 hover:text-slate-900 transition-colors bg-white/90 border border-slate-200 p-2 rounded-full w-10 h-10 flex items-center justify-center font-bold shadow-sm">✕</button>
+
+            <div class="overflow-y-auto">
+                <div class="grid lg:grid-cols-[1.05fr_0.95fr]">
+                    <div class="bg-slate-950 text-white">
+                        <div class="h-64 lg:h-full min-h-[24rem] relative overflow-hidden">
+                            <img id="event-detail-image" src="" alt="" class="w-full h-full object-cover opacity-80">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent"></div>
+                            <div class="absolute left-6 right-6 bottom-6">
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    <span id="event-detail-type" class="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] font-black uppercase tracking-widest"></span>
+                                    <span id="event-detail-zone" class="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] font-black uppercase tracking-widest"></span>
+                                </div>
+                                <h2 id="event-enroll-title" class="text-3xl font-black leading-tight tracking-tight"></h2>
+                                <p id="event-detail-date" class="mt-3 text-sm font-bold text-white/75"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-7 lg:p-8">
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Precio</p>
+                                <p id="event-detail-price" class="text-lg font-black text-slate-900"></p>
+                            </div>
+                            <div class="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cupos</p>
+                                <p id="event-detail-spots" class="text-lg font-black text-slate-900"></p>
+                            </div>
+                            <div class="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Duración</p>
+                                <p id="event-detail-duration" class="text-lg font-black text-slate-900"></p>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Información del evento</p>
+                            <p id="event-detail-description" class="text-sm font-bold leading-6 text-slate-600"></p>
+                        </div>
+
+                        <div id="event-detail-attachments-wrap" class="hidden mb-7">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Archivos y documentos</p>
+                            <div id="event-detail-attachments" class="grid gap-2"></div>
+                        </div>
+
+                        <div class="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-5">
+                                <p class="text-xs font-extrabold text-rose-500 uppercase tracking-widest mb-1">Inscripción</p>
+                                <p id="event-enroll-message" class="text-slate-500 text-sm font-bold">Completa tus datos para apartar tu lugar.</p>
+                            </div>
+                            <form id="event-enroll-form" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Nombre completo</label>
+                                    <input type="text" name="name" required class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">WhatsApp</label>
+                                    <input type="tel" name="phone" required placeholder="+52 000 000 0000" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1.5 ml-1">Email <span class="text-slate-300">(opcional)</span></label>
+                                    <input type="email" name="email" placeholder="correo@mail.com" class="w-full bg-white border border-slate-200 rounded-2xl text-slate-800 py-3.5 px-5 focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold">
+                                </div>
+                                <button type="submit" id="event-enroll-submit" class="w-full py-4 bg-rose-500 text-white font-black rounded-2xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 active:scale-95 text-xs uppercase tracking-widest">
+                                    Confirmar inscripción
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let selectedEventId = null;
+
+        function eventFallbackImage() {
+            return 'https://images.unsplash.com/photo-1571902251103-d71b46244bc0?auto=format&fit=crop&q=80&w=900';
+        }
+
+        function eventFileSize(bytes) {
+            return bytes ? `${Math.round(bytes / 1024)} KB` : 'Documento';
+        }
+
+        function openEventEnrollModal(eventData) {
+            selectedEventId = eventData.id;
+            const available = Math.max(0, Number(eventData.capacity || 0) - Number(eventData.registrations_count || 0));
+            const date = new Date(eventData.event_date);
+            const dateLabel = Number.isNaN(date.getTime())
+                ? ''
+                : date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+
+            document.getElementById('event-detail-image').src = eventData.image || eventFallbackImage();
+            document.getElementById('event-detail-type').textContent = eventData.type || 'Evento';
+            document.getElementById('event-detail-zone').textContent = eventData.zone || '';
+            document.getElementById('event-enroll-title').textContent = eventData.name || 'Inscripción';
+            document.getElementById('event-detail-date').textContent = dateLabel ? `${dateLabel} hrs` : '';
+            document.getElementById('event-detail-price').textContent = Number(eventData.price || 0) > 0
+                ? `$${Number(eventData.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                : 'Gratis';
+            document.getElementById('event-detail-spots').textContent = `${available} libres`;
+            document.getElementById('event-detail-duration').textContent = `${eventData.duration || 1} h`;
+            document.getElementById('event-detail-description').textContent = eventData.description || 'Sin descripción disponible.';
+            document.getElementById('event-enroll-message').textContent = 'Completa tus datos para apartar tu lugar.';
+            document.getElementById('event-enroll-form').reset();
+
+            const attachmentsWrap = document.getElementById('event-detail-attachments-wrap');
+            const attachmentsList = document.getElementById('event-detail-attachments');
+            const attachments = eventData.attachments || [];
+
+            if (attachments.length) {
+                attachmentsWrap.classList.remove('hidden');
+                attachmentsList.innerHTML = attachments.map((file) => `
+                    <a href="${file.url || '#'}" target="_blank" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all">
+                        <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <i data-lucide="${String(file.mime || '').includes('pdf') ? 'file-text' : 'paperclip'}" class="w-5 h-5"></i>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-black">${file.name || 'Documento'}</span>
+                            <span class="block text-[10px] font-black uppercase tracking-widest text-slate-400">${eventFileSize(file.size)}</span>
+                        </span>
+                    </a>
+                `).join('');
+            } else {
+                attachmentsWrap.classList.add('hidden');
+                attachmentsList.innerHTML = '';
+            }
+
+            document.getElementById('event-enroll-modal').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeEventEnrollModal() {
+            document.getElementById('event-enroll-modal').classList.add('hidden');
+            selectedEventId = null;
+        }
+
+        document.getElementById('event-enroll-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!selectedEventId) return;
+
+            const submitBtn = document.getElementById('event-enroll-submit');
+            const message = document.getElementById('event-enroll-message');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Registrando...';
+
+            try {
+                const response = await fetch(`/events/${selectedEventId}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify(Object.fromEntries(new FormData(event.target))),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'No se pudo completar la inscripción.');
+                }
+
+                message.textContent = 'Inscripción confirmada correctamente.';
+                setTimeout(() => window.location.reload(), 700);
+            } catch (error) {
+                message.textContent = error.message;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+
         const zoneConfig = {
             @foreach($zones as $zone)
                 "{{ $zone->slug }}": { 
@@ -496,7 +683,6 @@
             
             const isToday = (dateStr === todayStr);
             const currentH = now.getHours();
-            const currentM = now.getMinutes();
 
             // Highlight card
             document.querySelectorAll('.day-card').forEach(c => c.classList.remove('ring-2', 'ring-indigo-600', 'ring-offset-2', 'bg-indigo-600', 'text-white'));
@@ -519,10 +705,9 @@
             const bEnd = daySched.break_end ? parseInt(daySched.break_end.split(':')[0]) : null;
 
             for(let h = hStart; h < hEnd; h++) {
-                // Filtro para el día de hoy: no mostrar horas pasadas
+                // Filtro para el día de hoy: mantener abierta la hora en curso para pruebas
                 if (isToday) {
                     if (h < currentH) continue;
-                    if (h === currentH && currentM > 15) continue; // Margen de 15 minutos
                 }
 
                 // Verificar si es hora de descanso

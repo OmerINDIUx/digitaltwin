@@ -1,13 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner QR | Digital Twin Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+@extends('admin.dashboard_layout')
+
+@section('content')
     <style>
-        body { font-family: 'Outfit', sans-serif; background: #0f172a; color: white; overflow: hidden; }
         .scanner-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; aspect-ratio: 1/1; border-radius: 3rem; overflow: hidden; border: 4px solid #1e293b; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         #reader { width: 100% !important; border: none !important; }
         #reader__dashboard { background: #1e293b !important; padding: 20px !important; border-radius: 0 0 2rem 2rem !important; }
@@ -17,9 +11,8 @@
         @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
         .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
     </style>
-</head>
-<body class="flex flex-col items-center justify-center min-h-screen p-6">
 
+    <div class="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
     <div class="w-full max-w-md text-center mb-8">
         <div class="inline-block px-4 py-1 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 border border-indigo-500/30">
             Security Lector v2.0
@@ -46,7 +39,7 @@
     </div>
 
     <div class="mt-8 flex gap-4">
-        <a href="{{ route('admin.zones.index') }}" class="px-6 py-3 bg-slate-800 text-slate-400 rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all">← VOLVER</a>
+        <a href="{{ route('admin.dashboard') }}" class="px-6 py-3 bg-slate-800 text-slate-400 rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all">← VOLVER</a>
         <button onclick="location.reload()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-500/20">REINICIAR CÁMARA</button>
     </div>
 
@@ -153,5 +146,5 @@
             alert("Error: No se encontró una cámara disponible.");
         });
     </script>
-</body>
-</html>
+    </div>
+@endsection
