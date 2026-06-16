@@ -10,8 +10,12 @@ use Illuminate\Support\Facades\Route;
 // RUTAS PÚBLICAS (sin autenticación)
 // ──────────────────────────────────────────────
 Route::get('/', function () {
-    return redirect()->away(rtrim(config('app.frontend_url'), '/') . '/');
-});
+    return view('utopias-landing');
+})->name('utopias.home');
+
+Route::get('/topilejo', function () {
+    return view('utopias-topilejo');
+})->name('utopias.topilejo');
 
 // Panel público: explorar zonas y hacer reservas
 Route::get('/panel',  [ReservationController::class, 'index'])->name('reservations.index');
