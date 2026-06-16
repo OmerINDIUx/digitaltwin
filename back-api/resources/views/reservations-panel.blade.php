@@ -13,28 +13,81 @@
         .glass-dark { background: rgba(30, 41, 59, 0.03); border: 1px solid rgba(0,0,0,0.05); }
         .card-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
         .zone-card:hover .zone-img { transform: scale(1.05); filter: contrast(110%) brightness(90%); }
+        .japan-hero {
+            background:
+                linear-gradient(120deg, rgba(17, 24, 39, .94), rgba(49, 33, 95, .84), rgba(15, 118, 110, .68)),
+                url('{{ asset('storage/Axolote_natacion.gif') }}') center / cover;
+        }
     </style>
 </head>
 <body class="min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
-        <!-- HEADER -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-            <div>
-                <nav class="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">
-                    <span>Admin</span> <span>/</span> <span class="text-indigo-600">Explore</span>
-                </nav>
-                <h1 class="text-5xl font-extrabold text-slate-900 tracking-tight italic">Bienvenido a <span class="text-indigo-600">Utopía Japón</span></h1>
-                <p class="text-slate-500 mt-2 text-lg">¿Qué área deseas utilizar hoy? Revisa disponibilidad en tiempo real.</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" class="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all card-shadow flex items-center gap-2">
-                    🏙️ VOLVER AL MODELO 3D
-                </a>
+        <!-- MINI LANDING UTOPÍA JAPÓN -->
+        <header class="mb-12 overflow-hidden rounded-[2rem] japan-hero text-white shadow-2xl">
+            <div class="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.05fr_.95fr] lg:p-10">
+                <div class="flex flex-col justify-between gap-8">
+                    <div>
+                        <nav class="mb-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-white/70">
+                            <a href="{{ route('utopias.home') }}" class="transition hover:text-white">UTOPÍAS</a>
+                            <span>/</span>
+                            <span class="text-violet-200">Japón</span>
+                        </nav>
+
+                        <p class="mb-4 inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] ring-1 ring-white/20 backdrop-blur">
+                            La Utopía más grande de todas
+                        </p>
+                        <h1 class="max-w-3xl text-5xl font-black leading-none tracking-tight sm:text-6xl lg:text-7xl">
+                            Utopía Japón
+                        </h1>
+                        <p class="mt-5 max-w-2xl text-lg font-semibold leading-8 text-white/86">
+                            Un espacio público de gran escala para el encuentro comunitario, el deporte, la cultura y los cuidados. Japón reúne actividades y servicios para que más personas vivan la ciudad con dignidad, aprendizaje y convivencia.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-2xl bg-white/12 p-5 ring-1 ring-white/15 backdrop-blur">
+                            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-violet-100">Escala</p>
+                            <p class="mt-2 text-base font-extrabold leading-6">La sede más grande del proyecto UTOPÍAS.</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/12 p-5 ring-1 ring-white/15 backdrop-blur">
+                            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-violet-100">Actividades</p>
+                            <p class="mt-2 text-base font-extrabold leading-6">Deporte, cultura, talleres y encuentro vecinal.</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/12 p-5 ring-1 ring-white/15 backdrop-blur">
+                            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-violet-100">Reservas</p>
+                            <p class="mt-2 text-base font-extrabold leading-6">Consulta espacios y disponibilidad en tiempo real.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <a href="#reservas" class="inline-flex justify-center rounded-full bg-violet-700 px-6 py-4 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-800">
+                            Reservar ahora
+                        </a>
+                        <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" class="inline-flex justify-center rounded-full bg-white px-6 py-4 text-sm font-black uppercase tracking-wide text-slate-900 transition hover:bg-slate-100">
+                            Volver al modelo 3D
+                        </a>
+                    </div>
+                </div>
+
+                <div class="relative min-h-[420px] overflow-hidden rounded-[1.5rem] bg-slate-950 shadow-2xl ring-1 ring-white/20">
+                    <img src="{{ asset('storage/Axolote_Futbol.gif') }}" alt="Axolote de Utopía Japón" class="absolute inset-0 h-full w-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-6">
+                        <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">Utopía Japón</p>
+                        <p class="mt-2 max-w-md text-2xl font-black leading-tight">Una experiencia comunitaria de gran formato para vivir, aprender y participar.</p>
+                    </div>
+                </div>
             </div>
         </header>
 
         <!-- ZONE EXPLORER (DINÁMICO) -->
+        <div id="reservas" class="mb-8">
+            <p class="text-sm font-black uppercase tracking-[0.24em] text-violet-700">Reservaciones</p>
+            <h2 class="mt-2 text-4xl font-black tracking-tight text-slate-950">Elige un espacio disponible</h2>
+            <p class="mt-2 text-lg font-semibold text-slate-500">Revisa disponibilidad en tiempo real y aparta tu lugar en Utopía Japón.</p>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             @foreach($zones as $zone)
                 @php 
@@ -155,6 +208,43 @@
                 @endforelse
             </div>
         </div>
+
+        <!-- UBICACIÓN -->
+        <section class="mb-16 overflow-hidden rounded-[2rem] bg-white shadow-xl ring-1 ring-slate-200">
+            <div class="grid lg:grid-cols-[.8fr_1.2fr]">
+                <div class="flex flex-col justify-between gap-8 p-8 sm:p-10">
+                    <div>
+                        <p class="text-sm font-black uppercase tracking-[0.24em] text-violet-700">Ubicación</p>
+                        <h2 class="mt-3 text-4xl font-black tracking-tight text-slate-950">Visita Utopía Japón</h2>
+                        <p class="mt-4 text-lg font-semibold leading-8 text-slate-600">
+                            Encuéntrala en el Parque de la próxima Utopía - Japón, dentro de la Ciudad de México. Usa el mapa para ubicar accesos y planear tu visita antes de reservar.
+                        </p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Dirección</p>
+                            <p class="mt-2 text-base font-black text-slate-900">Parque de la próxima Utopía - Japón</p>
+                            <p class="mt-1 text-sm font-bold text-slate-500">Ciudad de México</p>
+                        </div>
+                        <a href="https://www.google.com/maps/search/?api=1&query=19.355491413489588,-99.21453916359118" target="_blank" rel="noopener" class="inline-flex w-full justify-center rounded-full bg-violet-700 px-6 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-violet-800 sm:w-auto">
+                            Abrir en Google Maps
+                        </a>
+                    </div>
+                </div>
+
+                <div class="min-h-[420px] bg-slate-100">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1882.1576987780268!2d-99.21453916359118!3d19.355491413489588!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d201002d226303%3A0x58a7fe5ba1bf0166!2sParque%20de%20la%20pr%C3%B3xima%20utop%C3%ADa%20-%20Jap%C3%B3n!5e0!3m2!1ses!2smx!4v1781650762807!5m2!1ses!2smx"
+                        class="h-full min-h-[420px] w-full"
+                        style="border:0;"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Ubicación de Utopía Japón"></iframe>
+                </div>
+            </div>
+        </section>
 
         <!-- BANNER ADMIN (reemplaza al historial) -->
     
