@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 // RUTAS PÚBLICAS (sin autenticación)
 // ──────────────────────────────────────────────
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->away(rtrim(config('app.frontend_url'), '/') . '/');
 });
 
 // Panel público: explorar zonas y hacer reservas

@@ -180,7 +180,7 @@
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 Panel Público
             </a>
-            <a href="{{ url('/') }}" target="_blank" class="nav-link">
+            <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" target="_blank" class="nav-link">
                 <i data-lucide="box" class="w-5 h-5"></i>
                 Visualizador 3D
             </a>

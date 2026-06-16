@@ -28,7 +28,7 @@
                 <p class="text-slate-500 mt-2 text-lg">¿Qué área deseas utilizar hoy? Revisa disponibilidad en tiempo real.</p>
             </div>
             <div class="flex items-center gap-3">
-                <a href="{{ url('/') }}" class="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all card-shadow flex items-center gap-2">
+                <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" class="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all card-shadow flex items-center gap-2">
                     🏙️ VOLVER AL MODELO 3D
                 </a>
             </div>
@@ -55,7 +55,7 @@
                 @endphp
                 <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
                     <div class="h-48 overflow-hidden relative">
-                        <img src="{{ (str_contains($zone->image, 'http') || str_contains($zone->image, '/')) ? $zone->image : asset($zone->image) }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                        <img src="{{ str_starts_with($zone->image, 'http') ? $zone->image : asset(ltrim($zone->image, '/')) }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
                         <div class="absolute bottom-4 left-6">
                             <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-tighter">{{ $zone->name }}</span>

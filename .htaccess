@@ -10,8 +10,7 @@ AddType image/vnd.microsoft.icon .ico
   RewriteRule ^build/(.*)$ back-api/public/build/$1 [L]
 
   # 2. Rutas de Laravel (Panel, API, Admin)
-  # Redirige /panel, /api, /login, etc., hacia la carpeta public del backend
-  RewriteCond %{REQUEST_URI} ^/(panel|api|admin|login|register|storage|reservations) [NC]
-  RewriteRule ^(.*)$ back-api/public/index.php [L]
+  # Redirige estas rutas hacia el backend aunque el proyecto viva en una subcarpeta.
+  RewriteRule ^(panel|api|admin|login|register|storage|reservations|events)(/.*)?$ back-api/public/index.php [L,QSA]
 
 </IfModule>
