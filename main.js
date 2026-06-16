@@ -8,21 +8,15 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
 import { Sky } from "three/addons/objects/Sky.js";
+import {
+  applyStandardControls,
+  applyTopDownControls,
+  setTopDownCameraView,
+} from "./src/camera/cameraModes.js";
+import { API_BASE_URL, LATITUDE, LONGITUDE } from "./src/config/appConfig.js";
+import { digitalTwinData } from "./src/data/digitalTwinData.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
-const appBasePath = window.location.pathname
-  .replace(/\/[^\/]*$/, "")
-  .replace(/\/dist$/, "");
-const isViteDevServer =
-  (window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1") &&
-  window.location.port &&
-  window.location.port !== "80";
-
-const API_BASE_URL = isViteDevServer
-  ? "http://localhost:8000"
-  : `${window.location.origin}${appBasePath}/back-api/public`;
-
 // NOTA: Si usas un subdominio separado (ej: api.tudominio.com),
 // cambia API_BASE_URL por: 'https://api.tudominio.com'
 
@@ -31,8 +25,6 @@ let rain;
 let clouds;
 let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
-const LATITUDE = 19.4326; // Ciudad de México
-const LONGITUDE = -99.1332;
 const timer = new THREE.Timer();
 
 
@@ -108,139 +100,10 @@ const closeCardBtn = document.getElementById("close-card");
 let yaw = 0;
 let pitch = 0;
 const mouseSensitivity = 0.002;
-const digitalTwinData = {
-  gym: {
-    title: "Gimnasio de Alto Rendimiento",
-    current: null,
-    expected: "50 hoy",
-    status: "Operativo",
-    statusClass: "status-good",
-    temp: "22.5°C",
-    hum: "45%",
-    maint: "Próximo: 12 Abr",
-    hours: "06:00 - 22:00",
-    trend: [40, 60, 85, 70, 50, 30],
-  },
-  pool: {
-    title: "Centro Acuático",
-    current: null,
-    expected: "30 hoy",
-    status: "Limpieza en curso",
-    statusClass: "status-warning",
-    temp: "28.0°C",
-    hum: "85%",
-    maint: "En progreso",
-    hours: "07:00 - 21:00",
-    trend: [20, 30, 45, 90, 80, 60],
-  },
-  canchas: {
-    title: "Área de Canchas",
-    current: null,
-    expected: "20 hoy",
-    status: "Activo",
-    statusClass: "status-good",
-    temp: "31.2°C",
-    hum: "40%",
-    maint: "Próximo: 05 May",
-    hours: "08:00 - 23:00",
-    trend: [30, 50, 60, 95, 80, 70],
-  },
-  // --- NUEVOS ACTIVOS (ASSET MANAGEMENT) ---
-  "asset-pump-1": {
-    isAsset: true,
-    title: "Bomba de Filtrado 01",
-    parentZone: "pool",
-    status: "Operativo",
-    health: 98,
-    hours: 1420,
-    nextService: "15 May 2026",
-    vibration: "0.2 mm/s",
-    temp: "42°C",
-  },
-  "asset-gym-1": {
-    isAsset: true,
-    title: "Rack de Cardio A",
-    parentZone: "gym",
-    status: "Mantenimiento Req.",
-    health: 65,
-    hours: 8500,
-    nextService: "¡INMEDIATO!",
-    vibration: "1.5 mm/s",
-    temp: "31°C",
-  },
-  "asset-light-1": {
-    isAsset: true,
-    title: "Control Lumínico Norte",
-    parentZone: "canchas",
-    status: "Operativo",
-    health: 100,
-    hours: 320,
-    nextService: "Oct 2026",
-    vibration: "N/A",
-    temp: "24°C",
-  },
-  sensor1: {
-    title: "Módulo IoT 01 - Bosque",
-    isSensor: true,
-    sensorType: "lidar",
-    bat: "92%",
-    specialLabel: "HUM. SUELO",
-    specialVal: "48.2%",
-    temp: "21.2°C",
-    hum: "65%",
-    status: "Transmisión LoRaWAN",
-    statusClass: "status-good",
-    diag1_label: "TIPO DE SUELO",
-    diag1_val: "Arcilloso / Suelo 01",
-    diag2_label: "ÍNDICE FOTOSÍNTESIS",
-    diag2_val: "98.2% (Óptimo)",
-    diag3_label: "RIESGO DE INCENDIO",
-    diag3_val: "Bajo (5%)",
-    diag_bar: 5,
-  },
-  sensor2: {
-    title: "Módulo IoT 02 - Canchas",
-    isSensor: true,
-    sensorType: "lidar",
-    bat: "85%",
-    specialLabel: "SONIDO (dB)",
-    specialVal: "72.4 dB",
-    temp: "32.5°C",
-    hum: "38%",
-    status: "Malla Zigbee v3",
-    statusClass: "status-good",
-    diag1_label: "VIBRACIÓN DE IMPACTO",
-    diag1_val: "Detectado (Red Activa)",
-    diag2_label: "FRECUENCIA PICO",
-    diag2_val: "440Hz / Peak",
-    diag3_label: "NIVEL DE RUIDO",
-    diag3_val: "Medio (72%)",
-    diag_bar: 72,
-  },
-  sensor3: {
-    title: "Módulo IoT 03 - Alberca",
-    isSensor: true,
-    sensorType: "uv",
-    bat: "100%",
-    specialLabel: "RAD. UV-EXT",
-    specialVal: "9.2 Index",
-    temp: "27.8°C",
-    hum: "82%",
-    status: "Canal 15 (MQTT)",
-    statusClass: "status-good",
-    diag1_label: "TRASLUCIDEZ AGUA",
-    diag1_val: "94% (Óptimo)",
-    diag2_label: "pH QUÍMICO / Cl",
-    diag2_val: "pH: 7.2 | Cl: 1.5ppm",
-    diag3_label: "EXPOSICIÓN UV",
-    diag3_val: "Crítico (92%)",
-    diag_bar: 92,
-  },
-};
 
 // --- VIAJE EN EL TIEMPO ---
 let isHistoryMode = false;
-let historyTimeValue = 1440; // En minutos (0 a 1440). 1440 = Hoy (Vivo)
+let historyTimeValue = 0; // Offset en minutos desde el momento actual
 const liveDataBackup = JSON.parse(JSON.stringify(digitalTwinData)); // Respaldo para volver a vivo
 
 // Escena y Renderizador
@@ -288,6 +151,125 @@ scene.add(dirLight);
 const fillLight = new THREE.DirectionalLight(0xaabbff, 0.3);
 fillLight.position.set(-100, 50, -50);
 scene.add(fillLight);
+
+const nightAreaLight = new THREE.HemisphereLight(0xc7ddff, 0x4b5f48, 0);
+scene.add(nightAreaLight);
+
+const nightSecurityLight = new THREE.DirectionalLight(0xcfe3ff, 0);
+nightSecurityLight.position.set(-450, 700, 360);
+scene.add(nightSecurityLight);
+
+const nightLightingGroup = new THREE.Group();
+nightLightingGroup.name = "night-lighting-system";
+nightLightingGroup.visible = false;
+scene.add(nightLightingGroup);
+const nightLights = [];
+let nightLightLevel = 0;
+
+function createNightLight(position, options = {}) {
+  const color = options.color ?? 0xffd88a;
+  const pointIntensity = options.intensity ?? 0.9;
+  const distance = options.distance ?? 260;
+  const height = options.height ?? 36;
+
+  const root = new THREE.Group();
+  root.position.set(position.x, position.y ?? 0, position.z);
+
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.6, 2.4, height, 10),
+    new THREE.MeshStandardMaterial({
+      color: 0x1f2937,
+      roughness: 0.55,
+      metalness: 0.25,
+    }),
+  );
+  pole.position.y = height * 0.5;
+  root.add(pole);
+
+  const lampMaterial = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(5.5, 18, 18), lampMaterial);
+  lamp.position.y = height + 4;
+  root.add(lamp);
+
+  const haloMaterial = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(options.haloSize ?? 52, 32), haloMaterial);
+  halo.position.y = height + 4;
+  halo.rotation.x = -Math.PI / 2;
+  root.add(halo);
+
+  const groundGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(options.groundSize ?? 95, 32),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    }),
+  );
+  groundGlow.position.y = 0.18;
+  groundGlow.rotation.x = -Math.PI / 2;
+  root.add(groundGlow);
+
+  const pointLight = new THREE.PointLight(color, 0, distance, 1.9);
+  pointLight.position.y = height + 8;
+  root.add(pointLight);
+
+  nightLightingGroup.add(root);
+  nightLights.push({
+    lampMaterial,
+    haloMaterial,
+    groundMaterial: groundGlow.material,
+    pointLight,
+    pointIntensity,
+  });
+}
+
+function initNightLighting() {
+  if (nightLights.length > 0) return;
+
+  [
+    { x: -300, z: 245, intensity: 1.15, distance: 310, groundSize: 120 },
+    { x: -150, z: 230, intensity: 0.95, distance: 260 },
+    { x: 70, z: 60, intensity: 0.85, distance: 250 },
+    { x: 250, z: -150, intensity: 0.9, distance: 280 },
+    { x: 420, z: -250, intensity: 0.85, distance: 250 },
+    { x: -380, z: -130, intensity: 0.8, distance: 240 },
+    { x: -40, z: -250, intensity: 0.75, distance: 235 },
+    { x: 500, z: 120, intensity: 0.75, distance: 240 },
+  ].forEach((config) => createNightLight(config, config));
+}
+
+function setNightLighting(level) {
+  nightLightLevel += (level - nightLightLevel) * 0.08;
+  const activeLevel = nightLightLevel < 0.01 ? 0 : nightLightLevel;
+
+  nightAreaLight.intensity = 0.62 * activeLevel;
+  nightSecurityLight.intensity = 0.85 * activeLevel;
+
+  nightLightingGroup.visible = activeLevel > 0;
+  nightLights.forEach((light, index) => {
+    const shimmer = 0.94 + Math.sin(performance.now() * 0.002 + index * 1.7) * 0.06;
+    light.pointLight.intensity = light.pointIntensity * 1.45 * activeLevel * shimmer;
+    light.lampMaterial.emissiveIntensity = 1.8 * activeLevel * shimmer;
+    light.haloMaterial.opacity = 0.42 * activeLevel;
+    light.groundMaterial.opacity = 0.24 * activeLevel;
+  });
+}
 
 // --- REJILLA DIGITAL (Digital Twin Look) ---
 const gridHelper = new THREE.GridHelper(5000, 100, 0x3b82f6, 0x1e293b);
@@ -929,14 +911,8 @@ const initModels = async () => {
       });
     }
 
-    // Configurar cámara (Vista peatonal extrema al ras del suelo para que el cielo sea el protagonista)
-    camera.position.set(
-      targetSize * 0.35,
-      targetSize * -0.045,
-      targetSize * 0.35,
-    );
-    controls.target.set(0, targetSize * -0.02, 0);
-    controls.update();
+    // Configurar cámara inicial en vista cenital con navegación tipo mapa.
+    setTopDownCameraView(camera, controls, targetSize * 1.15);
 
     // Arrancar controles, ocultar loader y poblar gemelo
     initLayoutControls();
@@ -951,6 +927,7 @@ const initModels = async () => {
     
     initSpatialLabels();
     initAssets();
+    initNightLighting();
     startLiveSync();
 
     document.getElementById("loader-overlay").classList.add("hidden");
@@ -1132,6 +1109,7 @@ const direction = new THREE.Vector3();
 
 function enterShowroom(role) {
   if (!model) return;
+  applyStandardControls(camera, controls);
   
   // --- BUSCADOR DE SUELO INTELIGENTE ---
   let targetObj = null;
@@ -1258,6 +1236,7 @@ function focusCameraOnRole(role) {
   });
 
   if (found) {
+    applyStandardControls(camera, controls);
     const center = new THREE.Vector3();
     box.getCenter(center);
     const size = new THREE.Vector3();
@@ -1341,15 +1320,18 @@ function initLayoutControls() {
 
       if (preset === "drone") {
         btn.classList.add("active");
+        applyTopDownControls(camera, controls);
         cameraTargetPos.set(0, 1500, 0);
         controlsTargetPos.set(0, 0, 0);
         isCameraMoving = true;
       } else if (preset === "walk") {
         btn.classList.add("active");
+        applyStandardControls(camera, controls);
         cameraTargetPos.set(400, 10, 400);
         controlsTargetPos.set(0, 10, 0);
         isCameraMoving = true;
       } else if (preset === "pano") {
+        applyStandardControls(camera, controls);
         isPanoActive = !isPanoActive;
         if (isPanoActive) {
           btn.classList.add("active");
@@ -1918,8 +1900,9 @@ function updateAtmosphere() {
   let hour, minute, decimalHour;
 
   if (isHistoryMode) {
-    hour = Math.floor(historyTimeValue / 60) % 24;
-    minute = historyTimeValue % 60;
+    const targetDate = new Date(Date.now() + historyTimeValue * 60000);
+    hour = targetDate.getHours();
+    minute = targetDate.getMinutes();
     decimalHour = hour + minute / 60;
   } else {
     hour = now.getHours();
@@ -1959,6 +1942,7 @@ function updateAtmosphere() {
   // Lógica de iluminación Día/Noche
   const isNight = elevation < -5;
   const lightIntensity = Math.max(0, Math.min(1, (elevation + 10) / 20));
+  const nightLightTarget = 1 - Math.max(0, Math.min(1, (elevation + 4) / 18));
 
   // Parámetros de Clima que respetan la hora del día
   if (currentWeatherType === "sunny") {
@@ -2003,7 +1987,9 @@ function updateAtmosphere() {
 
   // Ajustar luces de la escena
   dirLight.intensity = lightIntensity * 0.7;
-  ambientLight.intensity = Math.max(0.15, lightIntensity * 0.4);
+  ambientLight.intensity = Math.max(0.2 + nightLightTarget * 0.18, lightIntensity * 0.4);
+  fillLight.intensity = 0.3 + nightLightTarget * 0.35;
+  setNightLighting(nightLightTarget);
   dirLight.position.set(
     sun.x * 2000,
     Math.max(200, sun.y * 2000),
@@ -3065,18 +3051,20 @@ if (controls) {
   // Usamos wheel y mousedown/pointerdown directos porque controls 'change' se disparaba solo
   const unlockCamera = () => {
     isCameraMoving = false;
+    applyStandardControls(camera, controls);
+    controls.update();
   };
 
-  window.addEventListener("wheel", unlockCamera, { passive: true });
+  window.addEventListener("wheel", unlockCamera, { capture: true, passive: true });
   window.addEventListener("pointerdown", (e) => {
     if (e.target.tagName === "CANVAS") unlockCamera();
-  });
+  }, { capture: true });
   window.addEventListener(
     "touchstart",
     (e) => {
       if (e.target.tagName === "CANVAS") unlockCamera();
     },
-    { passive: true },
+    { capture: true, passive: true },
   );
 }
 function initPopulation() {

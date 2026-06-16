@@ -157,22 +157,10 @@
         </div>
 
         <!-- BANNER ADMIN (reemplaza al historial) -->
-        <div class="mt-10 bg-slate-900 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div class="flex items-center gap-5">
-                <div class="w-14 h-14 rounded-3xl bg-indigo-600/20 flex items-center justify-center text-2xl flex-shrink-0">🔒</div>
-                <div>
-                    <h3 class="text-white font-extrabold text-lg leading-tight">¿Eres administrador?</h3>
-                    <p class="text-slate-400 text-sm mt-0.5">Accede al panel de control para ver y gestionar todas las reservaciones del complejo.</p>
-                </div>
-            </div>
-            <a href="{{ route('admin.login') }}" class="flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-3 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-600/20 text-sm tracking-wide whitespace-nowrap">
-                INICIAR SESIÓN →
-            </a>
-        </div>
-
+    
         <div class="text-center mt-8 pb-8">
             <a href="{{ route('admin.login') }}" class="text-slate-300 hover:text-slate-500 text-[10px] font-bold uppercase tracking-[0.25em] transition-colors">
-                🔒 Acceso administrativo
+                🔒 Acceso administrativo 
             </a>
         </div>
     </div>
