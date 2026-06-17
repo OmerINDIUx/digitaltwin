@@ -17,6 +17,20 @@ Route::get('/topilejo', function () {
     return view('utopias-topilejo');
 })->name('utopias.topilejo');
 
+Route::get('/utopia-japon/mapa-3d', function () {
+    return view('utopia-japon-mapa-3d');
+})->name('utopias.japon.map3d');
+
+Route::get('/utopia-japon/assets/modelo.glb', function () {
+    $modelPath = dirname(base_path()) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'japonutopia_capasrenovadas.glb';
+
+    abort_unless(is_file($modelPath), 404);
+
+    return response()->file($modelPath, [
+        'Content-Type' => 'model/gltf-binary',
+    ]);
+})->name('utopias.japon.model');
+
 // Panel público: explorar zonas y hacer reservas
 Route::get('/panel',  [ReservationController::class, 'index'])->name('reservations.index');
 Route::post('/panel', [ReservationController::class, 'store'])->name('reservations.store');

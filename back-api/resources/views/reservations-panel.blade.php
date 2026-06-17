@@ -64,8 +64,8 @@
                         <a href="#reservas" class="inline-flex justify-center rounded-full bg-violet-700 px-6 py-4 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-800">
                             Reservar ahora
                         </a>
-                        <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" class="inline-flex justify-center rounded-full bg-white px-6 py-4 text-sm font-black uppercase tracking-wide text-slate-900 transition hover:bg-slate-100">
-                            Volver al modelo 3D
+                        <a href="{{ route('utopias.japon.map3d') }}" class="inline-flex justify-center rounded-full bg-white px-6 py-4 text-sm font-black uppercase tracking-wide text-slate-900 transition hover:bg-slate-100">
+                            Ver mapa 3D
                         </a>
                     </div>
                 </div>
