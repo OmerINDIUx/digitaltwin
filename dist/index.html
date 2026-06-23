@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GAMI - Digital Twin</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-
-
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -20,7 +19,7 @@
         }
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-DF0jHMRW.js"></script>
+    <script type="module" crossorigin src="./assets/index-Cb8tAN6X.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-DcP5xz4n.css">
   </head>
   <body>
@@ -252,7 +251,7 @@
               >
             </div>
             <div class="h-mini-card">
-              <span class="h-mini-label">TEMP.</span>
+              <span class="h-mini-label">T/H</span>
               <span id="txt-temp-avg-mob" class="h-mini-val">--</span>
             </div>
             <div class="h-mini-card">
@@ -278,7 +277,7 @@
                 <span id="txt-capacity" class="metric-value">--</span>
               </div>
               <div class="metric-card">
-                <span class="metric-label">TEMP. AVG</span>
+                <span class="metric-label">TEMP / HUM</span>
                 <span id="txt-temp-avg" class="metric-value">--</span>
               </div>
               <div
@@ -440,7 +439,7 @@
           <div class="dock-group">
             <div class="nav-dock-item" onclick="updateFocus('pool')" title="Volar a Alberca">
               <span class="dock-icon">🏊</span>
-              <span class="dock-label">POOL</span>
+              <span class="dock-label">Alberca</span>
             </div>
             <button class="mini-enter-btn" onclick="enterShowroom('pool')">ENTRAR</button>
           </div>
@@ -448,7 +447,7 @@
           <div class="dock-group">
             <div class="nav-dock-item" onclick="updateFocus('canchas')" title="Volar a Canchas">
               <span class="dock-icon">⚽</span>
-              <span class="dock-label">COURTS</span>
+              <span class="dock-label">Canchas</span>
             </div>
             <button class="mini-enter-btn" onclick="enterShowroom('canchas')">ENTRAR</button>
           </div>
@@ -907,8 +906,7 @@
 
     <!-- Sistema de Notificaciones -->
     <div id="notification-container" class="notification-container"></div>
-
-
+
     <script>
       lucide.createIcons();
     </script>

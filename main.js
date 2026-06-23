@@ -13,7 +13,12 @@ import {
   applyTopDownControls,
   setTopDownCameraView,
 } from "./src/camera/cameraModes.js";
-import { API_BASE_URL, LATITUDE, LONGITUDE } from "./src/config/appConfig.js";
+import {
+  API_BASE_URL,
+  LATITUDE,
+  LONGITUDE,
+  SENSOR_API_URL,
+} from "./src/config/appConfig.js";
 import { digitalTwinData } from "./src/data/digitalTwinData.js";
 
 // --- CONFIGURACIÓN GLOBAL ---
@@ -26,6 +31,12 @@ let clouds;
 let currentWeatherType = "normal";
 let weatherSyncEnabled = true; // Permite alternar la sincronización real
 const timer = new THREE.Timer();
+const lightSensorState = {
+  mode: null,
+  lastStableState: null,
+  consecutiveCount: 0,
+  pollTimer: null,
+};
 
 
 // Posiciones de Control de Cámara
@@ -917,6 +928,7 @@ const initModels = async () => {
     // Arrancar controles, ocultar loader y poblar gemelo
     initLayoutControls();
     initWeatherControls();
+    initLightSensorSync();
     initPopulation();
     // NUEVO: Inicializar elementos espaciales solo cuando el modelo esté listo
     initSensors();
@@ -1899,7 +1911,15 @@ function updateAtmosphere() {
   const now = new Date();
   let hour, minute, decimalHour;
 
-  if (isHistoryMode) {
+  if (lightSensorState.mode === "night") {
+    hour = 22;
+    minute = now.getMinutes();
+    decimalHour = hour + minute / 60;
+  } else if (lightSensorState.mode === "day") {
+    hour = 12;
+    minute = now.getMinutes();
+    decimalHour = hour + minute / 60;
+  } else if (isHistoryMode) {
     const targetDate = new Date(Date.now() + historyTimeValue * 60000);
     hour = targetDate.getHours();
     minute = targetDate.getMinutes();
@@ -1912,8 +1932,17 @@ function updateAtmosphere() {
 
   if (txtHour) {
     const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-    const txt = isHistoryMode ? `${timeStr} (HS)` : `${timeStr}`;
-    txtHour.innerText = isHistoryMode ? `${timeStr} (HS)` : `${timeStr} (CDMX)`;
+    const sensorSuffix = lightSensorState.mode === "night" ? "SENSOR NOCHE" : "SENSOR DÍA";
+    const txt = lightSensorState.mode
+      ? `${timeStr} (${sensorSuffix})`
+      : isHistoryMode
+        ? `${timeStr} (HS)`
+        : `${timeStr}`;
+    txtHour.innerText = lightSensorState.mode
+      ? `${timeStr} (${sensorSuffix})`
+      : isHistoryMode
+        ? `${timeStr} (HS)`
+        : `${timeStr} (CDMX)`;
 
     // Sync móvil en header
     const mobHour = document.getElementById("txt-hour-mob");
@@ -1926,7 +1955,7 @@ function updateAtmosphere() {
 
   // Si es modo SOLEADO (Caluroso), forzamos que el sol esté siempre alto (mínimo 15 grados)
   // para que el cielo siempre se vea azul profundo y no naranja de atardecer.
-  if (currentWeatherType === "sunny") {
+  if (currentWeatherType === "sunny" && lightSensorState.mode !== "night") {
     elevation = Math.max(15, elevation);
   }
 
@@ -1995,6 +2024,127 @@ function updateAtmosphere() {
     Math.max(200, sun.y * 2000),
     sun.z * 2000,
   );
+}
+
+function normalizeLightState(value) {
+  const state = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+  if (state.includes("OSCURO")) return "night";
+  if (state.includes("CLARO")) return "day";
+
+  return null;
+}
+
+function getStableLightState(readings) {
+  const states = (Array.isArray(readings) ? readings : [])
+    .map((reading) => normalizeLightState(reading?.light_state))
+    .filter(Boolean);
+
+  let lastStableState = null;
+  let currentState = null;
+  let currentCount = 0;
+
+  states.forEach((state) => {
+    if (state === currentState) {
+      currentCount += 1;
+    } else {
+      currentState = state;
+      currentCount = 1;
+    }
+
+    if (currentCount >= 3) {
+      lastStableState = state;
+    }
+  });
+
+  return lastStableState;
+}
+
+function applyRecentLightReadings(readings) {
+  const stableState = getStableLightState(readings);
+
+  if (!stableState || lightSensorState.mode === stableState) return;
+
+  lightSensorState.mode = stableState;
+  lightSensorState.lastStableState = stableState;
+  lightSensorState.consecutiveCount = 3;
+  updateAtmosphere();
+  addFeedItem(
+    stableState === "night"
+      ? "Sensor de luz: últimas 3 lecturas oscuras, activando noche"
+      : "Sensor de luz: últimas 3 lecturas claras, activando día",
+    "success",
+  );
+}
+
+function formatSensorNumber(value, suffix) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return null;
+
+  return `${number.toFixed(1)}${suffix}`;
+}
+
+function applySensorClimate(reading) {
+  if (!reading) return;
+
+  const temperature = formatSensorNumber(reading.temperature_c, "°C");
+  const humidity = formatSensorNumber(reading.humidity_percent, "%");
+  const climateSummary = [temperature, humidity].filter(Boolean).join(" / ");
+
+  if (climateSummary) {
+    const tempAvg = document.getElementById("txt-temp-avg");
+    const tempAvgMob = document.getElementById("txt-temp-avg-mob");
+    const dashboardTemp = document.getElementById("dash-avg-temp");
+
+    if (tempAvg) tempAvg.innerText = climateSummary;
+    if (tempAvgMob) tempAvgMob.innerText = climateSummary;
+    if (dashboardTemp && temperature) dashboardTemp.innerText = temperature;
+
+    if (currentSelectedRole && digitalTwinData[currentSelectedRole]) {
+      digitalTwinData[currentSelectedRole].temp = temperature;
+    }
+  }
+
+  if (humidity && currentSelectedRole && digitalTwinData[currentSelectedRole]) {
+    digitalTwinData[currentSelectedRole].hum = humidity;
+  }
+
+  if (currentSelectedRole && digitalTwinData[currentSelectedRole]?.isSensor) {
+    const cardTemp = document.getElementById("card-temp");
+    const cardHum = document.getElementById("card-hum");
+
+    if (temperature && cardTemp) cardTemp.innerText = temperature;
+    if (humidity && cardHum) cardHum.innerText = humidity;
+  }
+}
+
+async function syncLightSensor() {
+  try {
+    const response = await fetch(`${SENSOR_API_URL}?action=poll`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json();
+    applySensorClimate(data?.reading);
+
+    const readings = Array.isArray(data?.recent_readings)
+      ? data.recent_readings
+      : [data?.reading].filter(Boolean);
+
+    applyRecentLightReadings(readings);
+  } catch (error) {
+    console.warn("Light sensor sync fail", error);
+  }
+}
+
+function initLightSensorSync() {
+  syncLightSensor();
+  lightSensorState.pollTimer = window.setInterval(syncLightSensor, 3000);
 }
 
 function initWeatherControls() {
