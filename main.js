@@ -37,6 +37,16 @@ const lightSensorState = {
   consecutiveCount: 0,
   pollTimer: null,
 };
+const sensorClimateState = {
+  temperature: null,
+  humidity: null,
+  summary: null,
+  updatedAt: 0,
+};
+const sensorWeatherState = {
+  type: null,
+  updatedAt: 0,
+};
 
 
 // Posiciones de Control de Cámara
@@ -50,6 +60,7 @@ let explodeFactor = 0; // Control global de la vista explosionada
 let isPanoActive = false; // Control del giro panorámico
 let panoAngle = 0;
 const feedLimit = 5;
+const CDMX_TIME_ZONE = "America/Mexico_City";
 
 // --- ETIQUETAS ESPACIALES ---
 const spatialLabels = [];
@@ -116,6 +127,10 @@ const mouseSensitivity = 0.002;
 let isHistoryMode = false;
 let historyTimeValue = 0; // Offset en minutos desde el momento actual
 const liveDataBackup = JSON.parse(JSON.stringify(digitalTwinData)); // Respaldo para volver a vivo
+
+// --- LABORATORIO DE SIMULACIONES ---
+let isSimulationLabMode = false;
+let currentSimulationType = null;
 
 // Escena y Renderizador
 const renderer = new THREE.WebGLRenderer({
@@ -1475,7 +1490,7 @@ function closeAllPanels() {
 function changeWeather(type) {
   currentWeatherType = type;
   if (rain) {
-    rain.material.opacity = type === 'rain' ? 0.6 : 0;
+    rain.material.opacity = type === "rainy" ? 0.6 : 0;
   }
   // Ajustar atmósfera según el tipo
   updateAtmosphere();
@@ -1491,6 +1506,7 @@ window.updateFocus = updateFocus;
 // Sincroniza dbCounts con la DB en segundo plano (sin depender del panel)
 function syncDBCounts() {
   if (isHistoryMode) return; // NO sincronizar si estamos en el pasado/futuro
+  if (isSimulationLabMode) return; // NO pisar escenarios del laboratorio con AJAX
   fetch(`${API_BASE_URL}/api/reservations/live?t=${Date.now()}`, {
     cache: "no-store",
     headers: { Accept: "application/json" },
@@ -1631,10 +1647,12 @@ function applyDBCountsToWorld(zoneStatuses = null) {
   // Temperatura promedio
   const tempAvgEl = document.getElementById("txt-temp-avg");
   const mobTemp = document.getElementById("txt-temp-avg-mob");
-  if (tempAvgEl && zoneCount > 0) {
+  if (!hasLiveSensorClimate() && tempAvgEl && zoneCount > 0) {
     const avg = (totalTemp / zoneCount).toFixed(1);
     tempAvgEl.innerText = `${avg}°C`;
     if (mobTemp) mobTemp.innerText = `${avg}°C`;
+  } else {
+    writeSensorClimateDisplay();
   }
 
   // Total personas visible
@@ -1774,7 +1792,7 @@ function updateDashboardData() {
   // Animación de conteo simple (Dashboard)
   animateValue("dash-total-people", 0, total, 1000);
   const tempEl = document.getElementById("dash-avg-temp");
-  if (tempEl) tempEl.innerText = `${avgTemp}°C`;
+  if (!hasLiveSensorClimate() && tempEl) tempEl.innerText = `${avgTemp}°C`;
 
   // --- SINCRONIZACIÓN GLOBAL DE PANELES (SIDEBAR + HEADER) ---
   const capSide = document.getElementById("txt-capacity");
@@ -1797,8 +1815,12 @@ function updateDashboardData() {
     capMob.innerText = `${capacity}%`;
     capMob.style.color = capColor;
   }
-  if (tempSide) tempSide.innerText = `${avgTemp}°C`;
-  if (tempMob) tempMob.innerText = `${avgTemp}°C`;
+  if (!hasLiveSensorClimate()) {
+    if (tempSide) tempSide.innerText = `${avgTemp}°C`;
+    if (tempMob) tempMob.innerText = `${avgTemp}°C`;
+  } else {
+    writeSensorClimateDisplay();
+  }
 
   updateClock();
 }
@@ -1810,15 +1832,22 @@ function updateClock() {
   const mobHour = document.getElementById("txt-hour-mob");
 
   const now = new Date();
-  const timeStr = now.toLocaleTimeString([], {
+  const timeStr = now.toLocaleTimeString("es-MX", {
+    timeZone: CDMX_TIME_ZONE,
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  if (timeEl) timeEl.innerText = now.toLocaleTimeString([], { hour12: false });
+  if (timeEl) {
+    timeEl.innerText = now.toLocaleTimeString("es-MX", {
+      timeZone: CDMX_TIME_ZONE,
+      hour12: false,
+    });
+  }
   if (dateEl)
-    dateEl.innerText = now.toLocaleDateString([], {
+    dateEl.innerText = now.toLocaleDateString("es-MX", {
+      timeZone: CDMX_TIME_ZONE,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -1909,15 +1938,22 @@ if (btnExplode) {
 
 function updateAtmosphere() {
   const now = new Date();
+  const realTimeStr = now.toLocaleTimeString("es-MX", {
+    timeZone: CDMX_TIME_ZONE,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const [cdmxHour, cdmxMinute] = realTimeStr.split(":").map(Number);
   let hour, minute, decimalHour;
 
   if (lightSensorState.mode === "night") {
     hour = 22;
-    minute = now.getMinutes();
+    minute = cdmxMinute;
     decimalHour = hour + minute / 60;
   } else if (lightSensorState.mode === "day") {
     hour = 12;
-    minute = now.getMinutes();
+    minute = cdmxMinute;
     decimalHour = hour + minute / 60;
   } else if (isHistoryMode) {
     const targetDate = new Date(Date.now() + historyTimeValue * 60000);
@@ -1925,28 +1961,17 @@ function updateAtmosphere() {
     minute = targetDate.getMinutes();
     decimalHour = hour + minute / 60;
   } else {
-    hour = now.getHours();
-    minute = now.getMinutes();
+    hour = cdmxHour;
+    minute = cdmxMinute;
     decimalHour = hour + minute / 60;
   }
 
   if (txtHour) {
-    const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-    const sensorSuffix = lightSensorState.mode === "night" ? "SENSOR NOCHE" : "SENSOR DÍA";
-    const txt = lightSensorState.mode
-      ? `${timeStr} (${sensorSuffix})`
-      : isHistoryMode
-        ? `${timeStr} (HS)`
-        : `${timeStr}`;
-    txtHour.innerText = lightSensorState.mode
-      ? `${timeStr} (${sensorSuffix})`
-      : isHistoryMode
-        ? `${timeStr} (HS)`
-        : `${timeStr} (CDMX)`;
+    txtHour.innerText = `${realTimeStr} (CDMX)`;
 
     // Sync móvil en header
     const mobHour = document.getElementById("txt-hour-mob");
-    if (mobHour) mobHour.innerText = txt;
+    if (mobHour) mobHour.innerText = realTimeStr;
   }
 
   // Mapear hora al Sol (Simulación realista)
@@ -2001,6 +2026,19 @@ function updateAtmosphere() {
     // Lluvia gris: Tinte metálico/neutro
     dirLight.color.setHex(0xe9ecef);
     ambientLight.color.setHex(0xf8f9fa);
+  } else if (currentWeatherType === "cloudy") {
+    clouds.visible = true;
+    sky.material.uniforms["mieCoefficient"].value = 0.035;
+    sky.material.uniforms["turbidity"].value = 6.5;
+    sky.material.uniforms["rayleigh"].value = isNight ? 0.015 : 1.8;
+    clouds.material.uniforms.uCloudColor.value.setHex(0xb8c0c8);
+    clouds.material.uniforms.uOpacity.value = Math.max(
+      0.55,
+      lightIntensity * 0.75,
+    );
+
+    dirLight.color.setHex(0xdde4ea);
+    ambientLight.color.setHex(0xe8edf2);
   } else {
     clouds.visible = true;
     sky.material.uniforms["mieCoefficient"].value = 0.005;
@@ -2034,7 +2072,7 @@ function normalizeLightState(value) {
     .toUpperCase();
 
   if (state.includes("OSCURO")) return "night";
-  if (state.includes("CLARO")) return "day";
+  if (state.includes("CLARO") || state.includes("LUZ") || state.includes("SOMBRA")) return "day";
 
   return null;
 }
@@ -2065,23 +2103,35 @@ function getStableLightState(readings) {
 }
 
 function applyRecentLightReadings(readings) {
-  const stableState = getStableLightState(readings);
+  const states = (Array.isArray(readings) ? readings : [])
+    .map((reading) => normalizeLightState(reading?.light_state))
+    .filter(Boolean);
+  const currentState = states.at(-1) || null;
 
-  if (!stableState || lightSensorState.mode === stableState) return;
+  if (!currentState) return;
 
-  lightSensorState.mode = stableState;
-  lightSensorState.lastStableState = stableState;
-  lightSensorState.consecutiveCount = 3;
+  if (lightSensorState.lastStableState === currentState) {
+    lightSensorState.consecutiveCount += 1;
+  } else {
+    lightSensorState.lastStableState = currentState;
+    lightSensorState.consecutiveCount = 1;
+  }
+
+  if (lightSensorState.consecutiveCount < 3 || lightSensorState.mode === currentState) return;
+
+  lightSensorState.mode = currentState;
   updateAtmosphere();
   addFeedItem(
-    stableState === "night"
+    currentState === "night"
       ? "Sensor de luz: últimas 3 lecturas oscuras, activando noche"
-      : "Sensor de luz: últimas 3 lecturas claras, activando día",
+      : "Sensor de luz: últimas 3 lecturas con luz, activando día",
     "success",
   );
 }
 
 function formatSensorNumber(value, suffix) {
+  if (value === null || value === undefined || value === "") return null;
+
   const number = Number(value);
 
   if (!Number.isFinite(number)) return null;
@@ -2089,37 +2139,209 @@ function formatSensorNumber(value, suffix) {
   return `${number.toFixed(1)}${suffix}`;
 }
 
-function applySensorClimate(reading) {
-  if (!reading) return;
+function hasLiveSensorClimate() {
+  return Boolean(sensorClimateState.summary && Date.now() - sensorClimateState.updatedAt < 15000);
+}
 
-  const temperature = formatSensorNumber(reading.temperature_c, "°C");
-  const humidity = formatSensorNumber(reading.humidity_percent, "%");
+function hasLiveSensorWeather() {
+  return Boolean(sensorWeatherState.type && Date.now() - sensorWeatherState.updatedAt < 15000);
+}
+
+function writeSensorClimateDisplay() {
+  if (!sensorClimateState.summary) return;
+
+  const tempAvg = document.getElementById("txt-temp-avg");
+  const tempAvgMob = document.getElementById("txt-temp-avg-mob");
+  const dashboardTemp = document.getElementById("dash-avg-temp");
+
+  if (tempAvg) tempAvg.innerText = sensorClimateState.summary;
+  if (tempAvgMob) tempAvgMob.innerText = sensorClimateState.summary;
+  if (dashboardTemp && sensorClimateState.temperature) {
+    dashboardTemp.innerText = sensorClimateState.temperature;
+  }
+}
+
+function getLatestSensorReadings(data) {
+  if (Array.isArray(data?.latest_readings) && data.latest_readings.length > 0) {
+    return data.latest_readings;
+  }
+
+  if (Array.isArray(data?.sensors) && data.sensors.length > 0) {
+    return data.sensors;
+  }
+
+  return [data?.reading].filter(Boolean);
+}
+
+function averageSensorValue(readings, key) {
+  const values = readings
+    .map((reading) => Number(reading?.[key]))
+    .filter((value) => Number.isFinite(value));
+
+  if (!values.length) return null;
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function resolveSensorRole(reading, index) {
+  const key = `${reading?.sensor_key || ""} ${reading?.sensor_name || ""}`.toLowerCase();
+
+  if (key.includes("1") || key.includes("bosque")) return "sensor1";
+  if (key.includes("2") || key.includes("cancha") || key.includes("sonido")) return "sensor2";
+  if (key.includes("3") || key.includes("alberca") || key.includes("pool") || key.includes("uv")) return "sensor3";
+
+  return ["sensor1", "sensor2", "sensor3"][index % 3];
+}
+
+function formatLightReading(reading) {
+  const value = reading?.light_value ?? "--";
+  const state = reading?.light_state ? String(reading.light_state).toUpperCase() : "";
+
+  return [value, state].filter(Boolean).join(" ");
+}
+
+function getSensorVisualWeather(readings) {
+  const latest = (Array.isArray(readings) ? readings : [])
+    .filter(Boolean)
+    .at(-1);
+
+  if (!latest) return null;
+
+  const humidity = Number(latest.humidity_percent);
+  const lightState = String(latest.light_state || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+  if (!lightState.includes("SOMBRA") || !Number.isFinite(humidity)) return null;
+  if (humidity > 80) return "rainy";
+  if (humidity > 50) return "cloudy";
+
+  return null;
+}
+
+function getSensorDetectionLabel(reading) {
+  if (!reading) return "--";
+
+  const humidity = Number(reading.humidity_percent);
+  const lightState = String(reading.light_state || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+  if (lightState.includes("OSCURO")) return "OSCURO";
+  if (lightState.includes("SOMBRA") && Number.isFinite(humidity) && humidity > 80) return "LLUVIA";
+  if (lightState.includes("SOMBRA") && Number.isFinite(humidity) && humidity > 50) return "NUBLADO";
+  if (lightState.includes("SOMBRA")) return "SOMBRA";
+  if (lightState.includes("LUZ") || lightState.includes("CLARO")) return "SOLEADO";
+
+  return lightState || "--";
+}
+
+function updateSensorDetectionLabel(readings) {
+  const latest = (Array.isArray(readings) ? readings : [])
+    .filter(Boolean)
+    .at(-1);
+  const detection = getSensorDetectionLabel(latest);
+  const detectionEl = document.getElementById("txt-sensor-detection");
+  const detectionCard = detectionEl?.closest(".time-detection-card");
+
+  if (detectionEl) detectionEl.innerText = detection;
+  if (detectionCard) detectionCard.dataset.detection = detection;
+}
+
+function applySensorVisualWeather(readings) {
+  const sensorWeather = getSensorVisualWeather(readings);
+
+  if (!sensorWeather) return;
+
+  sensorWeatherState.type = sensorWeather;
+  sensorWeatherState.updatedAt = Date.now();
+
+  if (currentWeatherType === sensorWeather) return;
+
+  currentWeatherType = sensorWeather;
+  if (rain) rain.material.opacity = sensorWeather === "rainy" ? 0.6 : 0;
+  updateAtmosphere();
+
+  document.querySelectorAll(".weather-btn").forEach((button) => {
+    const weather = button.dataset.weather;
+    button.classList.toggle(
+      "active",
+      weather === sensorWeather || (sensorWeather === "cloudy" && weather === "normal"),
+    );
+  });
+
+  addFeedItem(
+    sensorWeather === "rainy"
+      ? "Sensor clima: sombra + humedad mayor a 80%, activando lluvia"
+      : "Sensor clima: sombra + humedad mayor a 50%, activando nublado",
+    "success",
+  );
+}
+
+function applySensorReadings(readings) {
+  if (!readings.length) return;
+
+  const avgTemperature = averageSensorValue(readings, "temperature_c");
+  const avgHumidity = averageSensorValue(readings, "humidity_percent");
+  const temperature = formatSensorNumber(avgTemperature, "°C");
+  const humidity = formatSensorNumber(avgHumidity, "%");
   const climateSummary = [temperature, humidity].filter(Boolean).join(" / ");
 
   if (climateSummary) {
-    const tempAvg = document.getElementById("txt-temp-avg");
-    const tempAvgMob = document.getElementById("txt-temp-avg-mob");
-    const dashboardTemp = document.getElementById("dash-avg-temp");
-
-    if (tempAvg) tempAvg.innerText = climateSummary;
-    if (tempAvgMob) tempAvgMob.innerText = climateSummary;
-    if (dashboardTemp && temperature) dashboardTemp.innerText = temperature;
-
-    if (currentSelectedRole && digitalTwinData[currentSelectedRole]) {
-      digitalTwinData[currentSelectedRole].temp = temperature;
-    }
+    sensorClimateState.temperature = temperature;
+    sensorClimateState.humidity = humidity;
+    sensorClimateState.summary = climateSummary;
+    sensorClimateState.updatedAt = Date.now();
+    writeSensorClimateDisplay();
   }
 
-  if (humidity && currentSelectedRole && digitalTwinData[currentSelectedRole]) {
-    digitalTwinData[currentSelectedRole].hum = humidity;
-  }
+  updateSensorDetectionLabel(readings);
+  applySensorVisualWeather(readings);
 
-  if (currentSelectedRole && digitalTwinData[currentSelectedRole]?.isSensor) {
-    const cardTemp = document.getElementById("card-temp");
-    const cardHum = document.getElementById("card-hum");
+  const updatedRoles = [];
 
-    if (temperature && cardTemp) cardTemp.innerText = temperature;
-    if (humidity && cardHum) cardHum.innerText = humidity;
+  readings.slice(0, 3).forEach((reading, index) => {
+    const role = resolveSensorRole(reading, index);
+    const data = digitalTwinData[role];
+
+    if (!data?.isSensor) return;
+
+    const sensorTemperature = formatSensorNumber(reading.temperature_c, "°C");
+    const sensorHumidity = formatSensorNumber(reading.humidity_percent, "%");
+    const battery = formatSensorNumber(reading.battery_percent, "%");
+
+    if (sensorTemperature) data.temp = sensorTemperature;
+    if (sensorHumidity) data.hum = sensorHumidity;
+    if (battery) data.bat = battery;
+
+    data.status = "Lectura en vivo";
+    data.statusClass = "status-good";
+    data.specialLabel = "LUZ";
+    data.specialVal = formatLightReading(reading);
+    data.diag1_label = "SONIDO";
+    data.diag1_val = `D0 ${reading.sound_d0 ?? "--"} / A1 ${reading.sound_a1 ?? "--"}`;
+    data.diag2_label = "OBJETO";
+    data.diag2_val = reading.object_state || "SIN DATO";
+    data.diag3_label = "FUENTE";
+    data.diag3_val = reading.sensor_name || reading.sensor_key || "Servidor sensores";
+    data.diag_bar = Number.isFinite(Number(reading.light_value))
+      ? Math.max(0, Math.min(100, Math.round((Number(reading.light_value) / 1023) * 100)))
+      : data.diag_bar;
+
+    updatedRoles.push(role);
+  });
+
+  if (
+    currentSelectedRole &&
+    updatedRoles.includes(currentSelectedRole) &&
+    infoCard &&
+    !infoCard.classList.contains("hidden")
+  ) {
+    showInfoCard(currentSelectedRole);
   }
 }
 
@@ -2130,11 +2352,20 @@ async function syncLightSensor() {
     });
 
     const data = await response.json();
-    applySensorClimate(data?.reading);
+    console.log("[SENSORES API]", {
+      status: response.status,
+      url: `${SENSOR_API_URL}?action=poll`,
+      data,
+    });
+
+    if (!data?.ok) return;
+
+    const sensorReadings = getLatestSensorReadings(data);
+    applySensorReadings(sensorReadings);
 
     const readings = Array.isArray(data?.recent_readings)
       ? data.recent_readings
-      : [data?.reading].filter(Boolean);
+      : sensorReadings;
 
     applyRecentLightReadings(readings);
   } catch (error) {
@@ -2227,7 +2458,7 @@ function initWeatherControls() {
 
   // 5. Función Maestra: Sincronización Real (Open-Meteo)
   async function syncRealWeather() {
-    if (!weatherSyncEnabled) return;
+    if (!weatherSyncEnabled || hasLiveSensorWeather()) return;
     try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
       const response = await fetch(url);
@@ -2254,9 +2485,13 @@ function initWeatherControls() {
       updateAtmosphere();
 
       const tempLabel = document.getElementById("txt-temp-avg");
-      if (tempLabel) tempLabel.innerText = `${temp}°C`;
       const mobTemp = document.getElementById("txt-temp-avg-mob");
-      if (mobTemp) mobTemp.innerText = `${temp}°C`;
+      if (!hasLiveSensorClimate()) {
+        if (tempLabel) tempLabel.innerText = `${temp}°C`;
+        if (mobTemp) mobTemp.innerText = `${temp}°C`;
+      } else {
+        writeSensorClimateDisplay();
+      }
 
       addFeedItem(`Clima Real Detectado: ${temp}°C`, "success");
     } catch (e) {
@@ -2494,6 +2729,79 @@ function simulateHistoryEffect(offsetMin) {
   }, 300);
 }
 
+function setSimulationLabState(type) {
+  isSimulationLabMode = type !== null;
+  currentSimulationType = type;
+  document.body.classList.toggle("simulation-lab-mode", isSimulationLabMode);
+
+  document.querySelectorAll("[data-sim]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.sim === type);
+  });
+
+  const status = document.getElementById("sim-lab-status");
+  if (status) {
+    status.textContent = isSimulationLabMode
+      ? "AJAX en pausa - escenario activo"
+      : "Datos en vivo sincronizados";
+  }
+}
+
+function exitSimulationLab() {
+  setSimulationLabState(null);
+  Object.assign(digitalTwinData, JSON.parse(JSON.stringify(liveDataBackup)));
+  lastZoneStatuses = {};
+  syncDBCounts();
+  addFeedItem("Laboratorio desactivado: datos reales restaurados", "success");
+}
+
+function runSimulation(type) {
+  if (!model) return;
+
+  if (type === "reset") {
+    exitSimulationLab();
+    return;
+  }
+
+  setSimulationLabState(type);
+  addFeedItem(`🧪 Iniciando Simulación: ${type.toUpperCase()}`, "info");
+
+  if (type === "peak") {
+    dbCounts.gym = 50;
+    dbCounts.pool = 30;
+    dbCounts.canchas = 20;
+    applyDBCountsToWorld({ gym: "open", pool: "open", canchas: "open" });
+    addFeedItem("⚠️ Alerta: Capacidad máxima alcanzada en todas las áreas", "danger");
+  } else if (type === "maintenance-gym") {
+    dbCounts.gym = 0;
+    dbCounts.pool = Math.max(dbCounts.pool ?? 0, 12);
+    dbCounts.canchas = Math.max(dbCounts.canchas ?? 0, 8);
+    digitalTwinData.gym.status = "CERRADO POR MANTENIMIENTO";
+    digitalTwinData.gym.statusClass = "status-warning";
+
+    model.traverse((child) => {
+      if (child.isMesh && child.userData.role === "gym") {
+        child.material.emissive.setHex(0x333333);
+        child.material.emissiveIntensity = 0.5;
+      }
+    });
+
+    applyDBCountsToWorld({ gym: "closed", pool: "open", canchas: "open" });
+    digitalTwinData.gym.status = "CERRADO POR MANTENIMIENTO";
+    digitalTwinData.gym.statusClass = "status-warning";
+    addFeedItem("🔧 Simulación: Gimnasio fuera de servicio", "warning");
+  } else if (type === "event") {
+    dbCounts.gym = 40;
+    dbCounts.pool = 40;
+    dbCounts.canchas = 20;
+    applyDBCountsToWorld({ gym: "open", pool: "open", canchas: "open" });
+    addFeedItem("📢 Simulación: Evento Corporativo en curso", "success");
+  }
+
+  if (currentSelectedRole && !infoCard.classList.contains("hidden")) {
+    showInfoCard(currentSelectedRole);
+  }
+}
+
 // Bucle de Animación
 function animate() {
   requestAnimationFrame(animate);
@@ -2653,51 +2961,6 @@ function animate() {
 
   renderer.render(scene, camera); // Renderizado directo para máxima velocidad
 
-  // --- LABORATORIO DE SIMULACIONES (WHAT-IF ANALYSIS) ---
-function runSimulation(type) {
-  if (!model) return;
-
-  addFeedItem(`🧪 Iniciando Simulación: ${type.toUpperCase()}`, "info");
-
-  if (type === "peak") {
-    // Simulamos capacidad máxima en todo el complejo
-    dbCounts.gym = 50;
-    dbCounts.pool = 30;
-    dbCounts.canchas = 20;
-    applyDBCountsToWorld();
-    addFeedItem("⚠️ Alerta: Capacidad máxima alcanzada en todas las áreas", "danger");
-  } 
-  else if (type === "maintenance-gym") {
-    // Cerramos el gimnasio por mantenimiento
-    dbCounts.gym = 0;
-    digitalTwinData.gym.status = "CERRADO POR MANTENIMIENTO";
-    digitalTwinData.gym.statusClass = "status-warning";
-    
-    // Cambiamos el color de la zona para indicar cierre
-    model.traverse(c => {
-        if (c.isMesh && c.userData.role === "gym") {
-            c.material.emissive.setHex(0x333333);
-            c.material.emissiveIntensity = 0.5;
-        }
-    });
-
-    applyDBCountsToWorld();
-    addFeedItem("🔧 Simulación: Gimnasio fuera de servicio", "warning");
-  }
-  else if (type === "event") {
-    // Simulamos un evento de 100 personas repartidas
-    dbCounts.gym = 40;
-    dbCounts.pool = 40; // Sobrepasa límite
-    dbCounts.canchas = 20;
-    applyDBCountsToWorld();
-    addFeedItem("📢 Simulación: Evento Corporativo en curso", "success");
-  }
-  else if (type === "reset") {
-    // Volvemos a los datos reales (o 0 si no hay DB)
-    location.reload(); // Forma más limpia de resetear el estado del modelo
-  }
-}
-window.runSimulation = runSimulation;
   spatialLabels.forEach((lbl) => {
     // Calculamos posición final sumando el movimiento de la explosión si aplica
     const worldPos = lbl.basePos.clone();

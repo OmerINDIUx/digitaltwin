@@ -278,81 +278,38 @@
                 <span class="metric-label">TEMP / HUM</span>
                 <span id="txt-temp-avg" class="metric-value">--</span>
               </div>
-              <div
-                class="metric-card full-width"
-                style="
-                  background: linear-gradient(
-                    135deg,
-                    rgba(99, 102, 241, 0.08) 0%,
-                    rgba(16, 185, 129, 0.06) 100%
-                  );
-                  border: 1px solid rgba(99, 102, 241, 0.15);
-                "
-              >
-                <span class="metric-label" style="color: var(--accent-primary)"
-                  >POBLACIÓN TOTAL</span
-                >
-                <div style="display: flex; align-items: baseline; gap: 6px">
-                  <span
-                    id="txt-total-people"
-                    class="metric-value"
-                    style="color: var(--accent-primary); font-size: 2rem"
-                    >--</span
-                  >
-                  <span
-                    style="
-                      font-size: 0.7rem;
-                      color: var(--text-muted);
-                      font-weight: 600;
-                    "
-                    >personas ahora</span
-                  >
+              <div class="metric-card full-width population-card">
+                <div class="population-topline">
+                  <span class="metric-label">POBLACIÓN EN VIVO</span>
+                  <span class="live-pill">LIVE</span>
                 </div>
-                <div
-                  style="
-                    display: flex;
-                    gap: 12px;
-                    margin-top: 6px;
-                    font-size: 0.65rem;
-                    color: var(--text-muted);
-                    font-weight: 700;
-                  "
-                >
-                  <span
-                    >🏃 GYM:
-                    <span id="txt-pop-gym" style="color: var(--text-secondary)"
-                      >--</span
-                    ></span
-                  >
-                  <span
-                    >🏊 Alberca:
-                    <span id="txt-pop-pool" style="color: var(--text-secondary)"
-                      >--</span
-                    ></span
-                  >
-                  <span
-                    >⚽ CANCHAS:
-                    <span
-                      id="txt-pop-canchas"
-                      style="color: var(--text-secondary)"
-                      >--</span
-                    ></span
-                  >
+                <div class="population-main">
+                  <span id="txt-total-people" class="population-total">--</span>
+                  <div class="population-copy">
+                    <span class="population-unit">personas</span>
+                    <span class="population-subtitle">dentro del complejo ahora</span>
+                  </div>
+                </div>
+                <div class="population-breakdown">
+                  <span class="population-chip gym"><small>GYM</small><b id="txt-pop-gym">--</b></span>
+                  <span class="population-chip pool"><small>ALBERCA</small><b id="txt-pop-pool">--</b></span>
+                  <span class="population-chip canchas"><small>CANCHAS</small><b id="txt-pop-canchas">--</b></span>
                 </div>
               </div>
-              <div class="metric-card full-width">
-                <span class="metric-label">HORA CDMX</span>
-                <span id="txt-hour" class="metric-value">--</span>
+              <div class="metric-card full-width time-detection-card">
+                <div class="detection-row">
+                  <span class="detection-dot"></span>
+                  <div class="detection-copy">
+                    <span class="detection-label">DETECCIÓN</span>
+                    <span id="txt-sensor-detection" class="sensor-detection">--</span>
+                  </div>
+                </div>
+                <div class="time-row">
+                  <span class="metric-label">HORA CDMX</span>
+                  <span id="txt-hour" class="metric-value">--</span>
+                </div>
               </div>
             </div>
-
-            <h2 class="panel-title" style="margin-top: 2rem">
-              Exploración de Capas
-            </h2>
-            <p class="panel-desc">
-              Organiza la vista del complejo para un análisis detallado.
-            </p>
-
             <div class="layer-controls">
               <div class="layer-group">
                 <h3 class="group-title">General</h3>
@@ -408,11 +365,12 @@
                 <h3 class="group-title" style="color: var(--warning-color); display: flex; align-items: center; gap: 6px;">
                   <span class="pulse-dot-small"></span> LAB. DE SIMULACIONES
                 </h3>
+                <div id="sim-lab-status" class="sim-lab-status">Datos en vivo sincronizados</div>
                 <div class="sim-grid">
-                  <button class="sim-btn" onclick="runSimulation('peak')">HORA PICO</button>
-                  <button class="sim-btn" onclick="runSimulation('maintenance-gym')">MTTO. GYM</button>
-                  <button class="sim-btn" onclick="runSimulation('event')">EVENTO 100p</button>
-                  <button class="sim-btn reset" onclick="runSimulation('reset')">RESET REAL</button>
+                  <button class="sim-btn" data-sim="peak" onclick="runSimulation('peak')">HORA PICO</button>
+                  <button class="sim-btn" data-sim="maintenance-gym" onclick="runSimulation('maintenance-gym')">MTTO. GYM</button>
+                  <button class="sim-btn" data-sim="event" onclick="runSimulation('event')">EVENTO 100p</button>
+                  <button class="sim-btn reset" data-sim="reset" onclick="runSimulation('reset')">RESET REAL</button>
                 </div>
               </div>
             </div>
@@ -905,7 +863,7 @@
     <!-- Sistema de Notificaciones -->
     <div id="notification-container" class="notification-container"></div>
 
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js?v=sensores-clima-20260630-3"></script>
     <script>
       lucide.createIcons();
     </script>

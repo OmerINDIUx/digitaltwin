@@ -125,6 +125,8 @@ final class Database
             'INSERT INTO sensor_readings (
                 source_url,
                 captured_at,
+                sensor_key,
+                sensor_name,
                 light_value,
                 light_state,
                 temperature_c,
@@ -132,10 +134,13 @@ final class Database
                 sound_d0,
                 sound_a1,
                 object_state,
+                battery_percent,
                 raw_payload
             ) VALUES (
                 :source_url,
                 :captured_at,
+                :sensor_key,
+                :sensor_name,
                 :light_value,
                 :light_state,
                 :temperature_c,
@@ -143,6 +148,7 @@ final class Database
                 :sound_d0,
                 :sound_a1,
                 :object_state,
+                :battery_percent,
                 :raw_payload
             )'
         );
@@ -150,6 +156,8 @@ final class Database
         $statement->execute([
             ':source_url' => $reading['source_url'] ?? null,
             ':captured_at' => $reading['captured_at'],
+            ':sensor_key' => $reading['sensor_key'] ?? null,
+            ':sensor_name' => $reading['sensor_name'] ?? null,
             ':light_value' => $reading['light_value'] ?? null,
             ':light_state' => $reading['light_state'] ?? null,
             ':temperature_c' => $reading['temperature_c'] ?? null,
@@ -157,6 +165,7 @@ final class Database
             ':sound_d0' => $reading['sound_d0'] ?? null,
             ':sound_a1' => $reading['sound_a1'] ?? null,
             ':object_state' => $reading['object_state'] ?? null,
+            ':battery_percent' => $reading['battery_percent'] ?? null,
             ':raw_payload' => $reading['raw_payload'] ?? null,
         ]);
 
@@ -258,6 +267,8 @@ final class Database
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_url TEXT,
                 captured_at TEXT NOT NULL,
+                sensor_key TEXT,
+                sensor_name TEXT,
                 light_value INTEGER,
                 light_state TEXT,
                 temperature_c REAL,
@@ -265,11 +276,29 @@ final class Database
                 sound_d0 INTEGER,
                 sound_a1 INTEGER,
                 object_state TEXT,
+                battery_percent REAL,
                 raw_payload TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )'
         );
 
+        $this->ensureSqliteColumns([
+            'sensor_key' => 'TEXT',
+            'sensor_name' => 'TEXT',
+            'battery_percent' => 'REAL',
+        ]);
         $this->pdo->exec('CREATE INDEX IF NOT EXISTS sensor_readings_captured_at_idx ON sensor_readings (captured_at)');
+    }
+
+    private function ensureSqliteColumns(array $columns): void
+    {
+        $statement = $this->pdo->query('PRAGMA table_info(sensor_readings)');
+        $existingColumns = array_column($statement->fetchAll(), 'name');
+
+        foreach ($columns as $name => $type) {
+            if (!in_array($name, $existingColumns, true)) {
+                $this->pdo->exec(sprintf('ALTER TABLE sensor_readings ADD COLUMN %s %s', $name, $type));
+            }
+        }
     }
 }

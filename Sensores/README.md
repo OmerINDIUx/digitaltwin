@@ -10,7 +10,19 @@ Con Laragon, abre:
 http://localhost/mi-proyecto-3d/Sensores/
 ```
 
-La pantalla consulta el Arduino configurado en `config.php` y guarda una lectura cada 5 segundos.
+La pantalla consulta las fuentes configuradas en `config.php` y guarda una lectura cada 5 segundos. La fuente principal actual es:
+
+```text
+https://sensores.xn--diseoygestion-lkb.com/api/sensores_seguro.php?limit=100
+```
+
+Si el servidor no responde, el lector intenta la pagina raiz del dominio y despues la IP local del Arduino.
+
+La llave del endpoint seguro se configura en el `.env` de la raiz:
+
+```text
+SENSORES_API_KEY=tu_llave_larga
+```
 
 ## API
 

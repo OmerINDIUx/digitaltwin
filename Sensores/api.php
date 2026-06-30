@@ -57,12 +57,13 @@ try {
         ]),
     };
 } catch (Throwable $exception) {
-    http_response_code(500);
+    http_response_code(200);
     respond([
         'ok' => false,
         'error' => $exception->getMessage(),
-        'reading' => $sensorDatabase->latest(),
-        'recent_readings' => $sensorDatabase->history(5),
+        'reading' => latest_valid_reading($sensorDatabase),
+        'recent_readings' => sanitize_readings_for_response(recent_valid_readings($sensorDatabase, 5)),
+        'diagnostics' => sensor_diagnostics($sensorConfig),
         'stats' => $sensorDatabase->stats(),
     ]);
 }
@@ -75,13 +76,76 @@ function respond(array $payload): never
 
 function poll_payload(Database $database, ArduinoSensorClient $client): array
 {
-    $reading = $database->insertReading($client->capture());
+    $latestReadings = $client->captureLatestReadings();
+
+    foreach ($latestReadings as $latestReading) {
+        $database->insertReading($latestReading);
+    }
+
+    $reading = $latestReadings[0] ?? $database->latest();
 
     return [
         'ok' => true,
         'driver' => $database->driver(),
-        'reading' => $reading,
-        'recent_readings' => $database->history(5),
+        'reading' => sanitize_reading_for_response($reading),
+        'latest_readings' => sanitize_readings_for_response($latestReadings),
+        'recent_readings' => sanitize_readings_for_response($latestReadings),
         'stats' => $database->stats(),
     ];
+}
+
+function latest_valid_reading(Database $database): ?array
+{
+    $readings = recent_valid_readings($database, 1);
+
+    return sanitize_reading_for_response($readings[0] ?? null);
+}
+
+function recent_valid_readings(Database $database, int $limit): array
+{
+    $history = $database->history(80);
+    $validReadings = array_values(array_filter($history, static fn (array $reading): bool => is_valid_sensor_reading($reading)));
+
+    return array_slice($validReadings, -$limit);
+}
+
+function is_valid_sensor_reading(array $reading): bool
+{
+    foreach (['light_value', 'light_state', 'temperature_c', 'humidity_percent', 'sound_d0', 'sound_a1', 'object_state'] as $key) {
+        if (($reading[$key] ?? null) !== null && $reading[$key] !== '') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function sensor_diagnostics(array $config): array
+{
+    $apiKey = (string) ($config['api_headers']['X-API-Key'] ?? '');
+
+    return [
+        'source_url' => $config['arduino_url'] ?? null,
+        'api_key_loaded' => $apiKey !== '',
+        'api_key_length' => strlen($apiKey),
+    ];
+}
+
+function sanitize_readings_for_response(array $readings): array
+{
+    return array_values(array_map(
+        static fn (array $reading): array => sanitize_reading_for_response($reading) ?? [],
+        $readings
+    ));
+}
+
+function sanitize_reading_for_response(?array $reading): ?array
+{
+    if ($reading === null) {
+        return null;
+    }
+
+    unset($reading['raw_payload']);
+
+    return $reading;
 }
