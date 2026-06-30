@@ -158,7 +158,7 @@
                 @forelse($events as $ev)
                 <div class="bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 group">
                     <div class="h-40 relative overflow-hidden">
-                        <img src="{{ $ev->image ?: 'https://images.unsplash.com/photo-1571902251103-d71b46244bc0?auto=format&fit=crop&q=80&w=400' }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                        <img src="{{ $ev->image ?: 'back-api/public/Axolote_Futbol.gif' }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent"></div>
                         <div class="absolute top-4 left-6">
                             <span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
@@ -563,7 +563,7 @@
         let selectedEventId = null;
 
         function eventFallbackImage() {
-            return 'https://images.unsplash.com/photo-1571902251103-d71b46244bc0?auto=format&fit=crop&q=80&w=900';
+            return 'back-api/public/Axolote_gym.gif';
         }
 
         function eventFileSize(bytes) {
