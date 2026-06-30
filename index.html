@@ -476,7 +476,7 @@
           </div>
         </div>
 
-        <!-- Métricas Sensor IoT -->y ver
+        <!-- Métricas Sensor IoT -->
         <div id="sensor-telemetry" class="stats-grid hidden">
           <div class="stat-item">
             <span class="stat-label">BATERÍA</span>
@@ -496,16 +496,16 @@
             <span>HUM</span> <strong id="card-hum">--</strong>
           </div>
           <div class="tech-row">
-            <span>MANT</span> <strong id="card-maint">--</strong>
+            <span id="card-maint-label">MANT</span> <strong id="card-maint">--</strong>
           </div>
           <div class="tech-row">
-            <span>HORARIO</span> <strong id="card-hours">--</strong>
+            <span id="card-hours-label">HORARIO</span> <strong id="card-hours">--</strong>
           </div>
         </div>
 
         <!-- Gráfico Semanal -->
         <div id="standard-trend" class="trend-container">
-          <span class="trend-label">TELEMETRÍA SEMANAL</span>
+          <span id="trend-label" class="trend-label">TELEMETRÍA SEMANAL</span>
           <div class="line-chart-svg">
             <svg viewBox="0 0 300 80">
               <path
@@ -514,6 +514,14 @@
                 fill="url(#grad1)"
                 stroke="#3b82f6"
                 stroke-width="2"
+              />
+              <path
+                id="chart-occupancy-path"
+                d=""
+                fill="none"
+                stroke="#10b981"
+                stroke-width="2"
+                stroke-dasharray="5 4"
               />
               <defs>
                 <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">

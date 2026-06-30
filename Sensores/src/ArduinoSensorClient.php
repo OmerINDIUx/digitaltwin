@@ -133,6 +133,7 @@ final class ArduinoSensorClient
             'humidity_percent' => $this->matchFloat('/(-?\d+(?:[.,]\d+)?)\s*%/i', $plainText),
             'sound_d0' => $this->matchInt('/D0\s*:\s*(\d+)/i', $plainText),
             'sound_a1' => $this->matchInt('/A1\s*:\s*(\d+)/i', $plainText),
+            'noise_state' => $this->matchText('/Ruido\s+([A-ZÁÉÍÓÚÑ ]+?)(?:\s+Objeto|\s+Actualiza|\s*$)/iu', $plainText),
             'object_state' => $this->matchText('/Objeto\s+([A-ZÁÉÍÓÚÑ ]+?)(?:\s+Actualiza|\s*$)/iu', $plainText),
         ];
     }
@@ -184,6 +185,7 @@ final class ArduinoSensorClient
             'humidity_percent' => $this->nullableFloat($json['humidity_percent'] ?? $json['humedad'] ?? $json['humidity'] ?? $json['hum'] ?? $json['humedad_percent'] ?? null),
             'sound_d0' => $this->nullableInt($json['sound_d0'] ?? $json['d0'] ?? $json['sonido_d0'] ?? $json['sonido_digital'] ?? null),
             'sound_a1' => $this->nullableInt($json['sound_a1'] ?? $json['a1'] ?? $json['rms'] ?? $json['sonido_a1'] ?? $json['sonido_analogico'] ?? null),
+            'noise_state' => $this->nullableString($json['noise_state'] ?? $json['noise_label'] ?? $json['ruido'] ?? $json['estado_ruido'] ?? $json['ruido_estado'] ?? $json['clasificacion_ruido'] ?? $json['sound_state'] ?? null),
             'object_state' => $this->nullableString($json['object_state'] ?? $json['objeto'] ?? $json['object'] ?? $json['estado_objeto'] ?? null),
             'sensor_key' => $this->nullableString($json['sensor_key'] ?? $json['sensor'] ?? $json['sensor_id'] ?? $json['device_id'] ?? $json['dispositivo'] ?? $json['nombre'] ?? null),
             'sensor_name' => $this->nullableString($json['sensor_name'] ?? $json['nombre_sensor'] ?? $json['nombre'] ?? $json['dispositivo'] ?? null),

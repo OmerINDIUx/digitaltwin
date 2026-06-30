@@ -133,6 +133,7 @@ final class Database
                 humidity_percent,
                 sound_d0,
                 sound_a1,
+                noise_state,
                 object_state,
                 battery_percent,
                 raw_payload
@@ -147,6 +148,7 @@ final class Database
                 :humidity_percent,
                 :sound_d0,
                 :sound_a1,
+                :noise_state,
                 :object_state,
                 :battery_percent,
                 :raw_payload
@@ -164,6 +166,7 @@ final class Database
             ':humidity_percent' => $reading['humidity_percent'] ?? null,
             ':sound_d0' => $reading['sound_d0'] ?? null,
             ':sound_a1' => $reading['sound_a1'] ?? null,
+            ':noise_state' => $reading['noise_state'] ?? null,
             ':object_state' => $reading['object_state'] ?? null,
             ':battery_percent' => $reading['battery_percent'] ?? null,
             ':raw_payload' => $reading['raw_payload'] ?? null,
@@ -275,6 +278,7 @@ final class Database
                 humidity_percent REAL,
                 sound_d0 INTEGER,
                 sound_a1 INTEGER,
+                noise_state TEXT,
                 object_state TEXT,
                 battery_percent REAL,
                 raw_payload TEXT,
@@ -285,6 +289,7 @@ final class Database
         $this->ensureSqliteColumns([
             'sensor_key' => 'TEXT',
             'sensor_name' => 'TEXT',
+            'noise_state' => 'TEXT',
             'battery_percent' => 'REAL',
         ]);
         $this->pdo->exec('CREATE INDEX IF NOT EXISTS sensor_readings_captured_at_idx ON sensor_readings (captured_at)');

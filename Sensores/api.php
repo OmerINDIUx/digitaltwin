@@ -33,6 +33,7 @@ try {
             'humidity_percent' => isset($payload['humidity_percent']) ? (float) $payload['humidity_percent'] : null,
             'sound_d0' => isset($payload['sound_d0']) ? (int) $payload['sound_d0'] : null,
             'sound_a1' => isset($payload['sound_a1']) ? (int) $payload['sound_a1'] : null,
+            'noise_state' => $payload['noise_state'] ?? $payload['noise_label'] ?? $payload['ruido'] ?? $payload['estado_ruido'] ?? $payload['ruido_estado'] ?? $payload['clasificacion_ruido'] ?? null,
             'object_state' => $payload['object_state'] ?? null,
             'raw_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ];
@@ -89,7 +90,7 @@ function poll_payload(Database $database, ArduinoSensorClient $client): array
         'driver' => $database->driver(),
         'reading' => sanitize_reading_for_response($reading),
         'latest_readings' => sanitize_readings_for_response($latestReadings),
-        'recent_readings' => sanitize_readings_for_response($latestReadings),
+        'recent_readings' => sanitize_readings_for_response(recent_valid_readings($database, 100)),
         'stats' => $database->stats(),
     ];
 }
@@ -111,7 +112,7 @@ function recent_valid_readings(Database $database, int $limit): array
 
 function is_valid_sensor_reading(array $reading): bool
 {
-    foreach (['light_value', 'light_state', 'temperature_c', 'humidity_percent', 'sound_d0', 'sound_a1', 'object_state'] as $key) {
+    foreach (['light_value', 'light_state', 'temperature_c', 'humidity_percent', 'sound_d0', 'sound_a1', 'noise_state', 'object_state'] as $key) {
         if (($reading[$key] ?? null) !== null && $reading[$key] !== '') {
             return true;
         }

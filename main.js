@@ -40,6 +40,8 @@ const lightSensorState = {
 const sensorClimateState = {
   temperature: null,
   humidity: null,
+  noise: null,
+  noiseRms: null,
   summary: null,
   updatedAt: 0,
 };
@@ -71,6 +73,8 @@ let dbCounts = { gym: null, pool: null, canchas: null };
 let lastActiveReservations = []; // <--- DATOS PARA COLOREADO DE PERSONAS
 let currentSelectedRole = null; // Para refrescar la card abierta durante el historial
 let liveSyncTimer = null;
+const gymTrendSamples = [];
+const maxGymTrendSamples = 36;
 
 const peopleInstances = {
   gym: null,
@@ -1668,6 +1672,15 @@ function applyDBCountsToWorld(zoneStatuses = null) {
   if (canchasEl) canchasEl.innerText = dbCounts.canchas ?? 0;
 
   updateDashboardData();
+
+  if (
+    currentSelectedRole &&
+    ["gym", "pool", "canchas"].includes(currentSelectedRole) &&
+    infoCard &&
+    !infoCard.classList.contains("hidden")
+  ) {
+    showInfoCard(currentSelectedRole);
+  }
 }
 
 function startLiveSync() {
@@ -2110,6 +2123,19 @@ function applyRecentLightReadings(readings) {
 
   if (!currentState) return;
 
+  if (currentState === "day") {
+    lightSensorState.lastStableState = currentState;
+    lightSensorState.consecutiveCount = 1;
+
+    if (lightSensorState.mode !== currentState) {
+      lightSensorState.mode = currentState;
+      updateAtmosphere();
+      addFeedItem("Sensor de luz: lectura en sombra/luz, activando día", "success");
+    }
+
+    return;
+  }
+
   if (lightSensorState.lastStableState === currentState) {
     lightSensorState.consecutiveCount += 1;
   } else {
@@ -2183,6 +2209,95 @@ function averageSensorValue(readings, key) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function getNoiseReading(readings) {
+  const validReadings = (Array.isArray(readings) ? readings : []).filter(Boolean);
+
+  return (
+    [...validReadings]
+      .reverse()
+      .find((reading) =>
+        reading.noise_state ||
+        reading.ruido ||
+        reading.estado_ruido ||
+        reading.ruido_estado ||
+        reading.clasificacion_ruido ||
+        reading.noise_label ||
+        reading.sound_state ||
+        Number.isFinite(Number(reading.sound_a1))
+      ) || null
+  );
+}
+
+function getNoiseLabel(reading) {
+  if (!reading) return null;
+
+  const label =
+    reading.noise_state ??
+    reading.ruido ??
+    reading.estado_ruido ??
+    reading.ruido_estado ??
+    reading.clasificacion_ruido ??
+    reading.noise_label ??
+    reading.sound_state;
+
+  if (label !== null && label !== undefined && String(label).trim() !== "") {
+    return String(label).trim();
+  }
+
+  if (reading.sound_d0 !== null && reading.sound_d0 !== undefined && reading.sound_d0 !== "") {
+    return Number(reading.sound_d0) === 1 ? "Ruido detectado" : "Silencioso";
+  }
+
+  return null;
+}
+
+function getNoiseRms(reading) {
+  const value = Number(reading?.sound_a1 ?? reading?.rms);
+
+  return Number.isFinite(value) ? value : null;
+}
+
+function rememberGymTrendSample(readings) {
+  const noiseReading = getNoiseReading(readings);
+  const noiseRms = getNoiseRms(noiseReading);
+
+  if (!Number.isFinite(noiseRms)) return;
+
+  gymTrendSamples.push({
+    noiseRms,
+    occupancy: dbCounts.gym ?? digitalTwinData.gym?.current ?? 0,
+  });
+
+  if (gymTrendSamples.length > maxGymTrendSamples) {
+    gymTrendSamples.splice(0, gymTrendSamples.length - maxGymTrendSamples);
+  }
+}
+
+function replaceGymTrendSamplesFromHistory(readings) {
+  const samples = (Array.isArray(readings) ? readings : [])
+    .map((reading) => ({
+      noiseRms: getNoiseRms(reading),
+      occupancy: dbCounts.gym ?? digitalTwinData.gym?.current ?? 0,
+    }))
+    .filter((sample) => Number.isFinite(sample.noiseRms))
+    .slice(-maxGymTrendSamples);
+
+  if (samples.length < 2) return;
+
+  gymTrendSamples.splice(0, gymTrendSamples.length, ...samples);
+}
+
+function getGymTrendData() {
+  const samples = gymTrendSamples.length
+    ? gymTrendSamples
+    : [{ noiseRms: digitalTwinData.gym?.noiseRms ?? null, occupancy: dbCounts.gym ?? 0 }];
+
+  return {
+    noise: samples.map((sample) => sample.noiseRms).filter(Number.isFinite),
+    occupancy: samples.map((sample) => sample.occupancy ?? 0),
+  };
+}
+
 function resolveSensorRole(reading, index) {
   const key = `${reading?.sensor_key || ""} ${reading?.sensor_name || ""}`.toLowerCase();
 
@@ -2208,12 +2323,14 @@ function getSensorVisualWeather(readings) {
   if (!latest) return null;
 
   const humidity = Number(latest.humidity_percent);
+  const normalizedLightState = normalizeLightState(latest.light_state);
   const lightState = String(latest.light_state || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toUpperCase();
 
+  if (normalizedLightState === "night") return null;
   if (!lightState.includes("SOMBRA") || !Number.isFinite(humidity)) return null;
   if (humidity > 80) return "rainy";
   if (humidity > 50) return "cloudy";
@@ -2224,7 +2341,6 @@ function getSensorVisualWeather(readings) {
 function getSensorDetectionLabel(reading) {
   if (!reading) return "--";
 
-  const humidity = Number(reading.humidity_percent);
   const lightState = String(reading.light_state || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -2232,8 +2348,6 @@ function getSensorDetectionLabel(reading) {
     .toUpperCase();
 
   if (lightState.includes("OSCURO")) return "OSCURO";
-  if (lightState.includes("SOMBRA") && Number.isFinite(humidity) && humidity > 80) return "LLUVIA";
-  if (lightState.includes("SOMBRA") && Number.isFinite(humidity) && humidity > 50) return "NUBLADO";
   if (lightState.includes("SOMBRA")) return "SOMBRA";
   if (lightState.includes("LUZ") || lightState.includes("CLARO")) return "SOLEADO";
 
@@ -2259,9 +2373,9 @@ function applySensorVisualWeather(readings) {
 
   sensorWeatherState.type = sensorWeather;
   sensorWeatherState.updatedAt = Date.now();
+  lightSensorState.mode = "day";
 
-  if (currentWeatherType === sensorWeather) return;
-
+  const weatherChanged = currentWeatherType !== sensorWeather;
   currentWeatherType = sensorWeather;
   if (rain) rain.material.opacity = sensorWeather === "rainy" ? 0.6 : 0;
   updateAtmosphere();
@@ -2274,12 +2388,14 @@ function applySensorVisualWeather(readings) {
     );
   });
 
-  addFeedItem(
-    sensorWeather === "rainy"
-      ? "Sensor clima: sombra + humedad mayor a 80%, activando lluvia"
-      : "Sensor clima: sombra + humedad mayor a 50%, activando nublado",
-    "success",
-  );
+  if (weatherChanged) {
+    addFeedItem(
+      sensorWeather === "rainy"
+        ? "Sensor clima: sombra + humedad mayor a 80%, activando lluvia"
+        : "Sensor clima: sombra + humedad mayor a 50%, activando nublado",
+      "success",
+    );
+  }
 }
 
 function applySensorReadings(readings) {
@@ -2289,13 +2405,27 @@ function applySensorReadings(readings) {
   const avgHumidity = averageSensorValue(readings, "humidity_percent");
   const temperature = formatSensorNumber(avgTemperature, "°C");
   const humidity = formatSensorNumber(avgHumidity, "%");
+  const noiseReading = getNoiseReading(readings);
+  const noise = getNoiseLabel(noiseReading);
+  const noiseRms = getNoiseRms(noiseReading);
   const climateSummary = [temperature, humidity].filter(Boolean).join(" / ");
 
-  if (climateSummary) {
+  if (climateSummary || noise || Number.isFinite(noiseRms)) {
     sensorClimateState.temperature = temperature;
     sensorClimateState.humidity = humidity;
+    sensorClimateState.noise = noise;
+    sensorClimateState.noiseRms = noiseRms;
     sensorClimateState.summary = climateSummary;
     sensorClimateState.updatedAt = Date.now();
+
+    if (digitalTwinData.gym) {
+      if (temperature) digitalTwinData.gym.temp = temperature;
+      if (humidity) digitalTwinData.gym.hum = humidity;
+      if (noise) digitalTwinData.gym.noise = noise;
+      if (Number.isFinite(noiseRms)) digitalTwinData.gym.noiseRms = noiseRms;
+    }
+
+    rememberGymTrendSample(readings);
     writeSensorClimateDisplay();
   }
 
@@ -2323,7 +2453,7 @@ function applySensorReadings(readings) {
     data.specialLabel = "LUZ";
     data.specialVal = formatLightReading(reading);
     data.diag1_label = "SONIDO";
-    data.diag1_val = `D0 ${reading.sound_d0 ?? "--"} / A1 ${reading.sound_a1 ?? "--"}`;
+    data.diag1_val = `${getNoiseLabel(reading) || "Sin dato"} / RMS ${reading.sound_a1 ?? "--"}`;
     data.diag2_label = "OBJETO";
     data.diag2_val = reading.object_state || "SIN DATO";
     data.diag3_label = "FUENTE";
@@ -2337,7 +2467,7 @@ function applySensorReadings(readings) {
 
   if (
     currentSelectedRole &&
-    updatedRoles.includes(currentSelectedRole) &&
+    (updatedRoles.includes(currentSelectedRole) || currentSelectedRole === "gym") &&
     infoCard &&
     !infoCard.classList.contains("hidden")
   ) {
@@ -2367,7 +2497,8 @@ async function syncLightSensor() {
       ? data.recent_readings
       : sensorReadings;
 
-    applyRecentLightReadings(readings);
+    replaceGymTrendSamplesFromHistory(readings);
+    applyRecentLightReadings(sensorReadings);
   } catch (error) {
     console.warn("Light sensor sync fail", error);
   }
@@ -3229,7 +3360,9 @@ function showInfoCard(role) {
   const expectedEl = document.getElementById("expected-people");
   const tempEl = document.getElementById("card-temp");
   const humEl = document.getElementById("card-hum");
+  const maintLabelEl = document.getElementById("card-maint-label");
   const maintEl = document.getElementById("card-maint");
+  const hoursLabelEl = document.getElementById("card-hours-label");
   const hoursEl = document.getElementById("card-hours");
   const statusEl = document.getElementById("area-status");
   const alertBanner = document.getElementById("alert-banner");
@@ -3252,6 +3385,7 @@ function showInfoCard(role) {
 
   // Paneles de Detalle dinámicos
   const standardTrend = document.getElementById("standard-trend");
+  const trendLabel = document.getElementById("trend-label");
   const sensorAdvanced = document.getElementById("sensor-advanced");
   const diagL1 = document.getElementById("diag-label-1");
   const diagV1 = document.getElementById("diag-val-1");
@@ -3265,6 +3399,7 @@ function showInfoCard(role) {
     if (standardMetrics) standardMetrics.classList.add("hidden");
     if (sensorTelemetry) sensorTelemetry.classList.add("hidden");
     if (standardTrend) standardTrend.classList.add("hidden");
+    if (trendLabel) trendLabel.innerText = "DIAGNÓSTICO AVANZADO";
     if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
     
     if (lidarCont) lidarCont.classList.remove("hidden");
@@ -3279,7 +3414,9 @@ function showInfoCard(role) {
     
     if (tempEl) tempEl.innerText = data.temp || "38°C";
     if (humEl) humEl.innerText = (data.hours || 1200) + " hrs";
+    if (maintLabelEl) maintLabelEl.innerText = "MANT";
     if (maintEl) maintEl.innerText = data.nextService || "Pendiente";
+    if (hoursLabelEl) hoursLabelEl.innerText = "ESTADO";
     if (hoursEl) hoursEl.innerText = data.status || "OPERATIVO";
 
     infoCard.classList.remove("hidden");
@@ -3292,6 +3429,7 @@ function showInfoCard(role) {
 
     // Mostrar Diagnóstico Avanzado y ocultar Telemetría Semanal
     if (standardTrend) standardTrend.classList.add("hidden");
+    if (trendLabel) trendLabel.innerText = "DIAGNÓSTICO AVANZADO";
     if (sensorAdvanced) sensorAdvanced.classList.remove("hidden");
 
     // Poblar Diagnósticos
@@ -3315,7 +3453,9 @@ function showInfoCard(role) {
     // Mantener visibles campos técnicos si existen
     if (tempEl) tempEl.innerText = data.temp || "--";
     if (humEl) humEl.innerText = data.hum || "--";
+    if (maintLabelEl) maintLabelEl.innerText = "MANT";
     if (maintEl) maintEl.innerText = "SISTEMA OK";
+    if (hoursLabelEl) hoursLabelEl.innerText = "HORARIO";
     if (hoursEl) hoursEl.innerText = "24 / 7";
   } else {
     if (standardMetrics) standardMetrics.classList.remove("hidden");
@@ -3323,6 +3463,9 @@ function showInfoCard(role) {
 
     // Mostrar Telemetría Semanal y ocultar Diagnóstico
     if (standardTrend) standardTrend.classList.remove("hidden");
+    if (trendLabel) {
+      trendLabel.innerText = role === "gym" ? "RUIDO RMS VS OCUPACIÓN" : "TELEMETRÍA SEMANAL";
+    }
     if (sensorAdvanced) sensorAdvanced.classList.add("hidden");
 
     // Restaurar Cámara normal
@@ -3348,7 +3491,14 @@ function showInfoCard(role) {
     }
     if (tempEl) tempEl.innerText = data.temp;
     if (humEl) humEl.innerText = data.hum;
-    if (maintEl) maintEl.innerText = data.maint;
+    if (role === "gym" && data.noise) {
+      if (maintLabelEl) maintLabelEl.innerText = "RUIDO";
+      if (maintEl) maintEl.innerText = data.noise;
+    } else {
+      if (maintLabelEl) maintLabelEl.innerText = "MANT";
+      if (maintEl) maintEl.innerText = data.maint;
+    }
+    if (hoursLabelEl) hoursLabelEl.innerText = "HORARIO";
     if (hoursEl) hoursEl.innerText = data.hours;
   }
 
@@ -3386,7 +3536,7 @@ function showInfoCard(role) {
     infoCard.classList.remove("hidden");
 
     // Dibujar Gráfica de Línea
-    updateLineChart(data.trend || [20, 50, 30, 80, 40, 90]);
+    updateLineChart(role === "gym" ? getGymTrendData() : data.trend || [20, 50, 30, 80, 40, 90]);
 
     // Trigger para relanzar la animación del Live Feed (opcional)
     const scanLine = infoCard.querySelector(".scan-line");
@@ -3400,23 +3550,67 @@ function showInfoCard(role) {
 
 function updateLineChart(data) {
   const path = document.getElementById("chart-path");
+  const occupancyPath = document.getElementById("chart-occupancy-path");
   if (!path) return;
 
   const width = 300;
   const height = 80;
-  const stepX = width / (data.length - 1);
+  const buildLine = (values) => {
+    if (!values.length) return "";
 
-  let d = `M 0 ${height - (data[0] / 100) * height}`;
+    const stepX = width / Math.max(values.length - 1, 1);
+    let d = `M 0 ${height - (values[0] / 100) * height}`;
 
-  for (let i = 1; i < data.length; i++) {
-    const x = i * stepX;
-    const y = height - (data[i] / 100) * height;
-    d += ` L ${x} ${y}`;
+    for (let i = 1; i < values.length; i++) {
+      const x = i * stepX;
+      const y = height - (values[i] / 100) * height;
+      d += ` L ${x} ${y}`;
+    }
+
+    return d;
+  };
+
+  const normalize = (values) => {
+    const numericValues = values.map(Number).filter(Number.isFinite);
+    if (!numericValues.length) return [];
+
+    const min = Math.min(...numericValues);
+    const max = Math.max(...numericValues);
+
+    if (max === min) return numericValues.map(() => 50);
+
+    return numericValues.map((value) => ((value - min) / (max - min)) * 100);
+  };
+
+  if (!Array.isArray(data) && data?.noise) {
+    const noiseValues = normalize(data.noise);
+    const occupancyValues = (data.occupancy || []).map((value) => Math.max(0, Math.min(100, (Number(value) / 50) * 100)));
+    const noiseLine = buildLine(noiseValues.length ? noiseValues : [0]);
+    const occupancyLine = buildLine(occupancyValues.length ? occupancyValues : [0]);
+
+    path.setAttribute("d", noiseLine ? `${noiseLine} L ${width} ${height} L 0 ${height} Z` : "");
+    path.setAttribute("stroke", "#7c3aed");
+
+    if (occupancyPath) {
+      occupancyPath.setAttribute("d", occupancyLine);
+      occupancyPath.classList.remove("hidden");
+    }
+
+    return;
+  }
+
+  const series = Array.isArray(data) && data.length ? data : [0];
+  const line = buildLine(series);
+
+  if (occupancyPath) {
+    occupancyPath.setAttribute("d", "");
+    occupancyPath.classList.add("hidden");
   }
 
   // Cerrar el path para el gradiente
-  const closedD = d + ` L ${width} ${height} L 0 ${height} Z`;
+  const closedD = line + ` L ${width} ${height} L 0 ${height} Z`;
   path.setAttribute("d", closedD);
+  path.setAttribute("stroke", "#3b82f6");
 }
 
 function addFeedItem(text, type = "info") {
