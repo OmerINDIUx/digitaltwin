@@ -16,7 +16,7 @@
         .japan-hero {
             background:
                 linear-gradient(120deg, rgba(17, 24, 39, .94), rgba(49, 33, 95, .84), rgba(15, 118, 110, .68)),
-                url('{{ asset('storage/Axolote_natacion.gif') }}') center / cover;
+                url('{{ asset('Axolote_natacion.gif') }}') center / cover;
         }
     </style>
 </head>
@@ -71,7 +71,7 @@
                 </div>
 
                 <div class="relative min-h-[420px] overflow-hidden rounded-[1.5rem] bg-slate-950 shadow-2xl ring-1 ring-white/20">
-                    <img src="{{ asset('storage/Axolote_Futbol.gif') }}" alt="Axolote de Utopía Japón" class="absolute inset-0 h-full w-full object-cover">
+                    <img src="{{ asset('Axolote_Futbol.gif') }}" alt="Axolote de Utopía Japón" class="absolute inset-0 h-full w-full object-cover">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-6">
                         <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">Utopía Japón</p>
@@ -108,7 +108,12 @@
                 @endphp
                 <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
                     <div class="h-48 overflow-hidden relative">
-                        <img src="{{ str_starts_with($zone->image, 'http') ? $zone->image : asset(ltrim($zone->image, '/')) }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
+                        @php
+                            $zoneImage = str_contains($zone->image ?? '', 'Axolote_')
+                                ? asset(basename($zone->image))
+                                : (str_starts_with($zone->image, 'http') ? $zone->image : asset(ltrim($zone->image, '/')));
+                        @endphp
+                        <img src="{{ $zoneImage }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
                         <div class="absolute bottom-4 left-6">
                             <span class="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-tighter">{{ $zone->name }}</span>

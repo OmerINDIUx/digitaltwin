@@ -72,9 +72,9 @@
     <main>
         <section class="hero-media relative flex min-h-[92vh] items-end overflow-hidden">
             <div class="axolotl-reel hero-reel">
-                <img src="{{ asset('storage/Axolote_natacion.gif') }}" alt="Axolote natación">
-                <img src="{{ asset('storage/Axolote_gym.gif') }}" alt="Axolote gimnasio">
-                <img src="{{ asset('storage/Axolote_Futbol.gif') }}" alt="Axolote fútbol">
+                <img src="{{ asset('Axolote_natacion.gif') }}" alt="Axolote natación">
+                <img src="{{ asset('Axolote_gym.gif') }}" alt="Axolote gimnasio">
+                <img src="{{ asset('Axolote_Futbol.gif') }}" alt="Axolote fútbol">
             </div>
             <div class="absolute inset-0 bg-gradient-to-r from-[#170f35]/95 via-[#28174f]/78 to-[#0f766e]/42"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-slate-950/30"></div>
@@ -148,9 +148,9 @@
                 <div class="grid gap-6 md:grid-cols-2">
                     <a href="{{ url('/panel') }}" class="group overflow-hidden rounded-lg border border-violet-200 bg-slate-950 text-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
                         <div class="axolotl-reel h-64">
-                            <img src="{{ asset('storage/Axolote_natacion.gif') }}" alt="Axolote natación">
-                            <img src="{{ asset('storage/Axolote_gym.gif') }}" alt="Axolote gimnasio">
-                            <img src="{{ asset('storage/Axolote_Futbol.gif') }}" alt="Axolote fútbol">
+                            <img src="{{ asset('Axolote_natacion.gif') }}" alt="Axolote natación">
+                            <img src="{{ asset('Axolote_gym.gif') }}" alt="Axolote gimnasio">
+                            <img src="{{ asset('Axolote_Futbol.gif') }}" alt="Axolote fútbol">
                         </div>
                         <div class="p-8">
                             <div class="mb-4 flex items-center justify-between gap-4">
