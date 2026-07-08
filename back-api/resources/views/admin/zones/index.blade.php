@@ -48,7 +48,14 @@
             @foreach($zones as $zone)
             <div class="glass-card rounded-[2.5rem] overflow-hidden group">
                 <div class="h-40 bg-slate-200 relative">
-                    <img src="{{ str_starts_with($zone->image, 'http') ? $zone->image : asset(ltrim($zone->image, '/')) }}" class="w-full h-full object-cover">
+                    @php
+                        $zoneImage = $zone->image ?? '';
+                        if ($zoneImage && !str_starts_with($zoneImage, 'http')) {
+                            $zoneImage = preg_replace('#^/?storage/#', '', $zoneImage);
+                            $zoneImage = asset(ltrim($zoneImage, '/'));
+                        }
+                    @endphp
+                    <img src="{{ $zoneImage }}" class="w-full h-full object-cover">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent"></div>
                     <div class="absolute bottom-4 left-6 flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">

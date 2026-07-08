@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\Zone;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class ReservationController extends Controller
 {
@@ -140,7 +142,193 @@ class ReservationController extends Controller
             ->take(12)
             ->get();
 
-        return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones', 'events'));
+        $civicData = cache()->remember('reservations-panel:civic-data', now()->addMinutes(15), function () {
+            return [
+                'weather' => $this->fetchWeatherData(),
+                'hoy_no_circula' => $this->fetchHoyNoCirculaData(),
+                'wifi' => $this->fetchWifiData(),
+            ];
+        });
+
+        return view('reservations-panel', compact('reservations', 'stats', 'availability', 'zones', 'events', 'civicData'));
+    }
+
+    private function fetchWeatherData(): array
+    {
+        $fallback = [
+            'temperature' => null,
+            'summary' => 'Clima',
+            'rain_probability' => null,
+            'air_quality' => 'Calidad del aire',
+            'uv_index' => null,
+        ];
+
+        try {
+            $forecast = Http::timeout(6)
+                ->retry(1, 250)
+                ->get('https://api.open-meteo.com/v1/forecast', [
+                    'latitude' => 19.4326,
+                    'longitude' => -99.1332,
+                    'current' => 'temperature_2m,weather_code',
+                    'daily' => 'uv_index_max,precipitation_probability_max',
+                    'forecast_days' => 1,
+                    'timezone' => 'America/Mexico_City',
+                ])
+                ->json();
+
+            $air = Http::timeout(6)
+                ->retry(1, 250)
+                ->get('https://air-quality-api.open-meteo.com/v1/air-quality', [
+                    'latitude' => 19.4326,
+                    'longitude' => -99.1332,
+                    'current' => 'european_aqi',
+                    'timezone' => 'America/Mexico_City',
+                ])
+                ->json();
+
+            $temperature = data_get($forecast, 'current.temperature_2m');
+            $weatherCode = (int) data_get($forecast, 'current.weather_code', -1);
+            $rainProbability = data_get($forecast, 'daily.precipitation_probability_max.0');
+            $uvIndex = data_get($forecast, 'daily.uv_index_max.0');
+            $aqi = data_get($air, 'current.european_aqi');
+
+            return [
+                'temperature' => is_numeric($temperature) ? (int) round($temperature) : null,
+                'summary' => $this->mapWeatherCodeToSpanish($weatherCode),
+                'rain_probability' => is_numeric($rainProbability) ? (int) round($rainProbability) : null,
+                'air_quality' => $this->mapEuropeanAqi((float) $aqi),
+                'uv_index' => is_numeric($uvIndex) ? number_format((float) $uvIndex, 0) : null,
+            ];
+        } catch (\Throwable $e) {
+            return $fallback;
+        }
+    }
+
+    private function fetchHoyNoCirculaData(): array
+    {
+        $fallback = [
+            'plates' => 'Sin dato',
+            'restriction' => 'Consulta la información oficial',
+        ];
+
+        try {
+            $html = Http::timeout(6)
+                ->retry(1, 250)
+                ->get('https://hoynocircula.cdmx.gob.mx/')
+                ->body();
+
+            $text = $this->normalizeExternalText($html);
+
+            preg_match('/Placas\s+([0-9,]+)/u', $text, $platesMatch);
+            preg_match('/H1:\s*([A-Za-zÁÉÍÓÚáéíóú]+)\s+H2:\s*([A-Za-zÁÉÍÓÚáéíóú]+)/u', $text, $restrictionMatch);
+
+            return [
+                'plates' => $platesMatch[1] ?? $this->calculateHoyNoCircula()['plates'],
+                'restriction' => isset($restrictionMatch[1], $restrictionMatch[2])
+                    ? 'H1: ' . Str::lower($restrictionMatch[1]) . ' · H2: ' . Str::lower($restrictionMatch[2])
+                    : $this->calculateHoyNoCircula()['restriction'],
+            ];
+        } catch (\Throwable $e) {
+            return $this->calculateHoyNoCircula($fallback);
+        }
+    }
+
+    private function fetchWifiData(): array
+    {
+        $fallback = [
+            'points' => 'Puntos WiFi',
+            'subtitle' => 'Consulta la red disponible en tu zona',
+        ];
+
+        try {
+            $html = Http::timeout(6)
+                ->retry(1, 250)
+                ->get('https://internetparatodas.cdmx.gob.mx/puntos-wifi')
+                ->body();
+
+            $text = $this->normalizeExternalText($html);
+
+            preg_match('/(\d{1,3}(?:,\d{3})+)\s+Puntos\s+WiFi/u', $text, $pointsMatch);
+
+            return [
+                'points' => isset($pointsMatch[1]) ? $pointsMatch[1] . ' puntos WiFi' : $fallback['points'],
+                'subtitle' => 'Ubica la red gratuita más cercana',
+            ];
+        } catch (\Throwable $e) {
+            return $fallback;
+        }
+    }
+
+    private function normalizeExternalText(string $html): string
+    {
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return preg_replace('/\s+/u', ' ', $text) ?? '';
+    }
+
+    private function mapWeatherCodeToSpanish(int $code): string
+    {
+        return match (true) {
+            $code === 0 => 'Despejado',
+            in_array($code, [1, 2], true) => 'Poco nuboso',
+            $code === 3 => 'Nublado',
+            in_array($code, [45, 48], true) => 'Neblina',
+            in_array($code, [51, 53, 55], true) => 'Llovizna',
+            in_array($code, [56, 57], true) => 'Llovizna helada',
+            in_array($code, [61, 63], true) => 'Lluvia ligera',
+            $code === 65 => 'Lluvia fuerte',
+            in_array($code, [66, 67], true) => 'Lluvia helada',
+            in_array($code, [71, 73, 75, 77], true) => 'Nieve',
+            in_array($code, [80, 81], true) => 'Chubascos',
+            $code === 82 => 'Lluvia intensa',
+            in_array($code, [85, 86], true) => 'Nevadas',
+            in_array($code, [95, 96, 99], true) => 'Tormenta',
+            default => 'Clima',
+        };
+    }
+
+    private function mapEuropeanAqi(float $aqi): string
+    {
+        return match (true) {
+            $aqi <= 20 => 'Muy buena',
+            $aqi <= 40 => 'Buena',
+            $aqi <= 60 => 'Aceptable',
+            $aqi <= 80 => 'Regular',
+            $aqi <= 100 => 'Mala',
+            default => 'Muy mala',
+        };
+    }
+
+    private function calculateHoyNoCircula(array $fallback = []): array
+    {
+        $today = now('America/Mexico_City');
+        $dayOfWeek = (int) $today->dayOfWeekIso;
+
+        if ($dayOfWeek === 7) {
+            return [
+                'plates' => 'Libre',
+                'restriction' => 'Sin restricción dominical',
+            ];
+        }
+
+        $weekdayMap = [
+            1 => ['plates' => '5,6', 'restriction' => 'H1: impar · H2: todos'],
+            2 => ['plates' => '7,8', 'restriction' => 'H1: par · H2: todos'],
+            3 => ['plates' => '3,4', 'restriction' => 'H1: par · H2: todos'],
+            4 => ['plates' => '1,2', 'restriction' => 'H1: impar · H2: todos'],
+            5 => ['plates' => '9,0', 'restriction' => 'H1: par · H2: todos'],
+        ];
+
+        if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+            return $weekdayMap[$dayOfWeek];
+        }
+
+        $weekOfMonth = (int) ceil($today->day / 7);
+        $isOddSaturday = in_array($weekOfMonth, [1, 3, 5], true);
+
+        return [
+            'plates' => $isOddSaturday ? 'impares' : 'pares',
+            'restriction' => 'H1: ' . ($isOddSaturday ? 'impar' : 'par') . ' · H2: todos',
+        ];
     }
 
     /**

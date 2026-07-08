@@ -1,15 +1,10 @@
 <aside id="sidebar" class="sidebar w-72 flex-shrink-0 flex flex-col p-6 fixed h-screen z-50">
     <div class="flex items-center justify-between mb-12 px-2">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-600/30 text-white">
-                <i data-lucide="layers"></i>
-            </div>
-            <div>
-                <h1 class="text-white font-extrabold text-lg leading-none tracking-tight">Digital Twin</h1>
-                <span class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Command Center</span>
-            </div>
+        <div>
+            <h1 class="text-white font-extrabold text-lg leading-none tracking-tight">Panel de administracion</h1>
+            <span class="text-slate-500 text-[10px] font-bold tracking-widest">UTOPIAS Japon</span>
         </div>
-        <button id="close-sidebar" class="lg:hidden text-slate-400 hover:text-white">
+        <button id="close-sidebar" class="mobile-close-button text-slate-400 hover:text-white">
             <i data-lucide="x" class="w-6 h-6"></i>
         </button>
     </div>
@@ -22,7 +17,7 @@
             <i data-lucide="map" class="w-5 h-5"></i> Gestión de Áreas
         </a>
         <a href="{{ route('admin.scanner') }}" class="nav-link {{ Route::is('admin.scanner') ? 'active' : '' }}">
-            <i data-lucide="qr-code" class="w-5 h-5"></i> Scanner
+            <i data-lucide="qr-code" class="w-5 h-5"></i> Acceso a Usuarios
         </a>
         <a href="{{ route('admin.events.index') }}" class="nav-link {{ Route::is('admin.events.*') ? 'active' : '' }}">
             <i data-lucide="calendar-heart" class="w-5 h-5"></i> Eventos
@@ -33,7 +28,7 @@
         <a href="{{ url('/panel') }}" target="_blank" class="nav-link">
             <i data-lucide="globe" class="w-5 h-5"></i> Panel Público
         </a>
-        <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" target="_blank" class="nav-link">
+        <a href="{{ route('utopias.japon.map3d') }}" target="_blank" class="nav-link">
             <i data-lucide="box" class="w-5 h-5"></i> Visualizador 3D
         </a>
     </nav>

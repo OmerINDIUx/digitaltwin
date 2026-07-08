@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Route;
 // ──────────────────────────────────────────────
 // RUTAS PÚBLICAS (sin autenticación)
 // ──────────────────────────────────────────────
-Route::get('/', function () {
-    return view('utopias-landing');
-})->name('utopias.home');
+Route::get('/', [ReservationController::class, 'index'])->name('utopias.home');
 
 Route::get('/topilejo', function () {
     return view('utopias-topilejo');
@@ -22,7 +20,7 @@ Route::get('/utopia-japon/mapa-3d', function () {
 })->name('utopias.japon.map3d');
 
 Route::get('/utopia-japon/assets/modelo.glb', function () {
-    $modelPath = dirname(base_path()) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'japonutopia_capasrenovadas.glb';
+    $modelPath = public_path('japonutopia_capasrenovadas.glb');
 
     abort_unless(is_file($modelPath), 404);
 

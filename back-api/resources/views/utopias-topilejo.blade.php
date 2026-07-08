@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Utopía Topilejo | Próximamente</title>
+    <title>UTOPÍA Topilejo | Próximamente</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap');
@@ -16,7 +16,7 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-50">
-    <main class="flex min-h-screen items-center justify-center px-5 py-12">
+    <main class="flex min-h-[calc(100vh-97px)] items-center justify-center px-5 py-12">
         <section class="w-full max-w-5xl">
             <nav class="mb-10 flex items-center justify-between gap-4">
                 <a href="{{ route('utopias.home') }}">
@@ -31,7 +31,7 @@
                 <div class="grid lg:grid-cols-[.9fr_1.1fr]">
                     <div class="flex min-h-80 items-center justify-center bg-gradient-to-br from-violet-900 via-slate-800 to-teal-700 p-10 text-center text-white">
                         <div>
-                            <p class="text-sm font-black uppercase tracking-[.26em] text-white/75">Utopía</p>
+                            <p class="text-sm font-black uppercase tracking-[.26em] text-white/75">UTOPÍA</p>
                             <h1 class="mt-3 text-5xl font-black tracking-tight sm:text-6xl">Topilejo</h1>
                         </div>
                     </div>
@@ -54,5 +54,6 @@
             </div>
         </section>
     </main>
+    @include('partials.indi-footer')
 </body>
 </html>

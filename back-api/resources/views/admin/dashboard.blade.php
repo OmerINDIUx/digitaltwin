@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | Digital Twin</title>
+    <title>Panel de administracion | UTOPIAS Japon</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     
     <!-- Scripts & Styles -->
@@ -44,6 +44,16 @@
         .sidebar {
             background: var(--bg-slate);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mobile-menu-button,
+        .mobile-close-button {
+            display: none;
+        }
+
+        .admin-main {
+            margin-left: 18rem;
+            padding-top: 2rem;
         }
 
         .nav-link {
@@ -125,32 +135,39 @@
         }
 
         /* Responsive adjustments */
-        @media (max-width: 1024px) {
+        @media (max-width: 767px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.active { transform: translateX(0); }
             main { margin-left: 0 !important; }
             .mobile-overlay { display: none; }
             .mobile-overlay.active { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; backdrop-filter: blur(4px); }
+            .mobile-menu-button { display: inline-flex; }
+            .mobile-close-button { display: inline-flex; }
+            .admin-main { margin-left: 0; padding-top: 6rem; }
         }
     </style>
 </head>
 <body class="flex min-h-screen">
     <div id="mobile-overlay" class="mobile-overlay"></div>
 
+    <button
+        id="open-sidebar"
+        type="button"
+        class="mobile-menu-button fixed top-4 left-4 z-[60] items-center justify-center w-12 h-12 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-900/20"
+        aria-label="Abrir menu de navegacion"
+    >
+        <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+
     <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar w-72 flex-shrink-0 flex flex-col p-6 fixed h-screen z-50">
         <!-- Logo -->
         <div class="flex items-center justify-between mb-12 px-2">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-600/30 text-white">
-                    <i data-lucide="layers"></i>
-                </div>
-                <div>
-                    <h1 class="text-white font-extrabold text-lg leading-none tracking-tight">Digital Twin</h1>
-                    <span class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Command Center</span>
-                </div>
+            <div>
+                <h1 class="text-white font-extrabold text-lg leading-none tracking-tight">Panel de administracion</h1>
+                <span class="text-slate-500 text-[10px] font-bold tracking-widest">UTOPIAS Japon</span>
             </div>
-            <button id="close-sidebar" class="lg:hidden text-slate-400 hover:text-white">
+            <button id="close-sidebar" class="mobile-close-button text-slate-400 hover:text-white">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </button>
         </div>
@@ -167,7 +184,7 @@
             </a>
             <a href="{{ route('admin.scanner') }}" class="nav-link {{ Route::is('admin.scanner') ? 'active' : '' }}">
                 <i data-lucide="qr-code" class="w-5 h-5"></i>
-                Scanner
+                Acceso a Usuarios
             </a>
             <a href="{{ route('admin.events.index') }}" class="nav-link {{ Route::is('admin.events.*') ? 'active' : '' }}">
                 <i data-lucide="calendar-heart" class="w-5 h-5"></i>
@@ -180,7 +197,7 @@
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 Panel Público
             </a>
-            <a href="{{ rtrim(config('app.frontend_url'), '/') }}/" target="_blank" class="nav-link">
+            <a href="{{ route('utopias.japon.map3d') }}" target="_blank" class="nav-link">
                 <i data-lucide="box" class="w-5 h-5"></i>
                 Visualizador 3D
             </a>
@@ -208,7 +225,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="ml-72 flex-1 p-8 min-h-screen">
+    <main class="admin-main flex-1 p-8 min-h-screen">
         
         <!-- HEADER -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
@@ -846,6 +863,29 @@
         // Initialize Lucide Icons
         lucide.createIcons();
 
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobile-overlay');
+        const openSidebarButton = document.getElementById('open-sidebar');
+        const closeSidebarButton = document.getElementById('close-sidebar');
+
+        function setSidebarState(isOpen) {
+            if (!sidebar || !mobileOverlay) return;
+
+            sidebar.classList.toggle('active', isOpen);
+            mobileOverlay.classList.toggle('active', isOpen);
+            document.body.classList.toggle('overflow-hidden', isOpen);
+        }
+
+        openSidebarButton?.addEventListener('click', () => setSidebarState(true));
+        closeSidebarButton?.addEventListener('click', () => setSidebarState(false));
+        mobileOverlay?.addEventListener('click', () => setSidebarState(false));
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                setSidebarState(false);
+            }
+        });
+
         // CONFIGURACIÓN DE ZONAS Y DISPONIBILIDAD
         const zonesData = @json($zones->keyBy('slug'));
         const availabilityData = @json($availability);
@@ -1142,5 +1182,6 @@
             updateBulkToolbar();
         }
     </script>
+    @include('partials.indi-footer')
 </body>
 </html>

@@ -14,11 +14,8 @@
 
     <div class="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
     <div class="w-full max-w-md text-center mb-8">
-        <div class="inline-block px-4 py-1 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 border border-indigo-500/30">
-            Security Lector v2.0
-        </div>
         <h1 class="text-4xl font-black tracking-tight mb-2 italic">SCANNER <span class="text-indigo-500">ACCESOS</span></h1>
-        <p class="text-slate-400 text-sm">Escanea el código QR del pase digital para validar la entrada.</p>
+        <p class="text-slate-400 text-sm">Escanea el código QR del pase digital del visitante para validar su entrada a las instalaciones.</p>
     </div>
 
     <div class="scanner-container relative">

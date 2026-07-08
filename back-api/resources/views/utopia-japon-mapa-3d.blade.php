@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa 3D | Utopía Japón</title>
+    <title>Mapa 3D | UTOPÍA Japón</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap');
@@ -107,12 +107,12 @@
     </style>
 </head>
 <body>
-    <canvas id="viewer" aria-label="Mapa 3D real de Utopía Japón"></canvas>
+    <canvas id="viewer" aria-label="Mapa 3D real de UTOPÍA Japón"></canvas>
     <div id="labels"></div>
 
     <div id="loading" class="loading">
         <div class="max-w-md rounded-3xl border border-white/15 bg-white/10 p-8 text-center shadow-2xl backdrop-blur">
-            <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">Utopía Japón</p>
+            <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">UTOPÍA Japón</p>
             <h1 class="mt-3 text-3xl font-black">Cargando mapa 3D real</h1>
             <p class="mt-3 text-sm font-semibold leading-6 text-white/72">
                 Usando el modelo existente <strong>japonutopia_capasrenovadas.glb</strong>.
@@ -124,7 +124,7 @@
         <div class="flex items-center justify-between gap-4">
             <div>
                 <p class="text-[10px] font-black uppercase tracking-[0.28em] text-violet-200">Mapa de orientación</p>
-                <h1 class="text-2xl font-black leading-tight md:text-3xl">Utopía Japón 3D</h1>
+                <h1 class="text-2xl font-black leading-tight md:text-3xl">UTOPÍA Japón 3D</h1>
             </div>
             <a href="{{ url('/panel') }}" class="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-950 transition hover:bg-slate-100">
                 Panel
@@ -138,7 +138,7 @@
         <div class="mt-4 rounded-2xl bg-white/10 p-4">
             <h2 id="zone-title" class="text-lg font-black">Vista general</h2>
             <p id="zone-description" class="mt-1 text-sm font-semibold leading-6 text-white/72">
-                Explora el modelo real de Utopía Japón. Selecciona una zona para enfocar la cámara.
+                Explora el modelo real de UTOPÍA Japón. Selecciona una zona para enfocar la cámara.
             </p>
         </div>
     </aside>
@@ -235,14 +235,14 @@
         loader.setDRACOLoader(draco);
 
         const zones = [
-            { id: 'overview', label: 'Vista general', description: 'Vista completa del mapa 3D real de Utopía Japón.', target: [0, 0, 0], camera: [650, 520, 720] },
+            { id: 'overview', label: 'Vista general', description: 'Vista completa del mapa 3D real de UTOPÍA Japón.', target: [0, 0, 0], camera: [650, 520, 720] },
             { id: 'acceso', label: 'Accesos', description: 'Ubica la llegada al complejo y comienza el recorrido desde los accesos principales.', target: [-380, 0, 260], camera: [-680, 360, 520] },
             { id: 'plaza', label: 'Plaza central', description: 'Punto de distribución para moverte hacia las zonas principales.', target: [0, 0, 0], camera: [360, 300, 520] },
             { id: 'alberca', label: 'Centro acuático', description: 'Referencia para llegar a la zona de alberca y actividades acuáticas.', target: [-260, 0, -250], camera: [-620, 330, -80] },
             { id: 'gimnasio', label: 'Gimnasio', description: 'Zona de actividad física y entrenamiento.', target: [230, 0, -220], camera: [620, 340, -60] },
             { id: 'canchas', label: 'Canchas', description: 'Área deportiva abierta para actividades y encuentros.', target: [380, 0, 220], camera: [760, 390, 520] },
             { id: 'cultura', label: 'Casas culturales', description: 'Espacios para talleres, aprendizaje e intercambio comunitario.', target: [-70, 0, 330], camera: [320, 320, 720] },
-            { id: 'cuidados', label: 'Cuidados', description: 'Servicios del Sistema Público de Cuidados dentro de la Utopía.', target: [280, 0, 20], camera: [660, 330, 290] }
+            { id: 'cuidados', label: 'Cuidados', description: 'Servicios del Sistema Público de Cuidados dentro de la UTOPÍA.', target: [280, 0, 20], camera: [660, 330, 290] }
         ];
 
         let model = null;
@@ -388,7 +388,7 @@
             (error) => {
                 console.error(error);
                 loading.querySelector('h1').textContent = 'No se pudo cargar el modelo';
-                loading.querySelector('p').innerHTML = 'Revisa que exista <strong>public/japonutopia_capasrenovadas.glb</strong> en el proyecto principal.';
+                loading.querySelector('p').innerHTML = 'Revisa que exista <strong>public/japonutopia_capasrenovadas.glb</strong> dentro de esta instalacion.';
             }
         );
 
@@ -416,5 +416,6 @@
 
         animate();
     </script>
+    @include('partials.indi-footer', ['overlay' => true, 'theme' => 'dark'])
 </body>
 </html>

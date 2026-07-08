@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    @php
+        $today = \Carbon\Carbon::now()->locale('es_MX');
+    @endphp
     <title>SISTEMA DE RESERVACIONES | Digital Twin</title>
-    <title>SISTEMA DE RESERVACIONES | Digital Twin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Outfit', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        * { font-family: 'Outfit', sans-serif; }
+        body { background-color: #f1f5f9; color: #1e293b; }
         .glass-dark { background: rgba(30, 41, 59, 0.03); border: 1px solid rgba(0,0,0,0.05); }
         .card-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
         .zone-card:hover .zone-img { transform: scale(1.05); filter: contrast(110%) brightness(90%); }
@@ -18,9 +22,95 @@
                 linear-gradient(120deg, rgba(17, 24, 39, .94), rgba(49, 33, 95, .84), rgba(15, 118, 110, .68)),
                 url('{{ asset('Axolote_natacion.gif') }}') center / cover;
         }
+        .city-ribbon {
+            background: linear-gradient(180deg, #fbfbfc 0%, #ffffff 100%);
+            border-top: 1px solid rgba(203, 213, 225, 0.6);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+        }
+        .city-chip {
+            background: #fff;
+            border: 1px solid rgba(196, 181, 216, 0.55);
+            box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.3), 0 2px 6px -4px rgba(15, 23, 42, 0.14);
+        }
+        .city-copy { color: #85739e; }
+        .city-strong { color: #5f4d7f; }
+        .utopias-mark { width: 220px; max-width: 38vw; height: auto; }
+        .cdmx-mark { width: 320px; max-width: 44vw; height: auto; }
+        @media (max-width: 1024px) {
+            .utopias-mark { width: 180px; max-width: 42vw; }
+            .cdmx-mark { width: 250px; max-width: 48vw; }
+        }
+        @media (max-width: 768px) {
+            .utopias-mark { width: 150px; max-width: 44vw; }
+            .cdmx-mark { width: 200px; max-width: 46vw; }
+        }
     </style>
 </head>
 <body class="min-h-screen">
+    <section class="city-ribbon px-4 py-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-[1180px]">
+            <div class="flex items-center justify-between gap-4 sm:gap-6">
+                <img src="{{ asset('logo-topialogo.png') }}" alt="Logo UTOPÍAS" class="utopias-mark object-contain">
+                <img src="{{ asset('logo-cdmx.svg') }}" alt="Logo Ciudad de México" class="cdmx-mark object-contain">
+            </div>
+        </div>
+
+        <div class="mx-auto mt-5 grid max-w-[1180px] gap-3 pb-3 md:grid-cols-2 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_260px]">
+            <article class="flex min-h-[72px] flex-col justify-center rounded-[0.85rem] bg-white/70 px-1 md:pr-4">
+                <p class="city-copy text-[1.1rem] font-black leading-none tracking-tight">La Ciudad hoy</p>
+                <p class="city-strong mt-1 text-[0.9rem] font-black leading-tight">{{ \Illuminate\Support\Str::ucfirst($today->translatedFormat('d \\d\\e F \\d\\e Y')) }}</p>
+            </article>
+
+            <a href="https://www.clima.cdmx.gob.mx/index.xhtml" target="_blank" rel="noopener" class="city-chip flex min-h-[72px] items-center gap-3 rounded-[0.85rem] px-4 py-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.72rem] bg-[linear-gradient(180deg,#f7edff_0%,#ece5ff_100%)] text-[#856fb0]">
+                    <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 15a6 6 0 1 1 11.2 3"></path>
+                        <path d="M17 16a4 4 0 1 0-1.2 7.8H7a4 4 0 1 1 .5-7.9"></path>
+                        <path d="M9 18l.5-1"></path>
+                        <path d="M12 18l.5-1"></path>
+                    </svg>
+                </div>
+                <div class="flex flex-1 items-center justify-between gap-3">
+                    <p class="city-copy whitespace-nowrap text-[0.95rem] font-medium" id="weather-line">
+                        {{ $civicData['weather']['summary'] ?? 'Clima' }} {{ $civicData['weather']['temperature'] ?? '--' }}°C
+                    </p>
+                    <span class="h-8 w-px bg-slate-200"></span>
+                    <p class="city-copy whitespace-nowrap text-[0.95rem] font-medium" id="air-line">
+                        {{ $civicData['weather']['air_quality'] ?? 'Calidad del aire' }}
+                        <span class="ml-2">Indice UV {{ $civicData['weather']['uv_index'] ?? '--' }}</span>
+                    </p>
+                </div>
+            </a>
+
+            <a href="https://hoynocircula.cdmx.gob.mx/" target="_blank" rel="noopener" class="city-chip flex min-h-[72px] items-center gap-3 rounded-[0.85rem] px-4 py-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.72rem] bg-[linear-gradient(180deg,#fff1f2_0%,#ffe4e6_100%)] text-rose-300">
+                    <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true">
+                        <rect x="5" y="5" width="14" height="14" rx="3"></rect>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="city-strong text-[0.95rem] font-black leading-tight">Hoy no circula</p>
+                    <p class="city-copy whitespace-nowrap text-[0.95rem] font-medium leading-tight" id="hnc-line">
+                        Placas {{ $civicData['hoy_no_circula']['plates'] ?? 'Sin dato' }} - {{ $civicData['hoy_no_circula']['restriction'] ?? 'Consulta la información oficial' }}
+                    </p>
+                </div>
+            </a>
+
+            <a href="https://internetparatodas.cdmx.gob.mx/puntos-wifi" target="_blank" rel="noopener" class="city-chip flex min-h-[72px] items-center gap-3 rounded-[0.85rem] px-4 py-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.72rem] bg-[linear-gradient(180deg,#f2ebff_0%,#e8dffd_100%)] text-[#856fb0]">
+                    <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 19h.01"></path>
+                        <path d="M4.9 9a11 11 0 0 1 14.2 0"></path>
+                        <path d="M7.8 12a6.8 6.8 0 0 1 8.4 0"></path>
+                    </svg>
+                </div>
+                <div class="city-copy text-[0.95rem] font-medium leading-tight">
+                    {{ $civicData['wifi']['points'] ?? 'Puntos WiFi' }}<br>{{ $civicData['wifi']['subtitle'] ?? 'Consulta la red disponible en tu zona' }}
+                </div>
+            </a>
+        </div>
+    </section>
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
         <!-- MINI LANDING UTOPÍA JAPÓN -->
@@ -35,10 +125,10 @@
                         </nav>
 
                         <p class="mb-4 inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] ring-1 ring-white/20 backdrop-blur">
-                            La Utopía más grande de todas
+                            La UTOPÍA más grande de todas
                         </p>
                         <h1 class="max-w-3xl text-5xl font-black leading-none tracking-tight sm:text-6xl lg:text-7xl">
-                            Utopía Japón
+                            UTOPÍA Japón
                         </h1>
                         <p class="mt-5 max-w-2xl text-lg font-semibold leading-8 text-white/86">
                             Un espacio público de gran escala para el encuentro comunitario, el deporte, la cultura y los cuidados. Japón reúne actividades y servicios para que más personas vivan la ciudad con dignidad, aprendizaje y convivencia.
@@ -71,10 +161,10 @@
                 </div>
 
                 <div class="relative min-h-[420px] overflow-hidden rounded-[1.5rem] bg-slate-950 shadow-2xl ring-1 ring-white/20">
-                    <img src="{{ asset('Axolote_Futbol.gif') }}" alt="Axolote de Utopía Japón" class="absolute inset-0 h-full w-full object-cover">
+                    <img src="{{ asset('Axolote_Futbol.gif') }}" alt="Axolote de UTOPÍA Japón" class="absolute inset-0 h-full w-full object-cover">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-6">
-                        <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">Utopía Japón</p>
+                        <p class="text-[10px] font-black uppercase tracking-[0.26em] text-violet-100">UTOPÍA Japón</p>
                         <p class="mt-2 max-w-md text-2xl font-black leading-tight">Una experiencia comunitaria de gran formato para vivir, aprender y participar.</p>
                     </div>
                 </div>
@@ -85,7 +175,7 @@
         <div id="reservas" class="mb-8">
             <p class="text-sm font-black uppercase tracking-[0.24em] text-violet-700">Reservaciones</p>
             <h2 class="mt-2 text-4xl font-black tracking-tight text-slate-950">Elige un espacio disponible</h2>
-            <p class="mt-2 text-lg font-semibold text-slate-500">Revisa disponibilidad en tiempo real y aparta tu lugar en Utopía Japón.</p>
+            <p class="mt-2 text-lg font-semibold text-slate-500">Revisa disponibilidad en tiempo real y aparta tu lugar en UTOPÍA Japón.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -109,9 +199,13 @@
                 <div class="zone-card bg-white rounded-[2.5rem] overflow-hidden card-shadow border border-slate-100 ring-1 ring-slate-900/5 transition-all hover:shadow-2xl">
                     <div class="h-48 overflow-hidden relative">
                         @php
-                            $zoneImage = str_contains($zone->image ?? '', 'Axolote_')
-                                ? asset(basename($zone->image))
-                                : (str_starts_with($zone->image, 'http') ? $zone->image : asset(ltrim($zone->image, '/')));
+                            $zoneImage = $zone->image ?? '';
+                            if ($zoneImage && !str_starts_with($zoneImage, 'http')) {
+                                $zoneImage = str_contains($zoneImage, 'Axolote_')
+                                    ? basename($zoneImage)
+                                    : preg_replace('#^/?storage/#', '', $zoneImage);
+                                $zoneImage = asset(ltrim($zoneImage, '/'));
+                            }
                         @endphp
                         <img src="{{ $zoneImage }}" class="zone-img w-full h-full object-cover transition-transform duration-500">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
@@ -220,16 +314,16 @@
                 <div class="flex flex-col justify-between gap-8 p-8 sm:p-10">
                     <div>
                         <p class="text-sm font-black uppercase tracking-[0.24em] text-violet-700">Ubicación</p>
-                        <h2 class="mt-3 text-4xl font-black tracking-tight text-slate-950">Visita Utopía Japón</h2>
+                        <h2 class="mt-3 text-4xl font-black tracking-tight text-slate-950">Visita UTOPÍA Japón</h2>
                         <p class="mt-4 text-lg font-semibold leading-8 text-slate-600">
-                            Encuéntrala en el Parque de la próxima Utopía - Japón, dentro de la Ciudad de México. Usa el mapa para ubicar accesos y planear tu visita antes de reservar.
+                            Encuéntrala en el Parque de la próxima UTOPÍA - Japón, dentro de la Ciudad de México. Usa el mapa para ubicar accesos y planear tu visita antes de reservar.
                         </p>
                     </div>
 
                     <div class="space-y-3">
                         <div class="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
                             <p class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Dirección</p>
-                            <p class="mt-2 text-base font-black text-slate-900">Parque de la próxima Utopía - Japón</p>
+                            <p class="mt-2 text-base font-black text-slate-900">Parque de la próxima UTOPÍA - Japón</p>
                             <p class="mt-1 text-sm font-bold text-slate-500">Ciudad de México</p>
                         </div>
                         <a href="https://www.google.com/maps/search/?api=1&query=19.355491413489588,-99.21453916359118" target="_blank" rel="noopener" class="inline-flex w-full justify-center rounded-full bg-violet-700 px-6 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-violet-800 sm:w-auto">
@@ -246,7 +340,7 @@
                         allowfullscreen=""
                         loading="lazy"
                         referrerpolicy="no-referrer-when-downgrade"
-                        title="Ubicación de Utopía Japón"></iframe>
+                        title="Ubicación de UTOPÍA Japón"></iframe>
                 </div>
             </div>
         </section>
@@ -259,6 +353,114 @@
             </a>
         </div>
     </div>
+
+    <script>
+        const cdmxWeatherCoords = { latitude: 19.4326, longitude: -99.1332 };
+
+        function mapWeatherCodeToSpanish(code) {
+            if (code === 0) return 'Despejado';
+            if ([1, 2].includes(code)) return 'Poco nuboso';
+            if (code === 3) return 'Nublado';
+            if ([45, 48].includes(code)) return 'Neblina';
+            if ([51, 53, 55].includes(code)) return 'Llovizna';
+            if ([61, 63].includes(code)) return 'Lluvia ligera';
+            if ([65, 80, 81, 82].includes(code)) return 'Lluvia';
+            if ([95, 96, 99].includes(code)) return 'Tormenta';
+            return 'Clima';
+        }
+
+        function mapEuropeanAqi(aqi) {
+            if (aqi <= 20) return 'Calidad del aire';
+            if (aqi <= 40) return 'Calidad del aire';
+            if (aqi <= 60) return 'Aire aceptable';
+            if (aqi <= 80) return 'Aire regular';
+            if (aqi <= 100) return 'Aire mala';
+            return 'Aire muy mala';
+        }
+
+        function calculateHoyNoCircula() {
+            const now = new Date();
+            const day = now.getDay();
+            const date = now.getDate();
+
+            if (day === 0) {
+                return { plates: 'Libre', restriction: 'Sin restricción dominical' };
+            }
+
+            const weekdays = {
+                1: { plates: '5,6', restriction: 'H1: impar H2: Todos' },
+                2: { plates: '7,8', restriction: 'H1: par H2: Todos' },
+                3: { plates: '3,4', restriction: 'H1: par H2: Todos' },
+                4: { plates: '1,2', restriction: 'H1: impar H2: Todos' },
+                5: { plates: '9,0', restriction: 'H1: par H2: Todos' },
+            };
+
+            if (weekdays[day]) {
+                return weekdays[day];
+            }
+
+            const weekOfMonth = Math.ceil(date / 7);
+            const oddSaturday = [1, 3, 5].includes(weekOfMonth);
+
+            return {
+                plates: oddSaturday ? 'impares' : 'pares',
+                restriction: `H1: ${oddSaturday ? 'impar' : 'par'} H2: Todos`,
+            };
+        }
+
+        async function hydrateCityRibbon() {
+            const weatherLineEl = document.getElementById('weather-line');
+            const airLineEl = document.getElementById('air-line');
+            const hncLineEl = document.getElementById('hnc-line');
+
+            const hnc = calculateHoyNoCircula();
+            if (hncLineEl) hncLineEl.textContent = `Placas ${hnc.plates} - ${hnc.restriction}`;
+
+            try {
+                const forecastUrl = new URL('https://api.open-meteo.com/v1/forecast');
+                forecastUrl.search = new URLSearchParams({
+                    latitude: cdmxWeatherCoords.latitude,
+                    longitude: cdmxWeatherCoords.longitude,
+                    current: 'temperature_2m,weather_code',
+                    daily: 'uv_index_max',
+                    timezone: 'America/Mexico_City',
+                    forecast_days: '1',
+                }).toString();
+
+                const airUrl = new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
+                airUrl.search = new URLSearchParams({
+                    latitude: cdmxWeatherCoords.latitude,
+                    longitude: cdmxWeatherCoords.longitude,
+                    current: 'european_aqi',
+                    timezone: 'America/Mexico_City',
+                }).toString();
+
+                const [forecastRes, airRes] = await Promise.all([
+                    fetch(forecastUrl.toString()),
+                    fetch(airUrl.toString()),
+                ]);
+
+                if (!forecastRes.ok || !airRes.ok) {
+                    throw new Error('No se pudo consultar Open-Meteo');
+                }
+
+                const forecast = await forecastRes.json();
+                const air = await airRes.json();
+
+                const temperature = Math.round(forecast?.current?.temperature_2m ?? 0);
+                const weatherCode = Number(forecast?.current?.weather_code ?? -1);
+                const uvIndex = Math.round(forecast?.daily?.uv_index_max?.[0] ?? 0);
+                const aqi = Number(air?.current?.european_aqi ?? 0);
+
+                if (weatherLineEl) weatherLineEl.textContent = `${mapWeatherCodeToSpanish(weatherCode)} ${temperature}°C`;
+                if (airLineEl) airLineEl.textContent = `${mapEuropeanAqi(aqi)} Indice UV ${uvIndex}`;
+            } catch (error) {
+                console.warn('No se pudo actualizar el clima desde Open-Meteo.', error);
+            }
+        }
+
+        hydrateCityRibbon();
+    </script>
 
     <!-- MODAL DE ÉXITO Y QR -->
     @if(session('new_reservation_id'))
@@ -558,6 +760,8 @@
             </div>
         </div>
     </div>
+
+    @include('partials.indi-footer')
 
     <script>
         let selectedEventId = null;

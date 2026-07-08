@@ -3,158 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MI PASE DIGITAL | Utopía Japón</title>
+    <title>Mi Pase Digital | UTOPÍA Japon</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Outfit', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top, rgba(16, 185, 129, 0.14), transparent 28%), #0f172a;
+        }
     </style>
 </head>
-<body class="bg-[#1e293b] min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-    <!-- BLUR DECORATIONS -->
-    <div class="absolute -top-20 -right-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px]"></div>
-    <div class="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px]"></div>
-
-        <div class="text-center mb-8">
-            <h1 class="text-indigo-400 font-black tracking-widest text-xs uppercase">Utopía Japón Experience</h1>
-            <p class="text-white text-3xl font-black mt-2 tracking-tight italic">Acceso <span class="text-indigo-500">Digital</span></p>
-        </div>
-
-        <!-- PASE CARD (CLON DE LA IMAGEN) -->
-        <div class="bg-white rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden mb-8">
-            
-            <div class="flex justify-between items-start mb-10">
-                <div class="w-16 h-16 {{ $reservation->checked_in_at ? 'bg-indigo-500' : 'bg-emerald-500' }} text-white rounded-3xl flex items-center justify-center text-3xl shadow-xl shadow-emerald-500/20">
-                    @if($reservation->checked_in_at) 🔒 @else ✓ @endif
-                </div>
-                <div class="text-right">
-                    <p class="text-[10px] text-slate-300 font-black uppercase tracking-widest">Utopía Japón</p>
-                    <p class="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Access Pass</p>
-                </div>
-            </div>
-
-            <div class="mb-10">
-                <h2 class="text-4xl font-black text-slate-900 tracking-tight mb-8">Pase de <span class="text-emerald-500">Acceso</span></h2>
-                
-                <div class="space-y-5">
-                    <div class="bg-slate-50 border border-slate-100 rounded-3xl p-6">
-                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Titular de Reserva</p>
-                        <p class="text-xl font-black text-slate-800">{{ $reservation->name }}</p>
+<body class="min-h-screen text-white">
+    <main class="mx-auto flex min-h-screen max-w-md items-center px-4 py-8">
+        <section class="w-full rounded-[2rem] border border-white/10 bg-slate-900/95 p-5 shadow-2xl shadow-black/30 sm:p-6">
+            <div id="pass-card" class="rounded-[1.75rem] bg-white p-5 text-slate-900 sm:p-6">
+                <div class="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-400">Pase digital</p>
+                        <h1 class="mt-1 text-2xl font-bold text-slate-900">Acceso QR</h1>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-slate-50 border border-slate-100 rounded-3xl p-6">
-                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Fecha</p>
-                            <p class="text-sm font-black text-slate-800">{{ $reservation->reservation_date->format('d M, Y') }}</p>
-                        </div>
-                        <div class="bg-slate-50 border border-slate-100 rounded-3xl p-6">
-                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Horario</p>
-                            <p class="text-sm font-black text-slate-800">{{ $reservation->reservation_date->format('H:i') }} hrs</p>
-                        </div>
+                    <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                        #{{ $reservation->id }}
                     </div>
                 </div>
+
+                <div class="rounded-[1.5rem] bg-slate-950 p-4 text-center text-white">
+                    <div class="rounded-[1.25rem] bg-white p-3">
+                        <div id="qrcode" class="flex min-h-[240px] items-center justify-center"></div>
+                    </div>
+                    <p class="mt-4 text-sm font-medium text-slate-300">Muestralo al entrar</p>
+                </div>
+
+                <div class="mt-5 space-y-3">
+                    <div class="rounded-2xl bg-slate-100 px-4 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-400">Nombre</p>
+                        <p class="mt-1 text-lg font-bold text-slate-900">{{ $reservation->name }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-2xl border border-slate-200 px-4 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-400">Fecha</p>
+                            <p class="mt-1 text-sm font-bold text-slate-900">{{ $reservation->reservation_date->format('d M Y') }}</p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 px-4 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-400">Hora</p>
+                            <p class="mt-1 text-sm font-bold text-slate-900">{{ $reservation->reservation_date->format('H:i') }} hrs</p>
+                        </div>
+                    </div>
+
+                    @if($reservation->checked_in_at)
+                        <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                            Validado a las {{ $reservation->checked_in_at->format('H:i') }} hrs
+                        </div>
+                    @else
+                        <div class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+                            Listo para escanear
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            <!-- QR CARD (BLACK) -->
-            <div class="flex flex-col items-center justify-center py-10 bg-[#0f172a] rounded-[3rem] shadow-2xl">
-                <div id="qrcode" class="p-4 bg-white rounded-3xl shadow-inner border-8 border-slate-800"></div>
-                <p class="text-[10px] text-slate-500 font-black mt-6 tracking-[0.4em] uppercase">Validación Biométrica Requerida</p>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <button onclick="downloadPass()" id="dl-btn" class="rounded-[1.2rem] bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.16em] text-slate-900">
+                    Guardar
+                </button>
+                <button onclick="sharePass()" id="share-btn" class="rounded-[1.2rem] bg-emerald-500 px-4 py-3 text-sm font-bold uppercase tracking-[0.16em] text-slate-950">
+                    Compartir
+                </button>
             </div>
-        </div>
-
-        @if($reservation->checked_in_at)
-        <div class="w-full py-6 bg-indigo-600/20 border border-indigo-600/30 rounded-3xl text-center mb-6">
-            <p class="text-indigo-400 font-black uppercase tracking-widest text-xs">Pase ya validado el {{ $reservation->checked_in_at->format('H:i') }}</p>
-        </div>
-        @else
-        <div class="w-full py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl text-center mb-6">
-            <p class="text-emerald-500 font-black uppercase tracking-widest text-xs">Presenta este QR para ingresar</p>
-        </div>
-        @endif
-
-        <!-- BOTONES DE ACCIÓN PARA MÓVIL -->
-        <div class="grid grid-cols-2 gap-4">
-            <button onclick="downloadPass()" id="dl-btn" class="py-5 bg-white text-slate-900 font-black rounded-3xl shadow-xl flex items-center justify-center gap-2 text-sm">
-                💾 GUARDAR
-            </button>
-            <button onclick="sharePass()" id="share-btn" class="py-5 bg-emerald-500 text-white font-black rounded-3xl shadow-xl flex items-center justify-center gap-2 text-sm">
-                📱 REENVIAR
-            </button>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-        const qrContainer = document.getElementById("qrcode");
+        const qrContainer = document.getElementById('qrcode');
         new QRCode(qrContainer, {
             text: "{{ route('reservations.checkin', $reservation->id) }}",
-            width: 200,
-            height: 200,
-            colorDark : "#0f172a",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
+            width: 240,
+            height: 240,
+            colorDark: '#020617',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
         });
 
         async function getPassCanvas() {
-            // Seleccionamos solo la tarjeta del pase para la foto
-            const card = document.querySelector('.bg-white.rounded-\\[3\\.5rem\\]');
-            const blurs = document.querySelectorAll('.blur-\\[100px\\]');
-            
-            blurs.forEach(b => b.style.opacity = '0');
-            
-            try {
-                return await html2canvas(card, {
-                    scale: 2,
-                    backgroundColor: "#1e293b",
-                    useCORS: true,
-                    logging: false
-                });
-            } finally {
-                blurs.forEach(b => b.style.opacity = '1');
-            }
+            const card = document.getElementById('pass-card');
+
+            return html2canvas(card, {
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true,
+                logging: false
+            });
         }
 
         async function downloadPass() {
             const btn = document.getElementById('dl-btn');
-            btn.innerHTML = '⌛...';
+            const originalText = btn.textContent;
+            btn.textContent = '...';
+            btn.disabled = true;
+
             try {
                 const canvas = await getPassCanvas();
-                const link = document.createElement("a");
-                link.href = canvas.toDataURL("image/png");
-                link.download = "Mi_Pase_Digital_Twin.png";
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = 'Mi_Pase_Digital_Twin.png';
                 link.click();
-            } catch (e) {
-                console.error(e);
+            } catch (error) {
+                console.error(error);
             } finally {
-                btn.innerHTML = '💾 GUARDAR';
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         }
 
         async function sharePass() {
             const btn = document.getElementById('share-btn');
-            btn.innerHTML = '⌛...';
+            const originalText = btn.textContent;
+            btn.textContent = '...';
+            btn.disabled = true;
+
             try {
                 const canvas = await getPassCanvas();
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                const file = new File([blob], "Pase_Digital_Twin.png", { type: 'image/png' });
-                
-                if (navigator.share && navigator.canShare({ files: [file] })) {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], 'Pase_Digital_Twin.png', { type: 'image/png' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share({
                         files: [file],
                         title: 'Mi Pase de Acceso',
-                        text: '¡Hola! Mira mi pase para el complejo.'
+                        text: 'Te comparto mi pase digital.'
                     });
                 } else {
-                    const text = encodeURIComponent("¡Hola! Mira mi pase digital aquí: " + window.location.href);
+                    const text = encodeURIComponent('Te comparto mi pase digital: ' + window.location.href);
                     window.open(`https://wa.me/?text=${text}`, '_blank');
                 }
-            } catch (e) {
-                console.error(e);
+            } catch (error) {
+                console.error(error);
             } finally {
-                btn.innerHTML = '📱 REENVIAR';
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         }
     </script>
+    @include('partials.indi-footer', ['overlay' => true, 'theme' => 'dark'])
 </body>
 </html>

@@ -90,10 +90,10 @@
                     </p>
                     <div class="mt-8 flex flex-col gap-3 sm:flex-row">
                         <a href="{{ url('/panel') }}" class="inline-flex items-center justify-center rounded-full bg-violet-700 px-6 py-4 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-800">
-                            Entrar a Utopía Japón
+                            Entrar a UTOPÍA Japón
                         </a>
                         <a href="#utopias" class="inline-flex items-center justify-center rounded-full bg-white px-6 py-4 text-sm font-black uppercase tracking-wide text-slate-900 transition hover:bg-slate-100">
-                            Ver Utopías
+                            Ver UTOPÍAS
                         </a>
                     </div>
                 </div>
@@ -121,7 +121,7 @@
                 </div>
                 <div class="space-y-5 text-lg leading-8 text-slate-600">
                     <p>
-                        Las Utopías son un proyecto de transformación social profunda que busca reivindicar la dignidad humana, garantizar el ejercicio pleno de los derechos y promover el desarrollo integral de todas las personas.
+                        Las UTOPÍAS son un proyecto de transformación social profunda que busca reivindicar la dignidad humana, garantizar el ejercicio pleno de los derechos y promover el desarrollo integral de todas las personas.
                     </p>
                     <p>
                         Estos espacios funcionan como equipamientos integrales que ofrecen actividades y servicios sociales, deportivos, culturales y recreativos. Son escuelas vivas de ciudadanía, donde el diálogo, el aprendizaje y el intercambio de saberes permiten la construcción de comunidad.
@@ -137,7 +137,7 @@
             <div class="mx-auto max-w-7xl px-5 sm:px-8">
                 <div class="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
                     <div>
-                        <p class="text-sm font-black uppercase tracking-[.24em] text-teal-700">Menú de Utopías</p>
+                        <p class="text-sm font-black uppercase tracking-[.24em] text-teal-700">Menú de UTOPÍAS</p>
                         <h2 class="mt-3 text-4xl font-black tracking-tight text-slate-950">Elige una sede</h2>
                     </div>
                     <p class="max-w-xl text-base font-semibold leading-7 text-slate-500">
@@ -154,7 +154,7 @@
                         </div>
                         <div class="p-8">
                             <div class="mb-4 flex items-center justify-between gap-4">
-                                <h3 class="text-3xl font-black">Utopía Japón</h3>
+                                <h3 class="text-3xl font-black">UTOPÍA Japón</h3>
                                 <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black uppercase tracking-widest text-emerald-950">Disponible</span>
                             </div>
                             <p class="text-base font-medium leading-7 text-white/78">Accede al panel de reservaciones, actividades y espacios disponibles.</p>
@@ -167,7 +167,7 @@
                         </div>
                         <div class="p-8">
                             <div class="mb-4 flex items-center justify-between gap-4">
-                                <h3 class="text-3xl font-black">Utopía Topilejo</h3>
+                                <h3 class="text-3xl font-black">UTOPÍA Topilejo</h3>
                                 <span class="rounded-full bg-violet-200 px-3 py-1 text-xs font-black uppercase tracking-widest text-violet-950">Próximamente</span>
                             </div>
                             <p class="text-base font-medium leading-7 text-slate-600">Una nueva sede se integrará pronto al recorrido digital y al sistema de actividades.</p>
@@ -185,7 +185,7 @@
                     'Casas Sociales y Casas Culturales para fomentar la participación comunitaria.',
                     'Trotapista y espacios al aire libre que promueven hábitos saludables.',
                     'Salas de usos múltiples para talleres, actividades educativas y encuentros vecinales.',
-                    'Un proyecto ancla en cada Utopía, que servirá como detonador social y cultural.'
+                    'Un proyecto ancla en cada UTOPÍA, que servirá como detonador social y cultural.'
                 ] as $action)
                     <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                         <p class="text-base font-bold leading-7 text-slate-700">{{ $action }}</p>
@@ -195,11 +195,6 @@
         </section>
     </main>
 
-    <footer class="border-t border-slate-200 bg-white py-8">
-        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-5 sm:px-8 md:flex-row md:items-center md:justify-between">
-            <img src="{{ asset('logo-topialogo.png') }}" alt="UTOPÍAS" class="h-10 w-fit">
-            <p class="text-sm font-semibold text-slate-500">Gobierno de la Ciudad de México</p>
-        </div>
-    </footer>
+    @include('partials.indi-footer')
 </body>
 </html>
