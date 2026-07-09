@@ -187,7 +187,7 @@
         scene.fog = new THREE.Fog(0xf7fbff, 2100, 6200);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, .1, 100000);
-        camera.position.set(650, 520, 720);
+        camera.position.set(1240, 860, 1380);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -235,20 +235,23 @@
         loader.setDRACOLoader(draco);
 
         const zones = [
-            { id: 'overview', label: 'Vista general', description: 'Vista completa del mapa 3D real de UTOPÍA Japón.', target: [0, 0, 0], camera: [650, 520, 720] },
-            { id: 'acceso', label: 'Accesos', description: 'Ubica la llegada al complejo y comienza el recorrido desde los accesos principales.', target: [-380, 0, 260], camera: [-680, 360, 520] },
-            { id: 'plaza', label: 'Plaza central', description: 'Punto de distribución para moverte hacia las zonas principales.', target: [0, 0, 0], camera: [360, 300, 520] },
-            { id: 'alberca', label: 'Centro acuático', description: 'Referencia para llegar a la zona de alberca y actividades acuáticas.', target: [-260, 0, -250], camera: [-620, 330, -80] },
-            { id: 'gimnasio', label: 'Gimnasio', description: 'Zona de actividad física y entrenamiento.', target: [230, 0, -220], camera: [620, 340, -60] },
-            { id: 'canchas', label: 'Canchas', description: 'Área deportiva abierta para actividades y encuentros.', target: [380, 0, 220], camera: [760, 390, 520] },
-            { id: 'cultura', label: 'Casas culturales', description: 'Espacios para talleres, aprendizaje e intercambio comunitario.', target: [-70, 0, 330], camera: [320, 320, 720] },
-            { id: 'cuidados', label: 'Cuidados', description: 'Servicios del Sistema Público de Cuidados dentro de la UTOPÍA.', target: [280, 0, 20], camera: [660, 330, 290] }
-        ];
+            { id: 'overview', label: 'Vista general', description: 'Vista completa del mapa 3D real de UTOPÍA Japón.', target: [0, 0, 0], camera: [1240, 860, 1380], matchNames: [], markerHeight: 16 },
+            { id: 'acceso', label: 'Accesos', description: 'Ubica la llegada al complejo y comienza el recorrido desde los accesos principales.', target: [-380, 0, 260], camera: [-680, 360, 520], matchNames: ['acceso', 'entrada'], markerHeight: 16 },
+            { id: 'alberca', label: 'Centro acuático', description: 'Referencia para llegar a la zona de alberca y actividades acuáticas.', target: [-260, 0, -250], camera: [-620, 330, -80], matchNames: ['alberca', 'acuatico', 'pool'], markerHeight: 16 },
+            { id: 'gimnasio', label: 'Gimnasio', description: 'Zona de actividad física y entrenamiento.', target: [230, 0, -220], camera: [620, 340, -60], matchNames: ['gimnasio', 'gym'], markerHeight: 42 },
+            { id: 'canchas', label: 'Canchas', description: 'Área deportiva abierta para actividades y encuentros.', target: [380, 0, 220], camera: [760, 390, 520], matchNames: ['canchas', 'cancha', 'futbol', 'basquet'], markerHeight: 16 },
+            { id: 'cultura', label: 'Casas culturales', description: 'Espacios para talleres, aprendizaje e intercambio comunitario.', target: [-70, 0, 330], camera: [320, 320, 720], matchNames: ['cultura', 'cultural', 'casa'], markerHeight: 16 },
+            { id: 'cuidados', label: 'Cuidados', description: 'Servicios del Sistema Público de Cuidados dentro de la UTOPÍA.', target: [280, 0, 20], camera: [660, 330, 290], matchNames: ['cuidados', 'servicios'], markerHeight: 16 }
+        ].map((zone) => ({
+            ...zone,
+            cameraOffset: zone.camera.map((value, index) => value - zone.target[index]),
+        }));
 
         let model = null;
         let labelsVisible = true;
         let selectedZone = zones[0];
         const labelItems = [];
+        const roofHints = ['lamina', 'techo', 'techumbre', 'cubierta', 'tela'];
 
         function fitModel(root) {
             const box = new THREE.Box3().setFromObject(root);
@@ -269,13 +272,18 @@
 
                 child.castShadow = true;
                 child.receiveShadow = true;
+                const hierarchyName = getHierarchyName(child);
+                const isRoof = roofHints.some((hint) => hierarchyName.includes(hint));
 
                 child.material = new THREE.MeshStandardMaterial({
-                    color: 0xf2f3f5,
-                    roughness: .86,
+                    color: isRoof ? 0xdbeafe : 0xf2f3f5,
+                    roughness: isRoof ? .35 : .86,
                     metalness: 0,
-                    emissive: 0xffffff,
-                    emissiveIntensity: .06,
+                    emissive: isRoof ? 0x93c5fd : 0xffffff,
+                    emissiveIntensity: isRoof ? .18 : .06,
+                    transparent: isRoof,
+                    opacity: isRoof ? .04 : 1,
+                    depthWrite: !isRoof,
                     side: THREE.DoubleSide
                 });
 
@@ -285,9 +293,9 @@
                 const edges = new THREE.LineSegments(
                     new THREE.EdgesGeometry(geometry, 36),
                     new THREE.LineBasicMaterial({
-                        color: 0x9ca3af,
+                        color: isRoof ? 0x7dd3fc : 0x9ca3af,
                         transparent: true,
-                        opacity: .42
+                        opacity: isRoof ? .1 : .42
                     })
                 );
                 edges.name = `${child.name || 'mesh'}_architectural_edges`;
@@ -297,9 +305,78 @@
             });
         }
 
+        function normalizeName(value) {
+            return (value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+        }
+
+        function getHierarchyName(object) {
+            const parts = [];
+            let current = object;
+
+            while (current) {
+                if (current.name) {
+                    parts.push(current.name);
+                }
+                current = current.parent;
+            }
+
+            return normalizeName(parts.join(' '));
+        }
+
+        function getObjectWorldCenter(object) {
+            const box = new THREE.Box3().setFromObject(object);
+            const center = box.getCenter(new THREE.Vector3());
+
+            if (!Number.isFinite(center.x) || !Number.isFinite(center.y) || !Number.isFinite(center.z)) {
+                return object.getWorldPosition(new THREE.Vector3());
+            }
+
+            return center;
+        }
+
+        function resolveZoneAnchors(root) {
+            const namedObjects = [];
+            const terrainObject = root.getObjectByName('Terreno');
+
+            root.traverse((child) => {
+                if (!child.name) return;
+                namedObjects.push({
+                    object: child,
+                    normalizedName: normalizeName(child.name),
+                });
+            });
+
+            zones.forEach((zone) => {
+                if (!zone.matchNames.length) return;
+
+                const match = namedObjects.find(({ normalizedName }) =>
+                    zone.matchNames.some((hint) => normalizedName.includes(normalizeName(hint)))
+                );
+
+                if (!match) return;
+
+                const center = getObjectWorldCenter(match.object);
+                zone.target = [center.x, center.y, center.z];
+                zone.camera = zone.target.map((value, index) => value + zone.cameraOffset[index]);
+            });
+
+            const accessZone = zones.find((zone) => zone.id === 'acceso');
+            if (accessZone && terrainObject) {
+                const terrainBox = new THREE.Box3().setFromObject(terrainObject);
+                const edgeX = terrainBox.min.x + (terrainBox.max.x - terrainBox.min.x) * .12;
+                const edgeZ = terrainBox.min.z + (terrainBox.max.z - terrainBox.min.z) * .78;
+
+                accessZone.target = [edgeX, terrainBox.max.y, edgeZ];
+                accessZone.camera = accessZone.target.map((value, index) => value + accessZone.cameraOffset[index]);
+            }
+        }
+
         function createMarker(zone) {
             const group = new THREE.Group();
-            group.position.set(zone.target[0], 16, zone.target[2]);
+            group.position.set(zone.target[0], zone.target[1] + (zone.markerHeight || 16), zone.target[2]);
 
             const pin = new THREE.Mesh(
                 new THREE.CylinderGeometry(10, 10, 7, 32),
@@ -380,6 +457,7 @@
                 fitModel(model);
                 applyArchitecturalModelStyle(model);
                 scene.add(model);
+                resolveZoneAnchors(model);
                 zones.filter((zone) => zone.id !== 'overview').forEach(createMarker);
                 selectZone(zones[0]);
                 loading.classList.add('is-hidden');

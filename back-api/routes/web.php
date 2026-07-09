@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminEventController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ZoneController;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
 // ──────────────────────────────────────────────
@@ -20,9 +21,27 @@ Route::get('/utopia-japon/mapa-3d', function () {
 })->name('utopias.japon.map3d');
 
 Route::get('/utopia-japon/assets/modelo.glb', function () {
-    $modelPath = public_path('japonutopia_capasrenovadas.glb');
+    $candidatePaths = [
+        public_path('japonutopia_capasrenovadas.glb'),
+        public_path('models/japonutopia_capasrenovadas.glb'),
+        public_path('assets/japonutopia_capasrenovadas.glb'),
+        base_path('../public/japonutopia_capasrenovadas.glb'),
+        base_path('../public/models/japonutopia_capasrenovadas.glb'),
+        base_path('../public/assets/japonutopia_capasrenovadas.glb'),
+    ];
 
-    abort_unless(is_file($modelPath), 404);
+    $modelPath = collect($candidatePaths)
+        ->first(fn (string $path) => is_file($path));
+
+    if (! $modelPath) {
+        $modelPath = collect(File::allFiles(public_path()))
+            ->first(function (\SplFileInfo $file) {
+                return strtolower($file->getExtension()) === 'glb';
+            })
+            ?->getPathname();
+    }
+
+    abort_unless($modelPath && is_file($modelPath), 404);
 
     return response()->file($modelPath, [
         'Content-Type' => 'model/gltf-binary',
