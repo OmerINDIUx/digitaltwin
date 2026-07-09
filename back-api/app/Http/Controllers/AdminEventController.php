@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Zone;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 
 class AdminEventController extends Controller
@@ -39,6 +40,7 @@ class AdminEventController extends Controller
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('events', 'public');
+            $this->mirrorToPublicStorage($path);
             $data['image'] = '/storage/' . $path;
         }
 
@@ -63,9 +65,14 @@ class AdminEventController extends Controller
         if ($request->hasFile('image')) {
             // Eliminar anterior si existe
             if ($event->image && !str_contains($event->image, 'http')) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $event->image));
+                $oldImagePath = preg_replace('#^/?storage/#', '', (string) $event->getRawOriginal('image'));
+                if ($oldImagePath) {
+                    Storage::disk('public')->delete($oldImagePath);
+                    $this->deletePublicStorageMirror($oldImagePath);
+                }
             }
             $path = $request->file('image')->store('events', 'public');
+            $this->mirrorToPublicStorage($path);
             $data['image'] = '/storage/' . $path;
         }
 
@@ -110,6 +117,7 @@ class AdminEventController extends Controller
         foreach ($event->attachments ?? [] as $attachment) {
             if (!empty($attachment['path'])) {
                 Storage::disk('public')->delete($attachment['path']);
+                $this->deletePublicStorageMirror($attachment['path']);
             }
         }
 
@@ -125,6 +133,7 @@ class AdminEventController extends Controller
 
         return collect($request->file('attachments'))->map(function ($file) {
             $path = $file->store('events/attachments', 'public');
+            $this->mirrorToPublicStorage($path);
 
             return [
                 'name' => $file->getClientOriginalName(),
@@ -146,6 +155,7 @@ class AdminEventController extends Controller
 
                 if ($path && in_array($path, $removePaths, true)) {
                     Storage::disk('public')->delete($path);
+                    $this->deletePublicStorageMirror($path);
                     return true;
                 }
 
@@ -155,5 +165,27 @@ class AdminEventController extends Controller
             ->all();
 
         return array_values(array_merge($kept, $newAttachments));
+    }
+
+    private function mirrorToPublicStorage(string $path): void
+    {
+        $source = Storage::disk('public')->path($path);
+        $target = public_path('storage/' . $path);
+
+        if (!is_file($source)) {
+            return;
+        }
+
+        File::ensureDirectoryExists(dirname($target));
+        File::copy($source, $target);
+    }
+
+    private function deletePublicStorageMirror(string $path): void
+    {
+        $target = public_path('storage/' . ltrim($path, '/'));
+
+        if (is_file($target)) {
+            File::delete($target);
+        }
     }
 }

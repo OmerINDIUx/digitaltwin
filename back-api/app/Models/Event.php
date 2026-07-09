@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Event extends Model
 {
@@ -18,6 +19,46 @@ class Event extends Model
         'event_date' => 'datetime',
         'attachments' => 'array',
     ];
+
+    public function getImageAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        if (Str::startsWith($value, ['http://', 'https://'])) {
+            return $value;
+        }
+
+        $path = preg_replace('#^/?storage/#', '', (string) $value);
+
+        return url('storage/' . ltrim((string) $path, '/'));
+    }
+
+    public function getAttachmentsAttribute($value): array
+    {
+        $attachments = is_array($value) ? $value : json_decode((string) $value, true);
+
+        return collect($attachments ?: [])
+            ->map(function ($attachment) {
+                if (!is_array($attachment)) {
+                    return $attachment;
+                }
+
+                $path = $attachment['path'] ?? preg_replace('#^/?storage/#', '', (string) ($attachment['url'] ?? ''));
+                $attachment['path'] = ltrim((string) $path, '/');
+
+                if (!empty($attachment['url']) && Str::startsWith($attachment['url'], ['http://', 'https://'])) {
+                    return $attachment;
+                }
+
+                $attachment['url'] = url('storage/' . $attachment['path']);
+
+                return $attachment;
+            })
+            ->values()
+            ->all();
+    }
 
     public function registrations()
     {
