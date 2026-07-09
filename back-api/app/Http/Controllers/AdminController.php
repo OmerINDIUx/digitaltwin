@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reservation;
+use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -37,6 +38,14 @@ class AdminController extends Controller
             'email'    => 'required|email',
             'password' => 'required',
         ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && Hash::check($request->password, $user->password)) {
+            $request->session()->put('admin_logged_in', true);
+            $request->session()->put('admin_email', $user->email);
+            return redirect()->route('admin.dashboard');
+        }
 
         $adminEmail    = config('app.admin_email', env('ADMIN_EMAIL', 'admin@digitaltwin.mx'));
         $adminPassword = config('app.admin_password', env('ADMIN_PASSWORD', 'utopiajapan2025'));

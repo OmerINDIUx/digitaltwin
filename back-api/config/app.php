@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'admin_email' => env('ADMIN_EMAIL', 'admin@digitaltwin.mx'),
+
+    'admin_password' => env('ADMIN_PASSWORD', 'utopiajapan2025'),
+
     'frontend_url' => env(
         'FRONTEND_URL',
         preg_replace('#/back-api/public/?$#', '', env('APP_URL', 'http://localhost'))
