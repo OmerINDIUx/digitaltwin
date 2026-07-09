@@ -1,16 +1,18 @@
 @props([
     'overlay' => false,
     'theme' => 'light',
+    'overlayWrapperClasses' => '',
+    'overlayPanelClasses' => '',
 ])
 
 @php
     $isDark = $theme === 'dark';
 
     if ($overlay) {
-        $wrapperClasses = 'pointer-events-none fixed inset-x-0 bottom-3 z-[60] flex justify-center px-3';
+        $wrapperClasses = trim('pointer-events-none fixed inset-x-0 bottom-3 z-[60] flex justify-center px-3 ' . $overlayWrapperClasses);
         $panelClasses = $isDark
-            ? 'pointer-events-auto rounded-[1rem] bg-white/80 px-5 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.14)] backdrop-blur-md transition hover:bg-white/88'
-            : 'pointer-events-auto rounded-[1rem] bg-white/90 px-5 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:bg-white';
+            ? trim('pointer-events-auto rounded-[1rem] bg-white/80 px-5 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.14)] backdrop-blur-md transition hover:bg-white/88 ' . $overlayPanelClasses)
+            : trim('pointer-events-auto rounded-[1rem] bg-white/90 px-5 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:bg-white ' . $overlayPanelClasses);
     } else {
         $wrapperClasses = $isDark
             ? 'border-t border-white/8 bg-slate-950 px-4 py-4'
@@ -27,16 +29,16 @@
             href="https://indi-lab.com/"
             target="_blank"
             rel="noopener noreferrer"
-            class="mx-auto flex w-fit flex-col items-center justify-center gap-1.5 text-center transition hover:opacity-80"
+            class="mobile-footer-link mx-auto flex w-fit flex-col items-center justify-center gap-1.5 text-center transition hover:opacity-80"
         >
-            <span class="text-[8px] font-semibold uppercase tracking-[0.24em] {{ $labelClasses }}">
+            <span class="mobile-footer-label text-[8px] font-semibold uppercase tracking-[0.24em] {{ $labelClasses }}">
                 Desarrollado por
             </span>
 
             <img
                 src="{{ asset('INDI Lab - Logo Emergencia.png') }}"
                 alt="INDI Lab"
-                class="h-9 w-auto object-contain"
+                class="mobile-footer-logo h-9 w-auto object-contain"
             >
         </a>
     </div>

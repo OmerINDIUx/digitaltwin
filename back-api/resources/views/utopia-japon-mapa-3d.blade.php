@@ -94,10 +94,65 @@
         @media (max-width: 860px) {
             .panel-info {
                 top: auto;
-                bottom: 16px;
-                left: 16px;
-                right: 16px;
+                bottom: 56px;
+                left: 12px;
+                right: 12px;
                 width: auto;
+                max-height: 24vh;
+                padding: 12px;
+                overflow-y: auto;
+                border-radius: 22px;
+            }
+
+            .panel-info .panel-kicker {
+                font-size: 9px;
+                letter-spacing: .18em;
+            }
+
+            .panel-info #zone-list {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+                margin-top: 10px;
+            }
+
+            .panel-info .zone-button {
+                min-height: 44px;
+                padding: 8px 6px;
+                font-size: 10px;
+                line-height: 1.15;
+                text-align: center;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .panel-info .panel-summary {
+                display: none;
+            }
+
+            .mobile-footer-bottom {
+                bottom: 8px !important;
+                top: auto !important;
+                justify-content: center;
+            }
+
+            .mobile-footer-bottom .mobile-footer-panel {
+                padding: 6px 12px;
+                border-radius: 999px;
+            }
+
+            .mobile-footer-bottom .mobile-footer-link {
+                gap: 4px;
+            }
+
+            .mobile-footer-bottom .mobile-footer-label {
+                font-size: 7px;
+                letter-spacing: .18em;
+            }
+
+            .mobile-footer-bottom .mobile-footer-logo {
+                height: 20px;
             }
 
             .panel-help {
@@ -133,9 +188,9 @@
     </header>
 
     <aside class="panel panel-info bottom-4 left-4 right-4 rounded-2xl p-4 md:bottom-6 md:left-6 md:right-auto md:w-[390px]">
-        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-violet-200">Cómo llegar dentro del complejo</p>
+        <p class="panel-kicker text-[10px] font-black uppercase tracking-[0.24em] text-violet-200">Cómo llegar dentro del complejo</p>
         <div id="zone-list" class="mt-3 grid grid-cols-2 gap-2"></div>
-        <div class="mt-4 rounded-2xl bg-white/10 p-4">
+        <div class="panel-summary mt-4 rounded-2xl bg-white/10 p-4">
             <h2 id="zone-title" class="text-lg font-black">Vista general</h2>
             <p id="zone-description" class="mt-1 text-sm font-semibold leading-6 text-white/72">
                 Explora el modelo real de UTOPÍA Japón. Selecciona una zona para enfocar la cámara.
@@ -494,6 +549,11 @@
 
         animate();
     </script>
-    @include('partials.indi-footer', ['overlay' => true, 'theme' => 'dark'])
+    @include('partials.indi-footer', [
+        'overlay' => true,
+        'theme' => 'dark',
+        'overlayWrapperClasses' => 'mobile-footer-bottom',
+        'overlayPanelClasses' => 'mobile-footer-panel',
+    ])
 </body>
 </html>
